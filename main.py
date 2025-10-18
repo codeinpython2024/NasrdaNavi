@@ -26,31 +26,40 @@ except Exception as e:
     logger.error(f"Error loading POIs: {e}")
 
 # Load roads
+G = nx.Graph()
+nodes = []
+tree = None
+
 try:
     roads = gpd.read_file(app.config['ROADS_FILE'])
     logger.info(f"Loaded {len(roads)} road segments")
+    
+    # Build network graph
+    for _, row in roads.iterrows():
+        if isinstance(row.geometry, LineString):
+            coords = list(row.geometry.coords)
+            road_name = row.get("name", "Unnamed Road")
+            for i in range(len(coords) - 1):
+                p1, p2 = coords[i], coords[i + 1]
+                length_m = LineString([p1, p2]).length * 111_139
+                G.add_edge(p1, p2, weight=length_m, road_name=road_name)
+                nodes.extend([p1, p2])
+    
+    if nodes:
+        unique_nodes = list(set(nodes))
+        tree = cKDTree(unique_nodes)
+        logger.info(f"Built graph with {len(unique_nodes)} nodes")
+    else:
+        logger.warning("No nodes found in road network")
+        unique_nodes = []
+        
 except Exception as e:
     logger.error(f"Error loading roads: {e}")
-    roads = gpd.GeoDataFrame()
-
-# Build a network graph
-G = nx.Graph()
-nodes = []
-
-for _, row in roads.iterrows():
-    if isinstance(row.geometry, LineString):
-        coords = list(row.geometry.coords)
-        road_name = row.get("name", "Unnamed Road")
-        for i in range(len(coords) - 1):
-            p1, p2 = coords[i], coords[i + 1]
-            length_m = LineString([p1, p2]).length * 111_139  # deg → meters
-            G.add_edge(p1, p2, weight=length_m, road_name=road_name)
-            nodes.extend([p1, p2])
-
-unique_nodes = list(set(nodes))
-tree = cKDTree(unique_nodes)
+    unique_nodes = []
 
 def snap_to_graph(lon, lat):
+    if tree is None or not unique_nodes:
+        return (lon, lat)
     _, idx = tree.query((lon, lat))
     return unique_nodes[idx]
 
@@ -186,5 +195,6 @@ def route():
         return jsonify({"error": "Routing failed"}), 500
 
 if __name__ == "__main__":
-    app.run(debug=app.config['DEBUG'], host='0.0.0.0', port=5000)
+    port = int(os.getenv('PORT', 5001))
+    app.run(debug=app.config['DEBUG'], host='0.0.0.0', port=port)
 
