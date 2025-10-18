@@ -25,38 +25,6 @@ try:
 except Exception as e:
     logger.error(f"Error loading POIs: {e}")
 
-# Define haversine_distance before using it
-def haversine_distance(p1: tuple, p2: tuple) -> float:
-    """
-    Calculate accurate distance between two points using Haversine formula.
-    
-    Args:
-        p1: (longitude, latitude) tuple for point 1
-        p2: (longitude, latitude) tuple for point 2
-    
-    Returns:
-        Distance in meters
-    """
-    lon1, lat1 = p1
-    lon2, lat2 = p2
-    
-    # Earth's radius in meters
-    R = 6371000
-    
-    # Convert to radians
-    lat1_rad = math.radians(lat1)
-    lat2_rad = math.radians(lat2)
-    delta_lat = math.radians(lat2 - lat1)
-    delta_lon = math.radians(lon2 - lon1)
-    
-    # Haversine formula
-    a = (math.sin(delta_lat / 2) ** 2 + 
-         math.cos(lat1_rad) * math.cos(lat2_rad) * 
-         math.sin(delta_lon / 2) ** 2)
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    
-    return R * c
-
 # Load roads
 G = nx.Graph()
 nodes = []
@@ -92,6 +60,37 @@ try:
 except Exception as e:
     logger.error(f"Error loading roads: {e}")
     unique_nodes = []
+
+def haversine_distance(p1: tuple, p2: tuple) -> float:
+    """
+    Calculate accurate distance between two points using Haversine formula.
+    
+    Args:
+        p1: (longitude, latitude) tuple for point 1
+        p2: (longitude, latitude) tuple for point 2
+    
+    Returns:
+        Distance in meters
+    """
+    lon1, lat1 = p1
+    lon2, lat2 = p2
+    
+    # Earth's radius in meters
+    R = 6371000
+    
+    # Convert to radians
+    lat1_rad = math.radians(lat1)
+    lat2_rad = math.radians(lat2)
+    delta_lat = math.radians(lat2 - lat1)
+    delta_lon = math.radians(lon2 - lon1)
+    
+    # Haversine formula
+    a = (math.sin(delta_lat / 2) ** 2 + 
+         math.cos(lat1_rad) * math.cos(lat2_rad) * 
+         math.sin(delta_lon / 2) ** 2)
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    
+    return R * c
 
 def snap_to_graph(lon, lat):
     if tree is None or not unique_nodes:
@@ -200,10 +199,85 @@ def generate_turn_instructions(path):
         instruction_coords.append(len(path) - 1)
 
     return instructions, total_distance, instruction_coords
+def generate_turn_instructions(path):
+    """Produce clear, distance-aware turn-by-turn instructions with coordinate mapping."""
+    instructions = []
+    instruction_coords = []  # Track which coordinate each instruction corresponds to
+    total_distance = 0.0
+    segment_distance = 0.0
 
+    if len(path) < 2:
+        return ["You are already at your destination."], 0, [0]
 
-@app.route("/")
-def index():
+    # Get initial road and bearing
+    current_road = G.get_edge_data(path[0], path[1])["road_name"]
+    initial_bearing = calculate_bearing(path[0], path[1])
+    initial_direction = bearing_to_direction(initial_bearing)
+    
+    # Add initial instruction
+    instructions.append(f"Head {initial_direction} on {current_road}.")
+    instruction_coords.append(0)
+
+    for i in range(len(path) - 1):
+        edge_data = G.get_edge_data(path[i], path[i + 1])
+        road_name = edge_data["road_name"] if edge_data else "Unnamed Road"
+        dist = edge_data["weight"] if edge_data else 0
+        segment_distance += dist
+        total_distance += dist
+
+        # If there's a next step, analyze turn
+        if i < len(path) - 2:
+            prev_bearing = calculate_bearing(path[i], path[i + 1])
+            next_bearing = calculate_bearing(path[i + 1], path[i + 2])
+            diff = (next_bearing - prev_bearing + 180) % 360 - 180  # normalize angle
+
+            turn = turn_direction(diff)
+            next_road = G.get_edge_data(path[i + 1], path[i + 2])["road_name"]
+
+            # Add instruction if significant turn or road change
+            should_add_instruction = False
+            instruction_text = ""
+            
+            if turn != "continue straight":
+                # Significant turn
+                should_add_instruction = True
+                if next_road != current_road:
+                    instruction_text = f"In {int(segment_distance)} m, {turn} onto {next_road}."
+                else:
+                    instruction_text = f"In {int(segment_distance)} m, {turn} to stay on {current_road}."
+            elif next_road != current_road:
+                # Road name changes but going straight
+                should_add_instruction = True
+                instruction_text = f"In {int(segment_distance)} m, continue onto {next_road}."
+            
+            if should_add_instruction and segment_distance > 2:  # Lower threshold to 2m
+                instructions.append(instruction_text)
+                instruction_coords.append(i + 1)
+                current_road = next_road
+                segment_distance = 0.0
+
+    # Final segment
+    if segment_distance > 0:
+        instructions.append(f"Continue for {int(segment_distance)} m to arrive at your destination.")
+        instruction_coords.append(len(path) - 1)
+
+    return instructions, total_distance, instruction_coords
+                # Road name changes but going straight
+                should_add_instruction = True
+                instruction_text = f"In {int(segment_distance)} m, continue onto {next_road}."
+            
+            if should_add_instruction and segment_distance > 2:  # Lower threshold to 2m
+                instructions.append(instruction_text)
+                instruction_coords.append(i + 1)
+                current_road = next_road
+                segment_distance = 0.0
+
+    # Final segment
+    if segment_distance > 0:
+        instructions.append(f"Continue for {int(segment_distance)} m to arrive at your destination.")
+        instruction_coords.append(len(path) - 1)
+
+    return instructions, total_distance, instruction_coords
     return render_template("index.html")
 
 @app.route("/api/search")
@@ -304,3 +378,4 @@ def route():
 if __name__ == "__main__":
     port = int(os.getenv('PORT', 5001))
     app.run(debug=app.config['DEBUG'], host='0.0.0.0', port=port)
+
