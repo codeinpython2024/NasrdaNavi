@@ -1,56 +1,955 @@
 {
   "buildings": [
     {
-      "id": "admin",
-      "name": "Administration Building",
-      "department": "Administration",
+      "id": "building-1",
+      "name": "Building 1",
       "type": "office",
-      "coordinates": [7.5, 8.5],
-      "entrance": [7.5001, 8.5001],
+      "coordinates": [
+        7.3885103442560895,
+        8.988555692844248
+      ],
+      "entrance": [
+        7.388618900544886,
+        8.988567099349108
+      ],
       "accessible": true,
-      "hours": "8:00-17:00",
-      "rooms": ["101", "102", "103", "201", "202"],
-      "description": "Main administrative offices"
+      "area_sqm": 3238
     },
     {
-      "id": "research",
-      "name": "Research Center",
-      "department": "Research & Development",
-      "type": "lab",
-      "coordinates": [7.502, 8.501],
-      "entrance": [7.5021, 8.5011],
+      "id": "building-2",
+      "name": "National Space Research and Development Agency",
+      "type": "office",
+      "coordinates": [
+        7.386981060509974,
+        8.989791566411913
+      ],
+      "entrance": [
+        7.386958499623269,
+        8.990100700479003
+      ],
       "accessible": true,
-      "hours": "24/7",
-      "rooms": ["Lab-A", "Lab-B", "Lab-C"],
-      "description": "Primary research facilities"
+      "area_sqm": 1851,
+      "department": "NASRDA Headquarters"
     },
     {
-      "id": "cafeteria",
-      "name": "Staff Cafeteria",
-      "department": "Facilities",
-      "type": "amenity",
-      "coordinates": [7.499, 8.499],
-      "entrance": [7.4991, 8.4991],
+      "id": "building-3",
+      "name": "Building 3",
+      "type": "office",
+      "coordinates": [
+        7.3887516502063235,
+        8.987169749643451
+      ],
+      "entrance": [
+        7.388835900564025,
+        8.987143599878161
+      ],
       "accessible": true,
-      "hours": "7:00-19:00",
-      "description": "Main dining facility"
+      "area_sqm": 187
+    },
+    {
+      "id": "building-4",
+      "name": "Building 4",
+      "type": "office",
+      "coordinates": [
+        7.385684347289074,
+        8.989595835586286
+      ],
+      "entrance": [
+        7.385772199763737,
+        8.989508999665455
+      ],
+      "accessible": true,
+      "area_sqm": 226
+    },
+    {
+      "id": "building-5",
+      "name": "Building 5",
+      "type": "office",
+      "coordinates": [
+        7.388734086238088,
+        8.98808331748469
+      ],
+      "entrance": [
+        7.388893400095968,
+        8.988067899146486
+      ],
+      "accessible": true,
+      "area_sqm": 497
+    },
+    {
+      "id": "building-6",
+      "name": "Building 6",
+      "type": "office",
+      "coordinates": [
+        7.386092264211536,
+        8.989847648179143
+      ],
+      "entrance": [
+        7.38623080035254,
+        8.989758899586722
+      ],
+      "accessible": true,
+      "area_sqm": 573
+    },
+    {
+      "id": "building-7",
+      "name": "Centre for Atmospheric Research",
+      "type": "office",
+      "coordinates": [
+        7.386437883016884,
+        8.992110474364248
+      ],
+      "entrance": [
+        7.3865517998473695,
+        8.992058299532019
+      ],
+      "accessible": true,
+      "area_sqm": 302,
+      "department": "Research Division"
+    },
+    {
+      "id": "building-8",
+      "name": "Space Museum",
+      "type": "museum",
+      "coordinates": [
+        7.386445499482661,
+        8.98810564997999
+      ],
+      "entrance": [
+        7.3866429994987,
+        8.988029899623397
+      ],
+      "accessible": true,
+      "area_sqm": 735,
+      "department": "Public Affairs"
+    },
+    {
+      "id": "building-9",
+      "name": "Strategic Space Application (SSA)",
+      "type": "office",
+      "coordinates": [
+        7.385806694843649,
+        8.990666272081866
+      ],
+      "entrance": [
+        7.38595059973082,
+        8.990467200103955
+      ],
+      "accessible": true,
+      "area_sqm": 1195,
+      "department": "Strategic Applications"
+    },
+    {
+      "id": "building-10",
+      "name": "Building 10",
+      "type": "office",
+      "coordinates": [
+        7.389275472206309,
+        8.988208650251215
+      ],
+      "entrance": [
+        7.389302199342623,
+        8.988148499336743
+      ],
+      "accessible": true,
+      "area_sqm": 89
+    },
+    {
+      "id": "building-11",
+      "name": "Building 11",
+      "type": "office",
+      "coordinates": [
+        7.388880450072089,
+        8.988300149350497
+      ],
+      "entrance": [
+        7.388921200273762,
+        8.98828459939451
+      ],
+      "accessible": true,
+      "area_sqm": 44
+    },
+    {
+      "id": "building-12",
+      "name": "Building 12",
+      "type": "office",
+      "coordinates": [
+        7.385995300377431,
+        8.991660099527264
+      ],
+      "entrance": [
+        7.386021900508273,
+        8.99165659977952
+      ],
+      "accessible": true,
+      "area_sqm": 15
+    },
+    {
+      "id": "building-13",
+      "name": "Building 13",
+      "type": "office",
+      "coordinates": [
+        7.387234666773141,
+        8.990743023041286
+      ],
+      "entrance": [
+        7.387407199920157,
+        8.990882299809059
+      ],
+      "accessible": true,
+      "area_sqm": 662
+    },
+    {
+      "id": "building-14",
+      "name": "Building 14",
+      "type": "office",
+      "coordinates": [
+        7.3850613499860565,
+        8.988644749239885
+      ],
+      "entrance": [
+        7.385123599921454,
+        8.988637999670921
+      ],
+      "accessible": true,
+      "area_sqm": 92
+    },
+    {
+      "id": "building-15",
+      "name": "Building 15",
+      "type": "office",
+      "coordinates": [
+        7.38345433800487,
+        8.99192891839291
+      ],
+      "entrance": [
+        7.3834787001153295,
+        8.991977199703797
+      ],
+      "accessible": true,
+      "area_sqm": 76
+    },
+    {
+      "id": "building-16",
+      "name": "Building 16",
+      "type": "office",
+      "coordinates": [
+        7.389020949858534,
+        8.987708349581709
+      ],
+      "entrance": [
+        7.389064199994938,
+        8.987664299860668
+      ],
+      "accessible": true,
+      "area_sqm": 47
+    },
+    {
+      "id": "building-17",
+      "name": "Building 17",
+      "type": "office",
+      "coordinates": [
+        7.384646144676867,
+        8.988986518244511
+      ],
+      "entrance": [
+        7.384678699411882,
+        8.988974799345183
+      ],
+      "accessible": true,
+      "area_sqm": 28
+    },
+    {
+      "id": "building-18",
+      "name": "Building 18",
+      "type": "office",
+      "coordinates": [
+        7.38853200014572,
+        8.989738449607524
+      ],
+      "entrance": [
+        7.388636000287642,
+        8.989805299776803
+      ],
+      "accessible": true,
+      "area_sqm": 362
+    },
+    {
+      "id": "building-19",
+      "name": "Building 19",
+      "type": "office",
+      "coordinates": [
+        7.387298461547614,
+        8.991374200371496
+      ],
+      "entrance": [
+        7.387406800118193,
+        8.991370500031058
+      ],
+      "accessible": true,
+      "area_sqm": 476
+    },
+    {
+      "id": "building-20",
+      "name": "Building 20",
+      "type": "office",
+      "coordinates": [
+        7.389289561795823,
+        8.98770811601128
+      ],
+      "entrance": [
+        7.389404600521989,
+        8.987714299720468
+      ],
+      "accessible": true,
+      "area_sqm": 182
+    },
+    {
+      "id": "building-21",
+      "name": "Building 21",
+      "type": "office",
+      "coordinates": [
+        7.387194177030691,
+        8.989574633621352
+      ],
+      "entrance": [
+        7.387291300063016,
+        8.989568199908641
+      ],
+      "accessible": true,
+      "area_sqm": 170
+    },
+    {
+      "id": "building-22",
+      "name": "Building 22",
+      "type": "office",
+      "coordinates": [
+        7.383806449949572,
+        8.990699349714024
+      ],
+      "entrance": [
+        7.383848899784999,
+        8.990691500039466
+      ],
+      "accessible": true,
+      "area_sqm": 31
+    },
+    {
+      "id": "building-23",
+      "name": "Building 23",
+      "type": "office",
+      "coordinates": [
+        7.3877142999835765,
+        8.991332049482297
+      ],
+      "entrance": [
+        7.387742400489975,
+        8.991302998991857
+      ],
+      "accessible": true,
+      "area_sqm": 39
+    },
+    {
+      "id": "building-24",
+      "name": "Building 24",
+      "type": "office",
+      "coordinates": [
+        7.385429329656982,
+        8.990936994968699
+      ],
+      "entrance": [
+        7.385626100024045,
+        8.990902099880259
+      ],
+      "accessible": true,
+      "area_sqm": 625
+    },
+    {
+      "id": "building-25",
+      "name": "Building 25",
+      "type": "office",
+      "coordinates": [
+        7.385891418285396,
+        8.991823211478772
+      ],
+      "entrance": [
+        7.385949700256199,
+        8.991759900160055
+      ],
+      "accessible": true,
+      "area_sqm": 212
+    },
+    {
+      "id": "building-26",
+      "name": "Building 26",
+      "type": "office",
+      "coordinates": [
+        7.384218999994082,
+        8.991558499590049
+      ],
+      "entrance": [
+        7.38425879992132,
+        8.991573499631302
+      ],
+      "accessible": true,
+      "area_sqm": 42
+    },
+    {
+      "id": "building-27",
+      "name": "Building 27",
+      "type": "office",
+      "coordinates": [
+        7.386916832411383,
+        8.990822208174238
+      ],
+      "entrance": [
+        7.38714059978897,
+        8.990943399889368
+      ],
+      "accessible": true,
+      "area_sqm": 1438
+    },
+    {
+      "id": "building-28",
+      "name": "Building 28",
+      "type": "office",
+      "coordinates": [
+        7.386995199851111,
+        8.98949424961718
+      ],
+      "entrance": [
+        7.387092500059893,
+        8.98950699983476
+      ],
+      "accessible": true,
+      "area_sqm": 113
+    },
+    {
+      "id": "building-29",
+      "name": "Building 29",
+      "type": "office",
+      "coordinates": [
+        7.386935799852183,
+        8.992348499784175
+      ],
+      "entrance": [
+        7.3870114999708365,
+        8.99238439980168
+      ],
+      "accessible": true,
+      "area_sqm": 161
+    },
+    {
+      "id": "building-30",
+      "name": "Building 30",
+      "type": "office",
+      "coordinates": [
+        7.385940180139374,
+        8.989542882879126
+      ],
+      "entrance": [
+        7.386050700375214,
+        8.989545700094945
+      ],
+      "accessible": true,
+      "area_sqm": 225
+    },
+    {
+      "id": "building-31",
+      "name": "Building 31",
+      "type": "office",
+      "coordinates": [
+        7.384936946881745,
+        8.991541215880906
+      ],
+      "entrance": [
+        7.384974099610393,
+        8.991553000117575
+      ],
+      "accessible": true,
+      "area_sqm": 32
+    },
+    {
+      "id": "building-32",
+      "name": "Building 32",
+      "type": "roof",
+      "coordinates": [
+        7.387847453703231,
+        8.986671158965706
+      ],
+      "entrance": [
+        7.387857099738047,
+        8.986640699990671
+      ],
+      "accessible": true,
+      "area_sqm": 78
+    },
+    {
+      "id": "building-33",
+      "name": "Building 33",
+      "type": "office",
+      "coordinates": [
+        7.387374312106007,
+        8.99107841933697
+      ],
+      "entrance": [
+        7.387589399468585,
+        8.991218799301059
+      ],
+      "accessible": true,
+      "area_sqm": 1491
+    },
+    {
+      "id": "building-34",
+      "name": "Building 34",
+      "type": "office",
+      "coordinates": [
+        7.38936923258614,
+        8.988044124358794
+      ],
+      "entrance": [
+        7.389412099633819,
+        8.988020999854033
+      ],
+      "accessible": true,
+      "area_sqm": 48
+    },
+    {
+      "id": "building-35",
+      "name": "Building 35",
+      "type": "office",
+      "coordinates": [
+        7.386605249906526,
+        8.991809849828941
+      ],
+      "entrance": [
+        7.386645900247499,
+        8.991780400028826
+      ],
+      "accessible": true,
+      "area_sqm": 59
+    },
+    {
+      "id": "building-36",
+      "name": "MPSDM",
+      "type": "office",
+      "coordinates": [
+        7.384621220970412,
+        8.98991466829355
+      ],
+      "entrance": [
+        7.384715099344163,
+        8.990052899354307
+      ],
+      "accessible": true,
+      "area_sqm": 1260,
+      "department": "Mission Planning"
+    },
+    {
+      "id": "building-37",
+      "name": "Building 37",
+      "type": "office",
+      "coordinates": [
+        7.386671659722572,
+        8.991024759474115
+      ],
+      "entrance": [
+        7.386782499907525,
+        8.991007299224389
+      ],
+      "accessible": true,
+      "area_sqm": 433
+    },
+    {
+      "id": "building-38",
+      "name": "Building 38",
+      "type": "office",
+      "coordinates": [
+        7.386577786523071,
+        8.987007589364799
+      ],
+      "entrance": [
+        7.386631100259242,
+        8.986982800387377
+      ],
+      "accessible": true,
+      "area_sqm": 47
+    },
+    {
+      "id": "building-39",
+      "name": "Building 39",
+      "type": "office",
+      "coordinates": [
+        7.389075899590859,
+        8.988167500187611
+      ],
+      "entrance": [
+        7.389100099620105,
+        8.988150800142662
+      ],
+      "accessible": true,
+      "area_sqm": 20
+    },
+    {
+      "id": "building-40",
+      "name": "Building 40",
+      "type": "office",
+      "coordinates": [
+        7.388954800118243,
+        8.988404949794731
+      ],
+      "entrance": [
+        7.3890197003220885,
+        8.988347400071593
+      ],
+      "accessible": true,
+      "area_sqm": 138
+    },
+    {
+      "id": "building-41",
+      "name": "Building 41",
+      "type": "office",
+      "coordinates": [
+        7.3868971585086545,
+        8.992847480920059
+      ],
+      "entrance": [
+        7.386946700135228,
+        8.992835199331479
+      ],
+      "accessible": true,
+      "area_sqm": 60
+    },
+    {
+      "id": "building-42",
+      "name": "Building 42",
+      "type": "office",
+      "coordinates": [
+        7.388733966458631,
+        8.987632633768383
+      ],
+      "entrance": [
+        7.3887760998373535,
+        8.987589199763978
+      ],
+      "accessible": true,
+      "area_sqm": 44
+    },
+    {
+      "id": "building-43",
+      "name": "Building 43",
+      "type": "office",
+      "coordinates": [
+        7.387820499965611,
+        8.988994749499536
+      ],
+      "entrance": [
+        7.387871799787473,
+        8.988986399901647
+      ],
+      "accessible": true,
+      "area_sqm": 63
+    },
+    {
+      "id": "building-44",
+      "name": "Building 44",
+      "type": "office",
+      "coordinates": [
+        7.385947234000824,
+        8.991348664151317
+      ],
+      "entrance": [
+        7.386126000511065,
+        8.99131829983925
+      ],
+      "accessible": true,
+      "area_sqm": 640
+    },
+    {
+      "id": "building-45",
+      "name": "Building 45",
+      "type": "office",
+      "coordinates": [
+        7.385171534649011,
+        8.991778154706783
+      ],
+      "entrance": [
+        7.385275399627023,
+        8.991804900441114
+      ],
+      "accessible": true,
+      "area_sqm": 229
+    },
+    {
+      "id": "building-46",
+      "name": "Building 46",
+      "type": "office",
+      "coordinates": [
+        7.385845891067385,
+        8.991908618353682
+      ],
+      "entrance": [
+        7.385888599426037,
+        8.991900199663425
+      ],
+      "accessible": true,
+      "area_sqm": 42
+    },
+    {
+      "id": "building-47",
+      "name": "Building 47",
+      "type": "office",
+      "coordinates": [
+        7.388080357983965,
+        8.991169628384522
+      ],
+      "entrance": [
+        7.388161900019645,
+        8.991119300185074
+      ],
+      "accessible": true,
+      "area_sqm": 221
+    },
+    {
+      "id": "building-48",
+      "name": "Building 48",
+      "type": "office",
+      "coordinates": [
+        7.388249744073347,
+        8.987032172850244
+      ],
+      "entrance": [
+        7.388205599727076,
+        8.986965199680345
+      ],
+      "accessible": true,
+      "area_sqm": 296
+    },
+    {
+      "id": "building-49",
+      "name": "Building 49",
+      "type": "office",
+      "coordinates": [
+        7.389033699933065,
+        8.988247899725021
+      ],
+      "entrance": [
+        7.389058299963981,
+        8.988242899575937
+      ],
+      "accessible": true,
+      "area_sqm": 14
+    },
+    {
+      "id": "building-50",
+      "name": "Building 50",
+      "type": "office",
+      "coordinates": [
+        7.388402299612138,
+        8.98879209960432
+      ],
+      "entrance": [
+        7.388436599368406,
+        8.988778899482664
+      ],
+      "accessible": true,
+      "area_sqm": 32
+    },
+    {
+      "id": "building-51",
+      "name": "Building 51",
+      "type": "office",
+      "coordinates": [
+        7.388689149991366,
+        8.988935899328453
+      ],
+      "entrance": [
+        7.388761500187421,
+        8.988931400174387
+      ],
+      "accessible": true,
+      "area_sqm": 95
+    },
+    {
+      "id": "building-52",
+      "name": "Building 52",
+      "type": "office",
+      "coordinates": [
+        7.38331234372681,
+        8.991538773658325
+      ],
+      "entrance": [
+        7.383312300190741,
+        8.991539498908871
+      ],
+      "accessible": true,
+      "area_sqm": 0
+    },
+    {
+      "id": "building-53",
+      "name": "Building 53",
+      "type": "office",
+      "coordinates": [
+        7.383365050107916,
+        8.991528749877757
+      ],
+      "entrance": [
+        7.383390499980469,
+        8.991508899524389
+      ],
+      "accessible": true,
+      "area_sqm": 24
+    },
+    {
+      "id": "building-54",
+      "name": "Building 54",
+      "type": "office",
+      "coordinates": [
+        7.383369672293577,
+        8.991465393321917
+      ],
+      "entrance": [
+        7.383396599778396,
+        8.991440999089356
+      ],
+      "accessible": true,
+      "area_sqm": 27
+    },
+    {
+      "id": "building-55",
+      "name": "Building 55",
+      "type": "office",
+      "coordinates": [
+        7.383442384464372,
+        8.991353439236386
+      ],
+      "entrance": [
+        7.383481899579044,
+        8.991247200138838
+      ],
+      "accessible": true,
+      "area_sqm": 174
+    },
+    {
+      "id": "building-56",
+      "name": "Building 56",
+      "type": "office",
+      "coordinates": [
+        7.386823499587451,
+        8.990388400170854
+      ],
+      "entrance": [
+        7.38686479939395,
+        8.990348799727105
+      ],
+      "accessible": true,
+      "area_sqm": 41
+    },
+    {
+      "id": "building-57",
+      "name": "Building 57",
+      "type": "office",
+      "coordinates": [
+        7.385711143792549,
+        8.991229268642606
+      ],
+      "entrance": [
+        7.385757899852281,
+        8.99121329953748
+      ],
+      "accessible": true,
+      "area_sqm": 58
+    },
+    {
+      "id": "building-58",
+      "name": "Building 58",
+      "type": "office",
+      "coordinates": [
+        7.3856862552169895,
+        8.99130533155493
+      ],
+      "entrance": [
+        7.385717500286716,
+        8.991293099711603
+      ],
+      "accessible": true,
+      "area_sqm": 27
+    },
+    {
+      "id": "building-59",
+      "name": "Building 59",
+      "type": "office",
+      "coordinates": [
+        7.386045133003576,
+        8.991604399242535
+      ],
+      "entrance": [
+        7.386076899743279,
+        8.991604199134576
+      ],
+      "accessible": true,
+      "area_sqm": 18
+    },
+    {
+      "id": "building-60",
+      "name": "Building 60",
+      "type": "office",
+      "coordinates": [
+        7.38597729968756,
+        8.991694499571302
+      ],
+      "entrance": [
+        7.386008299753202,
+        8.99169399891852
+      ],
+      "accessible": true,
+      "area_sqm": 18
+    },
+    {
+      "id": "building-61",
+      "name": "Building 61",
+      "type": "office",
+      "coordinates": [
+        7.3865101989082955,
+        8.988414199979163
+      ],
+      "entrance": [
+        7.386511400171038,
+        8.988397000350128
+      ],
+      "accessible": true,
+      "area_sqm": 35
+    },
+    {
+      "id": "building-62",
+      "name": "Building 62",
+      "type": "office",
+      "coordinates": [
+        7.386680577591592,
+        8.986983580989934
+      ],
+      "entrance": [
+        7.386729799984287,
+        8.987000499895755
+      ],
+      "accessible": true,
+      "area_sqm": 36
+    },
+    {
+      "id": "building-63",
+      "name": "Building 63",
+      "type": "office",
+      "coordinates": [
+        7.3869229764932935,
+        8.987876748080105
+      ],
+      "entrance": [
+        7.386962399866152,
+        8.987735899318547
+      ],
+      "accessible": true,
+      "area_sqm": 816
     }
   ],
-  "amenities": [
-    {
-      "id": "parking-main",
-      "name": "Main Parking Lot",
-      "type": "parking",
-      "coordinates": [7.498, 8.502],
-      "accessible": true,
-      "capacity": 100
-    },
-    {
-      "id": "restroom-1",
-      "name": "Public Restroom",
-      "type": "restroom",
-      "coordinates": [7.5005, 8.5005],
-      "accessible": true
-    }
-  ]
+  "amenities": []
 }
