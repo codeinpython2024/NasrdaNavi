@@ -44,13 +44,8 @@ try:
             
             for i in range(len(coords) - 1):
                 p1, p2 = coords[i], coords[i + 1]
-                # Accurate distance calculation accounting for latitude
-                lat_avg = (p1[1] + p2[1]) / 2
-                lon_scale = 111_139 * math.cos(math.radians(lat_avg))
-                lat_scale = 111_139
-                dx = (p2[0] - p1[0]) * lon_scale
-                dy = (p2[1] - p1[1]) * lat_scale
-                length_m = math.sqrt(dx**2 + dy**2)
+                # Accurate Haversine distance calculation
+                length_m = haversine_distance(p1, p2)
                 G.add_edge(p1, p2, weight=length_m, road_name=road_name)
                 nodes.extend([p1, p2])
     
@@ -65,6 +60,37 @@ try:
 except Exception as e:
     logger.error(f"Error loading roads: {e}")
     unique_nodes = []
+
+def haversine_distance(p1: tuple, p2: tuple) -> float:
+    """
+    Calculate accurate distance between two points using Haversine formula.
+    
+    Args:
+        p1: (longitude, latitude) tuple for point 1
+        p2: (longitude, latitude) tuple for point 2
+    
+    Returns:
+        Distance in meters
+    """
+    lon1, lat1 = p1
+    lon2, lat2 = p2
+    
+    # Earth's radius in meters
+    R = 6371000
+    
+    # Convert to radians
+    lat1_rad = math.radians(lat1)
+    lat2_rad = math.radians(lat2)
+    delta_lat = math.radians(lat2 - lat1)
+    delta_lon = math.radians(lon2 - lon1)
+    
+    # Haversine formula
+    a = (math.sin(delta_lat / 2) ** 2 + 
+         math.cos(lat1_rad) * math.cos(lat2_rad) * 
+         math.sin(delta_lon / 2) ** 2)
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    
+    return R * c
 
 def snap_to_graph(lon, lat):
     if tree is None or not unique_nodes:
@@ -204,18 +230,12 @@ def route():
     start_node = snap_to_graph(*start)
     end_node = snap_to_graph(*end)
     
-    # Check if snapping moved points too far (>100m)
-    def distance_m(p1, p2):
-        lat_avg = (p1[1] + p2[1]) / 2
-        lon_scale = 111_139 * math.cos(math.radians(lat_avg))
-        dx = (p2[0] - p1[0]) * lon_scale
-        dy = (p2[1] - p1[1]) * 111_139
-        return math.sqrt(dx**2 + dy**2)
-    
-    if distance_m(start, start_node) > 100:
-        return jsonify({"error": "Start point is too far from any road (>100m)"}), 400
-    if distance_m(end, end_node) > 100:
-        return jsonify({"error": "End point is too far from any road (>100m)"}), 400
+    # Check if snapping moved points too far
+    max_snap = app.config['MAX_SNAP_DISTANCE_M']
+    if haversine_distance(start, start_node) > max_snap:
+        return jsonify({"error": f"Start point is too far from any road (>{max_snap}m)"}), 400
+    if haversine_distance(end, end_node) > max_snap:
+        return jsonify({"error": f"End point is too far from any road (>{max_snap}m)"}), 400
 
     try:
         path = nx.shortest_path(G, source=start_node, target=end_node, weight="weight")
