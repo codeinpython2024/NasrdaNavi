@@ -6,6 +6,24 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 let startMarker, endMarker, routeLayer, stepMarkers = [], poiMarkers = [];
 let gpsWatchId = null;
+let startPoint = null;
+let routingMode = 'set-start'; // 'set-start' or 'ready'
+
+// Update UI to show current mode
+function updateModeUI() {
+  const panel = document.querySelector('.directions');
+  if (routingMode === 'set-start') {
+    panel.innerHTML = `<b>Navigation</b><br>
+      <button id="setStartBtn" style="background:#4CAF50;color:white;padding:8px;border:none;cursor:pointer;border-radius:3px;">Set Start Point</button>
+      <button id="useLocationBtn" style="background:#2196F3;color:white;padding:8px;border:none;cursor:pointer;border-radius:3px;margin-left:5px;">Use My Location</button><br>
+      <small>Click a button above, then click on the map</small>`;
+  } else {
+    panel.innerHTML = `<b>Navigation</b><br>
+      <div style="background:#e8f5e9;padding:5px;border-radius:3px;margin-bottom:5px;">✓ Start point set</div>
+      <button id="changeStartBtn" style="padding:5px;border:1px solid #ccc;background:white;cursor:pointer;">Change Start</button><br>
+      <small>Click a building or point on map for directions</small>`;
+  }
+}
 
 // Search functionality
 const searchInput = document.getElementById('searchInput');
@@ -34,7 +52,15 @@ searchInput.addEventListener('input', function() {
         div.onclick = () => {
           const [lon, lat] = result.coordinates;
           map.setView([lat, lon], 17);
-          L.marker([lat, lon]).addTo(map).bindPopup(result.name).openPopup();
+          
+          // Find the marker and open popup
+          poiMarkers.forEach(marker => {
+            if (Math.abs(marker.getLatLng().lat - lat) < 0.0001 && 
+                Math.abs(marker.getLatLng().lng - lon) < 0.0001) {
+              marker.openPopup();
+            }
+          });
+          
           searchResults.style.display = 'none';
           searchInput.value = result.name;
         };
@@ -51,6 +77,7 @@ fetch('/api/pois')
     // Add building markers
     (data.buildings || []).forEach(building => {
       const [lon, lat] = building.coordinates;
+      const [entLon, entLat] = building.entrance;
       const marker = L.marker([lat, lon], {
         icon: L.divIcon({
           className: 'poi-marker',
@@ -58,7 +85,16 @@ fetch('/api/pois')
           iconSize: [30, 30]
         })
       }).addTo(map);
-      marker.bindPopup(`<strong>${building.name}</strong><br>${building.department}<br><small>${building.hours}</small>`);
+      
+      const popupContent = `
+        <strong>${building.name}</strong><br>
+        ${building.department || ''}<br>
+        <button onclick="routeToBuilding(${entLon}, ${entLat}, '${building.name.replace(/'/g, "\\'")}')" 
+                style="margin-top:5px;padding:5px;background:#2196F3;color:white;border:none;cursor:pointer;border-radius:3px;">
+          Get Directions
+        </button>
+      `;
+      marker.bindPopup(popupContent);
       poiMarkers.push(marker);
     });
 
@@ -73,26 +109,29 @@ fetch('/api/pois')
           iconSize: [30, 30]
         })
       }).addTo(map);
-      marker.bindPopup(`<strong>${amenity.name}</strong>`);
+      
+      const popupContent = `
+        <strong>${amenity.name}</strong><br>
+        <button onclick="routeToBuilding(${lon}, ${lat}, '${amenity.name.replace(/'/g, "\\'")}')" 
+                style="margin-top:5px;padding:5px;background:#2196F3;color:white;border:none;cursor:pointer;border-radius:3px;">
+          Get Directions
+        </button>
+      `;
+      marker.bindPopup(popupContent);
       poiMarkers.push(marker);
     });
+    
+    updateModeUI();
   });
 
 // Directions panel
 const directionsPanel = L.control({ position: 'topright' });
 directionsPanel.onAdd = function() {
   const div = L.DomUtil.create('div', 'directions');
-  div.innerHTML = `
-    <b>Turn-by-Turn Directions</b><br>
-    <button id="clearRoute" style="margin-top:5px;">Clear Route</button><br>
-    Select two points on the map.
-  `;
+  div.innerHTML = '<b>Navigation</b><br>Loading...';
   return div;
 };
 directionsPanel.addTo(map);
-
-let clickCount = 0;
-let startPoint, endPoint;
 
 // Load roads with labels
 fetch('/static/roads.geojson')
@@ -101,7 +140,7 @@ fetch('/static/roads.geojson')
     L.geoJSON(data, {
       style: { color: 'blue', weight: 1 },
       onEachFeature: function (feature, layer) {
-        const name = feature.properties?.name || "Unnamed Road";
+        const name = feature.properties?.name || "Campus Path";
         layer.bindTooltip(name, {
           permanent: false,
           direction: 'center',
@@ -115,143 +154,194 @@ fetch('/static/roads.geojson')
 fetch('/static/buildings.geojson')
   .then(res => res.json())
   .then(data => {
-    L.geoJSON(data, { style: { color: 'red', fillOpacity: 1.0 } }).addTo(map);
+    L.geoJSON(data, { style: { color: 'red', fillOpacity: 0.3 } }).addTo(map);
   });
+
+// Global function for routing to buildings
+window.routeToBuilding = function(lon, lat, name) {
+  if (!startPoint) {
+    alert('Please set a start point first');
+    updateModeUI();
+    return;
+  }
+  
+  const endPoint = { lng: lon, lat: lat };
+  if (endMarker) map.removeLayer(endMarker);
+  endMarker = L.marker([lat, lon]).addTo(map).bindPopup(`End: ${name}`).openPopup();
+  
+  calculateRoute(startPoint, endPoint);
+};
+
+// Calculate and display route
+function calculateRoute(start, end) {
+  const accessible = document.getElementById('accessibleMode').checked;
+  const url = `/route?start=${start.lng},${start.lat}&end=${end.lng},${end.lat}&accessible=${accessible}`;
+  
+  fetch(url)
+    .then(res => {
+      if (!res.ok) {
+        return res.json().then(err => Promise.reject(err));
+      }
+      return res.json();
+    })
+    .then(data => {
+      // Clear previous route and markers
+      if (routeLayer) map.removeLayer(routeLayer);
+      stepMarkers.forEach(m => map.removeLayer(m));
+      stepMarkers = [];
+
+      // Draw new route
+      routeLayer = L.geoJSON(data.route, { style: { color: '#2196F3', weight: 4 } }).addTo(map);
+      map.fitBounds(routeLayer.getBounds());
+
+      // Display directions
+      const panel = document.querySelector('.directions');
+      const minutes = Math.floor(data.estimated_time_seconds / 60);
+      const seconds = data.estimated_time_seconds % 60;
+      panel.innerHTML = `<b>Directions</b><br>
+        <div style="background:#e3f2fd;padding:5px;border-radius:3px;margin-bottom:5px;">
+          Distance: ${data.total_distance_m}m | Time: ${minutes}m ${seconds}s
+        </div>
+        <button id="clearRoute" style="padding:5px;background:#f44336;color:white;border:none;cursor:pointer;border-radius:3px;">Clear Route</button>
+        <button id="changeStartBtn" style="padding:5px;border:1px solid #ccc;background:white;cursor:pointer;border-radius:3px;margin-left:5px;">Change Start</button><br><br>`;
+      data.directions.forEach((step, i) => {
+        panel.innerHTML += `<div style="margin-bottom:5px;"><strong>${i + 1}.</strong> ${step}</div>`;
+      });
+
+      // Voice output
+      const synth = window.speechSynthesis;
+      data.directions.forEach((step, i) => {
+        const utter = new SpeechSynthesisUtterance(step);
+        utter.rate = 1.0;
+        synth.speak(utter);
+      });
+
+      // Setup clear and change start buttons
+      setTimeout(() => {
+        document.getElementById('clearRoute')?.addEventListener('click', clearRoute);
+        document.getElementById('changeStartBtn')?.addEventListener('click', () => {
+          routingMode = 'set-start';
+          clearRoute();
+        });
+      }, 100);
+
+      // GPS tracking (optional)
+      startGPSTracking(data);
+    })
+    .catch(err => {
+      alert("Routing error: " + (err.error || err.message || err));
+    });
+}
+
+// Clear route and markers
+function clearRoute() {
+  if (routeLayer) map.removeLayer(routeLayer);
+  if (endMarker) map.removeLayer(endMarker);
+  stepMarkers.forEach(m => map.removeLayer(m));
+  stepMarkers = [];
+  
+  if (gpsWatchId !== null) {
+    navigator.geolocation.clearWatch(gpsWatchId);
+    gpsWatchId = null;
+  }
+  
+  updateModeUI();
+}
+
+// Set start point
+function setStartPoint(latlng) {
+  startPoint = latlng;
+  if (startMarker) map.removeLayer(startMarker);
+  startMarker = L.marker(startPoint, {
+    icon: L.divIcon({
+      className: 'start-marker',
+      html: '📍',
+      iconSize: [30, 30]
+    })
+  }).addTo(map).bindPopup("Start Point").openPopup();
+  
+  routingMode = 'ready';
+  updateModeUI();
+}
+
+// Use current location as start
+function useMyLocation() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const latlng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setStartPoint(latlng);
+        map.setView([latlng.lat, latlng.lng], 17);
+      },
+      err => alert('Could not get your location: ' + err.message)
+    );
+  } else {
+    alert('Geolocation is not supported by your browser');
+  }
+}
 
 // Handle map clicks
 map.on('click', function(e) {
-  clickCount++;
-
-  if (clickCount === 1) {
-    startPoint = e.latlng;
-    if (startMarker) map.removeLayer(startMarker);
-    startMarker = L.marker(startPoint).addTo(map).bindPopup("Start").openPopup();
-  } else if (clickCount === 2) {
-    endPoint = e.latlng;
+  if (routingMode === 'set-start') {
+    setStartPoint(e.latlng);
+  } else {
+    // Route to clicked point
     if (endMarker) map.removeLayer(endMarker);
-    endMarker = L.marker(endPoint).addTo(map).bindPopup("End").openPopup();
-
-    const accessible = document.getElementById('accessibleMode').checked;
-    const url = `/route?start=${startPoint.lng},${startPoint.lat}&end=${endPoint.lng},${endPoint.lat}&accessible=${accessible}`;
-    fetch(url)
-      .then(res => {
-        if (!res.ok) {
-          return res.json().then(err => Promise.reject(err));
-        }
-        return res.json();
-      })
-      .then(data => {
-
-        // Clear previous route and markers
-        if (routeLayer) map.removeLayer(routeLayer);
-        stepMarkers.forEach(m => map.removeLayer(m));
-        stepMarkers = [];
-
-        // Draw new route
-        routeLayer = L.geoJSON(data.route, { style: { color: 'red', weight: 3 } }).addTo(map);
-        map.fitBounds(routeLayer.getBounds());
-
-        // Show step numbers on map
-        const coords = data.route.geometry.coordinates;
-        const stepCount = Math.min(coords.length, data.directions.length);
-        for (let i = 0; i < stepCount; i++) {
-          const [lon, lat] = coords[i];
-          const marker = L.marker([lat, lon], {
-            icon: L.divIcon({
-              className: 'step-label',
-              html: `<b>${i + 1}</b>`,
-              iconSize: [20, 20]
-            })
-          }).addTo(map);
-          stepMarkers.push(marker);
-        }
-
-        // Display directions
-        const panel = document.querySelector('.directions');
-        const minutes = Math.floor(data.estimated_time_seconds / 60);
-        const seconds = data.estimated_time_seconds % 60;
-        panel.innerHTML = `<b>Turn-by-Turn Directions</b><br>
-          Distance: ${data.total_distance_m}m | Time: ${minutes}m ${seconds}s<br>
-          <button id="clearRoute">Clear Route</button><br>`;
-        data.directions.forEach((step, i) => {
-          panel.innerHTML += `${i + 1}. ${step}<br>`;
-        });
-
-        // Voice output
-        const synth = window.speechSynthesis;
-        data.directions.forEach((step, i) => {
-          const utter = new SpeechSynthesisUtterance(step);
-          utter.rate = 1.0;
-          synth.speak(utter);
-        });
-
-        // Clear previous GPS watcher
-        if (gpsWatchId !== null) {
-          navigator.geolocation.clearWatch(gpsWatchId);
-          gpsWatchId = null;
-        }
-
-        // Live GPS tracking
-        if (navigator.geolocation) {
-          let currentStep = 0;
-          let userMarker = null;
-          
-          gpsWatchId = navigator.geolocation.watchPosition(
-            pos => {
-              const userLatLng = [pos.coords.latitude, pos.coords.longitude];
-              
-              // Remove old marker before adding new one
-              if (userMarker) map.removeLayer(userMarker);
-              userMarker = L.circleMarker(userLatLng, { 
-                radius: 8, 
-                color: 'green', 
-                fillColor: 'green', 
-                fillOpacity: 0.8 
-              }).addTo(map);
-              map.panTo(userLatLng);
-
-              const [targetLon, targetLat] = coords[Math.min(currentStep + 1, coords.length - 1)];
-              const distance = map.distance(userLatLng, [targetLat, targetLon]);
-
-              if (distance < 20 && currentStep < data.directions.length - 1) {
-                currentStep++;
-                const utter = new SpeechSynthesisUtterance(`Next: ${data.directions[currentStep]}`);
-                synth.speak(utter);
-              }
-            },
-            err => console.error('GPS error:', err),
-            { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
-          );
-        }
-
-        // Clear route button
-        document.getElementById('clearRoute').addEventListener('click', () => {
-          if (routeLayer) map.removeLayer(routeLayer);
-          if (startMarker) map.removeLayer(startMarker);
-          if (endMarker) map.removeLayer(endMarker);
-          stepMarkers.forEach(m => map.removeLayer(m));
-          stepMarkers = [];
-          
-          if (gpsWatchId !== null) {
-            navigator.geolocation.clearWatch(gpsWatchId);
-            gpsWatchId = null;
-          }
-          
-          startPoint = endPoint = null;
-          clickCount = 0;
-          const panel = document.querySelector('.directions');
-          panel.innerHTML = '<b>Turn-by-Turn Directions</b><br>Select two points on the map.';
-        });
-      })
-      .catch(err => {
-        alert("Routing error: " + (err.error || err.message || err));
-        clickCount = 0;
-      });
-
-    clickCount = 0;
+    endMarker = L.marker(e.latlng).addTo(map).bindPopup("Destination").openPopup();
+    calculateRoute(startPoint, e.latlng);
   }
 });
 
+// Setup UI button handlers
+document.addEventListener('click', function(e) {
+  if (e.target.id === 'setStartBtn') {
+    routingMode = 'set-start';
+    updateModeUI();
+  } else if (e.target.id === 'changeStartBtn') {
+    routingMode = 'set-start';
+    clearRoute();
+  } else if (e.target.id === 'useLocationBtn') {
+    useMyLocation();
+  }
+});
 
+// GPS tracking function
+function startGPSTracking(data) {
+  if (gpsWatchId !== null) {
+    navigator.geolocation.clearWatch(gpsWatchId);
+    gpsWatchId = null;
+  }
 
+  if (navigator.geolocation) {
+    let currentStep = 0;
+    let userMarker = null;
+    const coords = data.route.geometry.coordinates;
+    
+    gpsWatchId = navigator.geolocation.watchPosition(
+      pos => {
+        const userLatLng = [pos.coords.latitude, pos.coords.longitude];
+        
+        if (userMarker) map.removeLayer(userMarker);
+        userMarker = L.circleMarker(userLatLng, { 
+          radius: 8, 
+          color: 'green', 
+          fillColor: 'green', 
+          fillOpacity: 0.8 
+        }).addTo(map);
+        map.panTo(userLatLng);
 
+        const [targetLon, targetLat] = coords[Math.min(currentStep + 1, coords.length - 1)];
+        const distance = map.distance(userLatLng, [targetLat, targetLon]);
+
+        if (distance < 20 && currentStep < data.directions.length - 1) {
+          currentStep++;
+          const synth = window.speechSynthesis;
+          const utter = new SpeechSynthesisUtterance(`Next: ${data.directions[currentStep]}`);
+          synth.speak(utter);
+        }
+      },
+      err => console.error('GPS error:', err),
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+    );
+  }
+}
