@@ -7,11 +7,13 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 let startMarker, endMarker, routeLayer, stepMarkers = [], poiMarkers = [];
 let gpsWatchId = null;
 let startPoint = null;
-let routingMode = 'set-start'; // 'set-start' or 'ready'
+let routingMode = 'set-start';
 
 // Update UI to show current mode
 function updateModeUI() {
   const panel = document.querySelector('.directions');
+  if (!panel) return; // Safety check
+  
   if (routingMode === 'set-start') {
     panel.innerHTML = `<b>Navigation</b><br>
       <button id="setStartBtn" style="background:#4CAF50;color:white;padding:8px;border:none;cursor:pointer;border-radius:3px;">Set Start Point</button>
@@ -20,10 +22,19 @@ function updateModeUI() {
   } else {
     panel.innerHTML = `<b>Navigation</b><br>
       <div style="background:#e8f5e9;padding:5px;border-radius:3px;margin-bottom:5px;">✓ Start point set</div>
-      <button id="changeStartBtn" style="padding:5px;border:1px solid #ccc;background:white;cursor:pointer;">Change Start</button><br>
+      <button id="changeStartBtn" style="padding:5px;border:1px solid #ccc;background:white;cursor:pointer;border-radius:3px;">Change Start</button><br>
       <small>Click a building or point on map for directions</small>`;
   }
 }
+
+// Directions panel - create first
+const directionsPanel = L.control({ position: 'topright' });
+directionsPanel.onAdd = function() {
+  const div = L.DomUtil.create('div', 'directions');
+  div.innerHTML = '<b>Navigation</b><br>Loading...';
+  return div;
+};
+directionsPanel.addTo(map);
 
 // Search functionality
 const searchInput = document.getElementById('searchInput');
@@ -53,7 +64,6 @@ searchInput.addEventListener('input', function() {
           const [lon, lat] = result.coordinates;
           map.setView([lat, lon], 17);
           
-          // Find the marker and open popup
           poiMarkers.forEach(marker => {
             if (Math.abs(marker.getLatLng().lat - lat) < 0.0001 && 
                 Math.abs(marker.getLatLng().lng - lon) < 0.0001) {
@@ -70,11 +80,49 @@ searchInput.addEventListener('input', function() {
     });
 });
 
+// Load roads
+fetch('/static/roads.geojson')
+  .then(res => res.json())
+  .then(data => {
+    L.geoJSON(data, {
+      style: { color: 'blue', weight: 1 },
+      onEachFeature: function (feature, layer) {
+        const name = feature.properties?.name || "Campus Path";
+        layer.bindTooltip(name, {
+          permanent: false,
+          direction: 'center',
+          className: 'road-label'
+        });
+      }
+    }).addTo(map);
+  });
+
+// Load buildings
+fetch('/static/buildings.geojson')
+  .then(res => res.json())
+  .then(data => {
+    L.geoJSON(data, { style: { color: 'red', fillOpacity: 0.3 } }).addTo(map);
+  });
+
+// Global routing function - define before POI markers use it
+window.routeToBuilding = function(lon, lat, name) {
+  if (!startPoint) {
+    alert('Please set a start point first');
+    updateModeUI();
+    return;
+  }
+  
+  const endPoint = { lng: lon, lat: lat };
+  if (endMarker) map.removeLayer(endMarker);
+  endMarker = L.marker([lat, lon]).addTo(map).bindPopup(`End: ${name}`).openPopup();
+  
+  calculateRoute(startPoint, endPoint);
+};
+
 // Load and display POIs
 fetch('/api/pois')
   .then(res => res.json())
   .then(data => {
-    // Add building markers
     (data.buildings || []).forEach(building => {
       const [lon, lat] = building.coordinates;
       const [entLon, entLat] = building.entrance;
@@ -98,7 +146,6 @@ fetch('/api/pois')
       poiMarkers.push(marker);
     });
 
-    // Add amenity markers
     (data.amenities || []).forEach(amenity => {
       const [lon, lat] = amenity.coordinates;
       const icon = amenity.type === 'parking' ? '🅿️' : amenity.type === 'restroom' ? '🚻' : '📍';
@@ -124,54 +171,6 @@ fetch('/api/pois')
     updateModeUI();
   });
 
-// Directions panel
-const directionsPanel = L.control({ position: 'topright' });
-directionsPanel.onAdd = function() {
-  const div = L.DomUtil.create('div', 'directions');
-  div.innerHTML = '<b>Navigation</b><br>Loading...';
-  return div;
-};
-directionsPanel.addTo(map);
-
-// Load roads with labels
-fetch('/static/roads.geojson')
-  .then(res => res.json())
-  .then(data => {
-    L.geoJSON(data, {
-      style: { color: 'blue', weight: 1 },
-      onEachFeature: function (feature, layer) {
-        const name = feature.properties?.name || "Campus Path";
-        layer.bindTooltip(name, {
-          permanent: false,
-          direction: 'center',
-          className: 'road-label'
-        });
-      }
-    }).addTo(map);
-  });
-
-// Load buildings
-fetch('/static/buildings.geojson')
-  .then(res => res.json())
-  .then(data => {
-    L.geoJSON(data, { style: { color: 'red', fillOpacity: 0.3 } }).addTo(map);
-  });
-
-// Global function for routing to buildings
-window.routeToBuilding = function(lon, lat, name) {
-  if (!startPoint) {
-    alert('Please set a start point first');
-    updateModeUI();
-    return;
-  }
-  
-  const endPoint = { lng: lon, lat: lat };
-  if (endMarker) map.removeLayer(endMarker);
-  endMarker = L.marker([lat, lon]).addTo(map).bindPopup(`End: ${name}`).openPopup();
-  
-  calculateRoute(startPoint, endPoint);
-};
-
 // Calculate and display route
 function calculateRoute(start, end) {
   const accessible = document.getElementById('accessibleMode').checked;
@@ -185,16 +184,13 @@ function calculateRoute(start, end) {
       return res.json();
     })
     .then(data => {
-      // Clear previous route and markers
       if (routeLayer) map.removeLayer(routeLayer);
       stepMarkers.forEach(m => map.removeLayer(m));
       stepMarkers = [];
 
-      // Draw new route
       routeLayer = L.geoJSON(data.route, { style: { color: '#2196F3', weight: 4 } }).addTo(map);
       map.fitBounds(routeLayer.getBounds());
 
-      // Display directions
       const panel = document.querySelector('.directions');
       const minutes = Math.floor(data.estimated_time_seconds / 60);
       const seconds = data.estimated_time_seconds % 60;
@@ -208,15 +204,13 @@ function calculateRoute(start, end) {
         panel.innerHTML += `<div style="margin-bottom:5px;"><strong>${i + 1}.</strong> ${step}</div>`;
       });
 
-      // Voice output
       const synth = window.speechSynthesis;
-      data.directions.forEach((step, i) => {
+      data.directions.forEach(step => {
         const utter = new SpeechSynthesisUtterance(step);
         utter.rate = 1.0;
         synth.speak(utter);
       });
 
-      // Setup clear and change start buttons
       setTimeout(() => {
         document.getElementById('clearRoute')?.addEventListener('click', clearRoute);
         document.getElementById('changeStartBtn')?.addEventListener('click', () => {
@@ -225,7 +219,6 @@ function calculateRoute(start, end) {
         });
       }, 100);
 
-      // GPS tracking (optional)
       startGPSTracking(data);
     })
     .catch(err => {
@@ -233,7 +226,7 @@ function calculateRoute(start, end) {
     });
 }
 
-// Clear route and markers
+// Clear route
 function clearRoute() {
   if (routeLayer) map.removeLayer(routeLayer);
   if (endMarker) map.removeLayer(endMarker);
@@ -264,7 +257,7 @@ function setStartPoint(latlng) {
   updateModeUI();
 }
 
-// Use current location as start
+// Use current location
 function useMyLocation() {
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
@@ -280,19 +273,18 @@ function useMyLocation() {
   }
 }
 
-// Handle map clicks
+// Map click handler
 map.on('click', function(e) {
   if (routingMode === 'set-start') {
     setStartPoint(e.latlng);
   } else {
-    // Route to clicked point
     if (endMarker) map.removeLayer(endMarker);
     endMarker = L.marker(e.latlng).addTo(map).bindPopup("Destination").openPopup();
     calculateRoute(startPoint, e.latlng);
   }
 });
 
-// Setup UI button handlers
+// Button handlers
 document.addEventListener('click', function(e) {
   if (e.target.id === 'setStartBtn') {
     routingMode = 'set-start';
@@ -305,7 +297,7 @@ document.addEventListener('click', function(e) {
   }
 });
 
-// GPS tracking function
+// GPS tracking
 function startGPSTracking(data) {
   if (gpsWatchId !== null) {
     navigator.geolocation.clearWatch(gpsWatchId);
