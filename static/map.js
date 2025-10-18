@@ -242,6 +242,11 @@ function clearRoute() {
     gpsWatchId = null;
   }
   
+  // Stop any ongoing voice guidance
+  if (window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+  }
+  
   updateModeUI();
 }
 
