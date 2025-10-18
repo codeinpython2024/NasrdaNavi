@@ -32,6 +32,10 @@ const directionsPanel = L.control({ position: 'topright' });
 directionsPanel.onAdd = function() {
   const div = L.DomUtil.create('div', 'directions');
   div.innerHTML = '<b>Navigation</b><br>Loading...';
+  
+  // Disable map click propagation for this control
+  L.DomEvent.disableClickPropagation(div);
+  
   return div;
 };
 directionsPanel.addTo(map);
