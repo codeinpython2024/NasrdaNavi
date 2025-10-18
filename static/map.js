@@ -265,7 +265,7 @@ function displayDirections(data) {
         <div id="progress-bar" style="background:#4CAF50;height:100%;width:${(distanceTraveled / data.total_distance_m * 100).toFixed(1)}%;transition:width 0.3s;"></div>
       </div>
     </div>
-    <button onclick="clearRoute()" style="padding:5px;background:#f44336;color:white;border:none;cursor:pointer;border-radius:3px;">Clear Route</button>
+    <button onclick="clearRoute(event)" style="padding:5px;background:#f44336;color:white;border:none;cursor:pointer;border-radius:3px;">Clear Route</button>
     <button onclick="changeStartPoint()" style="padding:5px;border:1px solid #ccc;background:white;cursor:pointer;border-radius:3px;margin-left:5px;">Change Start</button><br><br>`;
 
   if (data.directions && Array.isArray(data.directions)) {
@@ -322,7 +322,12 @@ function updateActiveInstruction(index) {
 }
 
 // Clear route
-window.clearRoute = function () {
+window.clearRoute = function (event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+  
   if (routeLayer) map.removeLayer(routeLayer);
   if (endMarker) map.removeLayer(endMarker);
   if (userMarker) map.removeLayer(userMarker);
