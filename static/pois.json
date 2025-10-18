@@ -1,0 +1,56 @@
+{
+  "buildings": [
+    {
+      "id": "admin",
+      "name": "Administration Building",
+      "department": "Administration",
+      "type": "office",
+      "coordinates": [7.5, 8.5],
+      "entrance": [7.5001, 8.5001],
+      "accessible": true,
+      "hours": "8:00-17:00",
+      "rooms": ["101", "102", "103", "201", "202"],
+      "description": "Main administrative offices"
+    },
+    {
+      "id": "research",
+      "name": "Research Center",
+      "department": "Research & Development",
+      "type": "lab",
+      "coordinates": [7.502, 8.501],
+      "entrance": [7.5021, 8.5011],
+      "accessible": true,
+      "hours": "24/7",
+      "rooms": ["Lab-A", "Lab-B", "Lab-C"],
+      "description": "Primary research facilities"
+    },
+    {
+      "id": "cafeteria",
+      "name": "Staff Cafeteria",
+      "department": "Facilities",
+      "type": "amenity",
+      "coordinates": [7.499, 8.499],
+      "entrance": [7.4991, 8.4991],
+      "accessible": true,
+      "hours": "7:00-19:00",
+      "description": "Main dining facility"
+    }
+  ],
+  "amenities": [
+    {
+      "id": "parking-main",
+      "name": "Main Parking Lot",
+      "type": "parking",
+      "coordinates": [7.498, 8.502],
+      "accessible": true,
+      "capacity": 100
+    },
+    {
+      "id": "restroom-1",
+      "name": "Public Restroom",
+      "type": "restroom",
+      "coordinates": [7.5005, 8.5005],
+      "accessible": true
+    }
+  ]
+}

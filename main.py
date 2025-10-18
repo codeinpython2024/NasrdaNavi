@@ -4,11 +4,34 @@ import networkx as nx
 from shapely.geometry import LineString
 from scipy.spatial import cKDTree
 import math
+import json
+import os
+import logging
+from config import Config
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+app.config.from_object(Config)
 
-# Load your GeoJSON roads file
-roads = gpd.read_file("static/roads.geojson")
+# Load POI data
+pois_data = {}
+try:
+    if os.path.exists(app.config['POIS_FILE']):
+        with open(app.config['POIS_FILE'], 'r') as f:
+            pois_data = json.load(f)
+        logger.info(f"Loaded {len(pois_data.get('buildings', []))} buildings")
+except Exception as e:
+    logger.error(f"Error loading POIs: {e}")
+
+# Load roads
+try:
+    roads = gpd.read_file(app.config['ROADS_FILE'])
+    logger.info(f"Loaded {len(roads)} road segments")
+except Exception as e:
+    logger.error(f"Error loading roads: {e}")
+    roads = gpd.GeoDataFrame()
 
 # Build a network graph
 G = nx.Graph()
@@ -90,10 +113,54 @@ def generate_turn_instructions(path):
 def index():
     return render_template("index.html")
 
+@app.route("/api/search")
+def search():
+    query = request.args.get("q", "").lower().strip()
+    if not query:
+        return jsonify({"results": []})
+    
+    results = []
+    
+    # Search buildings
+    for building in pois_data.get("buildings", []):
+        if (query in building["name"].lower() or 
+            query in building.get("department", "").lower() or
+            any(query in room.lower() for room in building.get("rooms", []))):
+            results.append({
+                "id": building["id"],
+                "name": building["name"],
+                "type": "building",
+                "department": building.get("department"),
+                "coordinates": building["entrance"],
+                "description": building.get("description", "")
+            })
+    
+    # Search amenities
+    for amenity in pois_data.get("amenities", []):
+        if query in amenity["name"].lower() or query in amenity["type"].lower():
+            results.append({
+                "id": amenity["id"],
+                "name": amenity["name"],
+                "type": amenity["type"],
+                "coordinates": amenity["coordinates"]
+            })
+    
+    return jsonify({"results": results[:10]})
+
+@app.route("/api/pois")
+def get_pois():
+    return jsonify(pois_data)
+
 @app.route("/route")
 def route():
-    start = tuple(map(float, request.args.get("start").split(",")))
-    end = tuple(map(float, request.args.get("end").split(",")))
+    try:
+        start = tuple(map(float, request.args.get("start", "").split(",")))
+        end = tuple(map(float, request.args.get("end", "").split(",")))
+        
+        if len(start) != 2 or len(end) != 2:
+            return jsonify({"error": "Invalid coordinates"}), 400
+    except (ValueError, AttributeError):
+        return jsonify({"error": "Invalid coordinate format"}), 400
 
     start_node = snap_to_graph(*start)
     end_node = snap_to_graph(*end)
@@ -102,14 +169,22 @@ def route():
         path = nx.shortest_path(G, source=start_node, target=end_node, weight="weight")
         route_geom = LineString(path)
         directions, total_distance = generate_turn_instructions(path)
+        
+        # Calculate estimated time (average walking speed: 1.4 m/s)
+        estimated_time_seconds = int(total_distance / 1.4)
+        
         return jsonify({
             "route": {"type": "Feature", "geometry": route_geom.__geo_interface__},
             "directions": directions,
-            "total_distance_m": int(total_distance)
+            "total_distance_m": int(total_distance),
+            "estimated_time_seconds": estimated_time_seconds
         })
     except nx.NetworkXNoPath:
-        return jsonify({"error": "No connected road path found — showing direct line."}), 400
+        return jsonify({"error": "No connected road path found"}), 400
+    except Exception as e:
+        logger.error(f"Routing error: {e}")
+        return jsonify({"error": "Routing failed"}), 500
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=app.config['DEBUG'], host='0.0.0.0', port=5000)
 
