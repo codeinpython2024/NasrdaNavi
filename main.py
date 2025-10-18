@@ -38,10 +38,19 @@ try:
     for _, row in roads.iterrows():
         if isinstance(row.geometry, LineString):
             coords = list(row.geometry.coords)
-            road_name = row.get("name", "Unnamed Road")
+            road_name = row.get("name", "").strip()
+            if not road_name or road_name == " ":
+                road_name = f"Campus Path {row.get('OBJECTID', 'Unknown')}"
+            
             for i in range(len(coords) - 1):
                 p1, p2 = coords[i], coords[i + 1]
-                length_m = LineString([p1, p2]).length * 111_139
+                # Accurate distance calculation accounting for latitude
+                lat_avg = (p1[1] + p2[1]) / 2
+                lon_scale = 111_139 * math.cos(math.radians(lat_avg))
+                lat_scale = 111_139
+                dx = (p2[0] - p1[0]) * lon_scale
+                dy = (p2[1] - p1[1]) * lat_scale
+                length_m = math.sqrt(dx**2 + dy**2)
                 G.add_edge(p1, p2, weight=length_m, road_name=road_name)
                 nodes.extend([p1, p2])
     
@@ -69,12 +78,15 @@ def calculate_bearing(p1, p2):
     return math.degrees(math.atan2(lat2 - lat1, lon2 - lon1))
 
 def turn_direction(angle_diff):
-    if abs(angle_diff) < 20:
+    abs_diff = abs(angle_diff)
+    if abs_diff < 30:
         return "Continue straight"
-    elif angle_diff > 20:
-        return "Turn left"
+    elif abs_diff < 45:
+        return "Slight left" if angle_diff > 0 else "Slight right"
+    elif abs_diff < 135:
+        return "Turn left" if angle_diff > 0 else "Turn right"
     else:
-        return "Turn right"
+        return "Make a U-turn"
 
 def generate_turn_instructions(path):
     """Produce clear, distance-aware turn-by-turn instructions."""
@@ -103,17 +115,20 @@ def generate_turn_instructions(path):
             turn = turn_direction(diff)
             next_road = G.get_edge_data(path[i + 1], path[i + 2])["road_name"]
 
-            if turn != "Continue straight":
-                instructions.append(
-                    f"Continue on {current_road} for {int(segment_distance)} m, then {turn.lower()} onto {next_road}."
-                )
-                current_road = next_road
-                segment_distance = 0.0
+            # Only add instruction if road changes or significant turn
+            if turn != "Continue straight" or next_road != current_road:
+                if segment_distance > 5:  # Only if segment is meaningful
+                    instructions.append(
+                        f"Continue on {current_road} for {int(segment_distance)} m, then {turn.lower()} onto {next_road}."
+                    )
+                    current_road = next_road
+                    segment_distance = 0.0
 
     # Final segment
-    instructions.append(
-        f"Continue on {current_road} for {int(segment_distance)} m and arrive at your destination."
-    )
+    if segment_distance > 0:
+        instructions.append(
+            f"Continue on {current_road} for {int(segment_distance)} m and arrive at your destination."
+        )
 
     return instructions, total_distance
 
@@ -165,14 +180,42 @@ def route():
     try:
         start = tuple(map(float, request.args.get("start", "").split(",")))
         end = tuple(map(float, request.args.get("end", "").split(",")))
+        accessible_only = request.args.get("accessible", "false").lower() == "true"
         
         if len(start) != 2 or len(end) != 2:
             return jsonify({"error": "Invalid coordinates"}), 400
     except (ValueError, AttributeError):
-        return jsonify({"error": "Invalid coordinate format"}), 400
+        return jsonify({"error": "Invalid coordinate format. Use: ?start=lon,lat&end=lon,lat"}), 400
+
+    # Validate coordinates are within reasonable campus bounds
+    campus_bounds = {
+        'min_lon': 7.38, 'max_lon': 7.39,
+        'min_lat': 8.98, 'max_lat': 9.00
+    }
+    
+    if not (campus_bounds['min_lon'] <= start[0] <= campus_bounds['max_lon'] and
+            campus_bounds['min_lat'] <= start[1] <= campus_bounds['max_lat']):
+        return jsonify({"error": "Start point is outside campus area"}), 400
+    
+    if not (campus_bounds['min_lon'] <= end[0] <= campus_bounds['max_lon'] and
+            campus_bounds['min_lat'] <= end[1] <= campus_bounds['max_lat']):
+        return jsonify({"error": "End point is outside campus area"}), 400
 
     start_node = snap_to_graph(*start)
     end_node = snap_to_graph(*end)
+    
+    # Check if snapping moved points too far (>100m)
+    def distance_m(p1, p2):
+        lat_avg = (p1[1] + p2[1]) / 2
+        lon_scale = 111_139 * math.cos(math.radians(lat_avg))
+        dx = (p2[0] - p1[0]) * lon_scale
+        dy = (p2[1] - p1[1]) * 111_139
+        return math.sqrt(dx**2 + dy**2)
+    
+    if distance_m(start, start_node) > 100:
+        return jsonify({"error": "Start point is too far from any road (>100m)"}), 400
+    if distance_m(end, end_node) > 100:
+        return jsonify({"error": "End point is too far from any road (>100m)"}), 400
 
     try:
         path = nx.shortest_path(G, source=start_node, target=end_node, weight="weight")
@@ -189,10 +232,10 @@ def route():
             "estimated_time_seconds": estimated_time_seconds
         })
     except nx.NetworkXNoPath:
-        return jsonify({"error": "No connected road path found"}), 400
+        return jsonify({"error": "No path found between these points. They may be on disconnected road segments."}), 400
     except Exception as e:
         logger.error(f"Routing error: {e}")
-        return jsonify({"error": "Routing failed"}), 500
+        return jsonify({"error": "Routing calculation failed. Please try different points."}), 500
 
 if __name__ == "__main__":
     port = int(os.getenv('PORT', 5001))

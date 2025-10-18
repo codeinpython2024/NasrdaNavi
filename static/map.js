@@ -131,14 +131,16 @@ map.on('click', function(e) {
     if (endMarker) map.removeLayer(endMarker);
     endMarker = L.marker(endPoint).addTo(map).bindPopup("End").openPopup();
 
-    const url = `/route?start=${startPoint.lng},${startPoint.lat}&end=${endPoint.lng},${endPoint.lat}`;
+    const accessible = document.getElementById('accessibleMode').checked;
+    const url = `/route?start=${startPoint.lng},${startPoint.lat}&end=${endPoint.lng},${endPoint.lat}&accessible=${accessible}`;
     fetch(url)
-      .then(res => res.json())
-      .then(data => {
-        if (data.error) {
-          alert("Error: " + data.error);
-          return;
+      .then(res => {
+        if (!res.ok) {
+          return res.json().then(err => Promise.reject(err));
         }
+        return res.json();
+      })
+      .then(data => {
 
         // Clear previous route and markers
         if (routeLayer) map.removeLayer(routeLayer);
@@ -198,21 +200,27 @@ map.on('click', function(e) {
             pos => {
               const userLatLng = [pos.coords.latitude, pos.coords.longitude];
               
+              // Remove old marker before adding new one
               if (userMarker) map.removeLayer(userMarker);
-              userMarker = L.circleMarker(userLatLng, { radius: 8, color: 'green', fillColor: 'green', fillOpacity: 0.8 }).addTo(map);
+              userMarker = L.circleMarker(userLatLng, { 
+                radius: 8, 
+                color: 'green', 
+                fillColor: 'green', 
+                fillOpacity: 0.8 
+              }).addTo(map);
               map.panTo(userLatLng);
 
               const [targetLon, targetLat] = coords[Math.min(currentStep + 1, coords.length - 1)];
               const distance = map.distance(userLatLng, [targetLat, targetLon]);
 
-              if (distance < 30 && currentStep < data.directions.length - 1) {
+              if (distance < 20 && currentStep < data.directions.length - 1) {
                 currentStep++;
                 const utter = new SpeechSynthesisUtterance(`Next: ${data.directions[currentStep]}`);
                 synth.speak(utter);
               }
             },
             err => console.error('GPS error:', err),
-            { enableHighAccuracy: true, maximumAge: 5000 }
+            { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
           );
         }
 
@@ -235,7 +243,10 @@ map.on('click', function(e) {
           panel.innerHTML = '<b>Turn-by-Turn Directions</b><br>Select two points on the map.';
         });
       })
-      .catch(err => alert("Routing error: " + err));
+      .catch(err => {
+        alert("Routing error: " + (err.error || err.message || err));
+        clickCount = 0;
+      });
 
     clickCount = 0;
   }
