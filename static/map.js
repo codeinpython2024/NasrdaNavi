@@ -153,7 +153,7 @@ function performSearch() {
             .bindPopup(`${match.name} (${match.type})`)
             .openPopup();
     } else {
-        const layer = L.geoJSON(geom, { style: { color: 'orange', weight: 3 }, tempHighlight: true }).addTo(map);
+        const layer = L.geoJSON(geom, { style: { color: '#016B61', weight: 3 }, tempHighlight: true }).addTo(map);
         map.fitBounds(layer.getBounds());
         layer.bindPopup(`${match.name} (${match.type})`).openPopup();
         setTimeout(() => map.removeLayer(layer), 6000);
@@ -221,7 +221,7 @@ map.on('click', e => {
                 stepMarkers.forEach(m => map.removeLayer(m));
                 stepMarkers = [];
 
-                routeLayer = L.geoJSON(data.route, {style: {color: 'red', weight: 3}}).addTo(map);
+                routeLayer = L.geoJSON(data.route, {style: {color: 'green', weight: 3}}).addTo(map);
                 map.fitBounds(routeLayer.getBounds());
 
                 // Plot markers for each *turn*, but not the final destination
