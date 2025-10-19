@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.config.from_object(Config)
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 # Load POI data
 pois_data = {}

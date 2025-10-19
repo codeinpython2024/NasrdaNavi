@@ -205,6 +205,10 @@ fetch('/api/pois')
 window.routeToBuilding = function (lon, lat, name) {
   if (!startPoint) {
     showToast('Please set a start point first', 'error');
+    // Close any open popups
+    setTimeout(() => {
+      map.closePopup();
+    }, 100);
     updateModeUI();
     return;
   }
