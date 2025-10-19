@@ -58,7 +58,7 @@ def haversine_distance(p1: tuple, p2: tuple) -> float:
     return R * c
 
 # Load roads
-G = nx.Graph()
+G = nx.DiGraph()  # Use directed graph for one-way roads
 nodes = []
 tree = None
 
@@ -74,11 +74,21 @@ try:
             if not road_name or road_name == " ":
                 road_name = f"Campus Path {row.get('OBJECTID', 'Unknown')}"
             
+            oneway = row.get("oneway", "N")
+            
             for i in range(len(coords) - 1):
                 p1, p2 = coords[i], coords[i + 1]
-                # Accurate Haversine distance calculation
                 length_m = haversine_distance(p1, p2)
-                G.add_edge(p1, p2, weight=length_m, road_name=road_name)
+                
+                # Add edges based on one-way restriction
+                if oneway == "F":  # Forward direction only
+                    G.add_edge(p1, p2, weight=length_m, road_name=road_name)
+                elif oneway == "B":  # Backward direction only
+                    G.add_edge(p2, p1, weight=length_m, road_name=road_name)
+                else:  # "N" or any other value = bidirectional
+                    G.add_edge(p1, p2, weight=length_m, road_name=road_name)
+                    G.add_edge(p2, p1, weight=length_m, road_name=road_name)
+                
                 nodes.extend([p1, p2])
     
     if nodes:

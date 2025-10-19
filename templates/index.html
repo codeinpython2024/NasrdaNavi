@@ -96,6 +96,114 @@
           text-align: center;
           font-size: 30px;
         }
+
+        /* Navigation bar at bottom */
+        #nav-bar {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          background: white;
+          padding: 20px;
+          box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
+          z-index: 1001;
+          display: none;
+          animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+          from { transform: translateY(100%); }
+          to { transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+          0% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.7); }
+          70% { box-shadow: 0 0 0 10px rgba(33, 150, 243, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0); }
+        }
+
+        .pulse-marker {
+          animation: pulse 2s infinite;
+        }
+
+        #current-instruction {
+          font-size: 20px;
+          font-weight: bold;
+          color: #333;
+          margin-bottom: 8px;
+        }
+
+        #distance-to-turn {
+          font-size: 16px;
+          color: #666;
+          margin-bottom: 10px;
+        }
+
+        #nav-bar-buttons {
+          display: flex;
+          gap: 10px;
+          margin-top: 10px;
+        }
+
+        #nav-bar-buttons button {
+          flex: 1;
+          padding: 10px;
+          border: none;
+          border-radius: 5px;
+          cursor: pointer;
+          font-size: 14px;
+          font-weight: bold;
+        }
+
+        #exit-nav-btn {
+          background: #f44336;
+          color: white;
+        }
+
+        #recenter-btn {
+          background: #2196F3;
+          color: white;
+        }
+
+        /* Dimmed state for non-navigation elements */
+        .dimmed {
+          opacity: 0.3;
+          pointer-events: none;
+        }
+
+        /* Navigation mode - expand directions panel */
+        .directions.nav-mode {
+          max-height: 500px;
+          width: 380px;
+        }
+
+        /* Toast notification */
+        .toast {
+          position: fixed;
+          bottom: 100px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: #323232;
+          color: white;
+          padding: 16px 24px;
+          border-radius: 4px;
+          box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+          z-index: 10000;
+          opacity: 0;
+          transition: opacity 0.3s;
+        }
+
+        .toast.show {
+          opacity: 1;
+        }
+
+        .toast.error {
+          background: #d32f2f;
+        }
+
+        .toast.success {
+          background: #388e3c;
+        }
     </style>
 </head>
 <body>
@@ -109,6 +217,17 @@
     </label>
 </div>
 <div id="map"></div>
+
+<!-- Navigation Bar -->
+<div id="nav-bar">
+    <div id="current-instruction">Starting navigation...</div>
+    <div id="distance-to-turn"></div>
+    <div id="nav-bar-buttons">
+        <button id="recenter-btn" onclick="recenterMap()">Recenter</button>
+        <button id="exit-nav-btn" onclick="exitNavigationMode()">Exit Navigation</button>
+    </div>
+</div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="/static/map.js"></script>
 </body>

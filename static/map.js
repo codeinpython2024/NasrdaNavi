@@ -1,4 +1,19 @@
-const map = L.map('map').setView([8.989747, 7.386362], 16);
+// Toast notification function
+function showToast(message, type = 'info') {
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+
+  setTimeout(() => toast.classList.add('show'), 10);
+
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+const map = L.map('map').setView([8.989747, 7.386362], 17);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '© OpenStreetMap contributors'
@@ -15,6 +30,8 @@ let isOffRoute = false;
 let lastSpokenInstruction = null;
 let advanceWarningGiven = false;
 let distanceTraveled = 0;
+let isNavigationMode = false;
+let autoRecenter = true;
 
 // Update UI to show current mode
 function updateModeUI() {
@@ -106,54 +123,59 @@ fetch('/static/roads.geojson')
   });
 
 // Load buildings
-fetch('/static/buildings.geojson')
-  .then(res => res.json())
-  .then(data => {
-    L.geoJSON(data, { style: { color: 'red', fillOpacity: 0.3 } }).addTo(map);
-  });
+let buildingsLayer;
+let buildingData = {};
 
-// Global routing function
-window.routeToBuilding = function(lon, lat, name) {
-  if (!startPoint) {
-    alert('Please set a start point first');
-    updateModeUI();
-    return;
-  }
-  
-  const endPoint = { lng: lon, lat: lat };
-  if (endMarker) map.removeLayer(endMarker);
-  endMarker = L.marker([lat, lon]).addTo(map).bindPopup(`End: ${name}`).openPopup();
-  
-  calculateRoute(startPoint, endPoint);
-};
-
-// Load and display POIs
 fetch('/api/pois')
   .then(res => res.json())
   .then(data => {
+    // Create lookup by building ID
     (data.buildings || []).forEach(building => {
-      const [lon, lat] = building.coordinates;
-      const [entLon, entLat] = building.entrance;
-      const marker = L.marker([lat, lon], {
-        icon: L.divIcon({
-          className: 'poi-marker',
-          html: '🏢',
-          iconSize: [30, 30]
-        })
-      }).addTo(map);
-      
-      const popupContent = `
-        <strong>${building.name}</strong><br>
-        ${building.department || ''}<br>
-        <button onclick="routeToBuilding(${entLon}, ${entLat}, '${building.name.replace(/'/g, "\\'")}')" 
-                style="margin-top:5px;padding:5px;background:#2196F3;color:white;border:none;cursor:pointer;border-radius:3px;">
-          Get Directions
-        </button>
-      `;
-      marker.bindPopup(popupContent);
-      poiMarkers.push(marker);
+      buildingData[building.id] = building;
     });
 
+    // Load buildings and bind popups
+    return fetch('/static/buildings.geojson');
+  })
+  .then(res => res.json())
+  .then(data => {
+    buildingsLayer = L.geoJSON(data, {
+      style: { color: 'red', fillOpacity: 0.3, weight: 2 },
+      onEachFeature: function (feature, layer) {
+        const buildingId = feature.id;
+        // Convert numeric ID to string format (e.g., 1 -> "building-1")
+        const buildingKey = `building-${buildingId}`;
+        const building = buildingData[buildingKey];
+
+        if (building) {
+          const [entLon, entLat] = building.entrance;
+          const popupContent = `
+            <strong>${building.name}</strong><br>
+            ${building.department || ''}<br>
+            <button onclick="routeToBuilding(${entLon}, ${entLat}, '${building.name.replace(/'/g, "\\'")}')" 
+                    style="margin-top:5px;padding:5px;background:#2196F3;color:white;border:none;cursor:pointer;border-radius:3px;">
+              Get Directions
+            </button>
+          `;
+          layer.bindPopup(popupContent);
+
+          // Prevent building clicks from triggering map click
+          layer.on('click', function (e) {
+            L.DomEvent.stopPropagation(e);
+            L.DomEvent.preventDefault(e);
+            // Open popup manually
+            layer.openPopup();
+            return false;
+          });
+        }
+      }
+    }).addTo(map);
+
+    // Load amenities
+    return fetch('/api/pois');
+  })
+  .then(res => res.json())
+  .then(data => {
     (data.amenities || []).forEach(amenity => {
       const [lon, lat] = amenity.coordinates;
       const icon = amenity.type === 'parking' ? '🅿️' : amenity.type === 'restroom' ? '🚻' : '📍';
@@ -178,6 +200,21 @@ fetch('/api/pois')
     
     updateModeUI();
   });
+
+// Global routing function
+window.routeToBuilding = function (lon, lat, name) {
+  if (!startPoint) {
+    showToast('Please set a start point first', 'error');
+    updateModeUI();
+    return;
+  }
+
+  const endPoint = { lng: lon, lat: lat };
+  if (endMarker) map.removeLayer(endMarker);
+  endMarker = L.marker([lat, lon]).addTo(map).bindPopup(`End: ${name}`).openPopup();
+
+  calculateRoute(startPoint, endPoint);
+};
 
 // Speak instruction with debouncing
 function speakInstruction(text, force = false) {
@@ -204,6 +241,69 @@ function speakInstruction(text, force = false) {
   window.speechSynthesis.speak(utter);
 }
 
+// Enter navigation mode
+function enterNavigationMode() {
+  isNavigationMode = true;
+  autoRecenter = true;
+
+  // Hide search box
+  const searchBox = document.querySelector('.search-box');
+  if (searchBox) searchBox.classList.add('dimmed');
+
+  // Dim controls
+  const controls = document.querySelector('.controls');
+  if (controls) controls.classList.add('dimmed');
+
+  // Dim building polygons and POI markers
+  if (buildingsLayer) buildingsLayer.setStyle({ fillOpacity: 0.1, opacity: 0.3 });
+  poiMarkers.forEach(m => m.setOpacity(0.3));
+
+  // Expand directions panel
+  const panel = document.querySelector('.directions');
+  if (panel) panel.classList.add('nav-mode');
+
+  // Show navigation bar
+  const navBar = document.getElementById('nav-bar');
+  if (navBar) navBar.style.display = 'block';
+}
+
+// Exit navigation mode
+window.exitNavigationMode = function () {
+  isNavigationMode = false;
+  autoRecenter = true;
+
+  // Show search box
+  const searchBox = document.querySelector('.search-box');
+  if (searchBox) searchBox.classList.remove('dimmed');
+
+  // Show controls
+  const controls = document.querySelector('.controls');
+  if (controls) controls.classList.remove('dimmed');
+
+  // Restore building polygons and POI markers
+  if (buildingsLayer) buildingsLayer.setStyle({ fillOpacity: 0.3, opacity: 1 });
+  poiMarkers.forEach(m => m.setOpacity(1));
+
+  // Restore directions panel
+  const panel = document.querySelector('.directions');
+  if (panel) panel.classList.remove('nav-mode');
+
+  // Hide navigation bar
+  const navBar = document.getElementById('nav-bar');
+  if (navBar) navBar.style.display = 'none';
+
+  // Clear the route
+  clearRoute();
+};
+
+// Recenter map on user location
+window.recenterMap = function () {
+  autoRecenter = true;
+  if (userMarker) {
+    map.setView(userMarker.getLatLng(), 18);
+  }
+};
+
 // Calculate and display route
 function calculateRoute(start, end) {
   const accessible = document.getElementById('accessibleMode').checked;
@@ -228,10 +328,14 @@ function calculateRoute(start, end) {
       advanceWarningGiven = false;
       distanceTraveled = 0;
 
-      routeLayer = L.geoJSON(data.route, { style: { color: '#2196F3', weight: 4 } }).addTo(map);
+      routeLayer = L.geoJSON(data.route, { style: { color: '#2196F3', weight: 6 } }).addTo(map);
       map.fitBounds(routeLayer.getBounds());
 
+      // Enter navigation mode
+      enterNavigationMode();
+
       displayDirections(data);
+      updateNavigationBar(data);
 
       // Speak only the first instruction
       if (data.directions && data.directions.length > 0) {
@@ -241,7 +345,7 @@ function calculateRoute(start, end) {
       startGPSTracking(data);
     })
     .catch(err => {
-      alert("Routing error: " + (err.error || err.message || err));
+      showToast("Routing error: " + (err.error || err.message || err), 'error');
     });
 }
 
@@ -266,7 +370,7 @@ function displayDirections(data) {
       </div>
     </div>
     <button onclick="clearRoute(event)" style="padding:5px;background:#f44336;color:white;border:none;cursor:pointer;border-radius:3px;">Clear Route</button>
-    <button onclick="changeStartPoint()" style="padding:5px;border:1px solid #ccc;background:white;cursor:pointer;border-radius:3px;margin-left:5px;">Change Start</button><br><br>`;
+    <button onclick="changeStartPoint(event)" style="padding:5px;border:1px solid #ccc;background:white;cursor:pointer;border-radius:3px;margin-left:5px;">Change Start</button><br><br>`;
 
   if (data.directions && Array.isArray(data.directions)) {
     data.directions.forEach((step, i) => {
@@ -319,6 +423,35 @@ function updateActiveInstruction(index) {
     newEl.style.fontWeight = 'bold';
     newEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
+
+  // Update navigation bar
+  updateNavigationBar(routeData);
+}
+
+// Update navigation bar with current instruction
+function updateNavigationBar(data) {
+  if (!isNavigationMode || !data) return;
+
+  const currentInstEl = document.getElementById('current-instruction');
+  const distanceEl = document.getElementById('distance-to-turn');
+
+  if (currentInstEl && data.directions && data.directions[currentInstructionIndex]) {
+    currentInstEl.textContent = data.directions[currentInstructionIndex];
+  }
+
+  if (distanceEl && userMarker) {
+    const distToNext = distanceToNextInstruction(userMarker.getLatLng(), currentInstructionIndex + 1);
+    if (distToNext < Infinity && currentInstructionIndex + 1 < data.directions.length) {
+      distanceEl.textContent = `Next turn in ${Math.round(distToNext)}m`;
+    } else {
+      const coords = data.route.geometry.coordinates;
+      if (coords && coords.length > 0) {
+        const [destLon, destLat] = coords[coords.length - 1];
+        const distToDestination = map.distance(userMarker.getLatLng(), [destLat, destLon]);
+        distanceEl.textContent = `${Math.round(distToDestination)}m to destination`;
+      }
+    }
+  }
 }
 
 // Clear route
@@ -331,6 +464,7 @@ window.clearRoute = function (event) {
   if (routeLayer) map.removeLayer(routeLayer);
   if (endMarker) map.removeLayer(endMarker);
   if (userMarker) map.removeLayer(userMarker);
+  if (startMarker) map.removeLayer(startMarker);
   stepMarkers.forEach(m => map.removeLayer(m));
   stepMarkers = [];
   
@@ -343,6 +477,8 @@ window.clearRoute = function (event) {
     window.speechSynthesis.cancel();
   }
   
+  startPoint = null;
+  routingMode = 'set-start';
   routeData = null;
   currentInstructionIndex = 0;
   isOffRoute = false;
@@ -350,13 +486,25 @@ window.clearRoute = function (event) {
   advanceWarningGiven = false;
   distanceTraveled = 0;
 
+  // Exit navigation mode if active
+  if (isNavigationMode) {
+    exitNavigationMode();
+  }
+
   updateModeUI();
 };
 
 // Change start point helper
-window.changeStartPoint = function () {
+window.changeStartPoint = function (event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+
+  if (startMarker) map.removeLayer(startMarker);
+  startPoint = null;
   routingMode = 'set-start';
-  clearRoute();
+  clearRoute(event);
 };
 
 // Set start point
@@ -377,25 +525,61 @@ function setStartPoint(latlng) {
 
 // Use current location
 function useMyLocation() {
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        const latlng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setStartPoint(latlng);
-        map.setView([latlng.lat, latlng.lng], 17);
-      },
-      err => alert('Could not get your location: ' + err.message)
-    );
-  } else {
-    alert('Geolocation is not supported by your browser');
+  if (!navigator.geolocation) {
+    showToast('Geolocation is not supported by your browser', 'error');
+    return;
   }
+
+  showToast('Getting your location...', 'info');
+
+  const geoOptions = {
+    enableHighAccuracy: true,
+    maximumAge: 10000,
+    timeout: 30000
+  };
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const latlng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      setStartPoint(latlng);
+      map.setView([latlng.lat, latlng.lng], 17);
+      showToast('Location set successfully', 'success');
+    },
+    err => {
+      let errorMsg = 'Could not get your location: ';
+      switch (err.code) {
+        case err.PERMISSION_DENIED:
+          errorMsg += 'Permission denied. Please enable location access in your browser settings.';
+          break;
+        case err.POSITION_UNAVAILABLE:
+          errorMsg += 'Position unavailable. Please check your device settings.';
+          break;
+        case err.TIMEOUT:
+          errorMsg += 'Request timed out. Please try again.';
+          break;
+        default:
+          errorMsg += err.message;
+      }
+      showToast(errorMsg, 'error');
+    },
+    geoOptions
+  );
 }
 
 // Map click handler
 map.on('click', function(e) {
+  // Don't handle map clicks if we clicked on a building polygon
+  if (e.originalEvent && e.originalEvent.target) {
+    const target = e.originalEvent.target;
+    // Check if clicked element is a building (has red stroke)
+    if (target.tagName === 'path' && target.getAttribute('stroke') === 'red') {
+      return; // Let the building layer handle it
+    }
+  }
+
   if (routingMode === 'set-start') {
     setStartPoint(e.latlng);
-  } else {
+  } else if (routingMode === 'ready') {
     if (endMarker) map.removeLayer(endMarker);
     endMarker = L.marker(e.latlng).addTo(map).bindPopup("Destination").openPopup();
     calculateRoute(startPoint, e.latlng);
@@ -483,75 +667,119 @@ function startGPSTracking(data) {
     gpsWatchId = null;
   }
 
-  if (navigator.geolocation) {
-    gpsWatchId = navigator.geolocation.watchPosition(
-      pos => {
-        const userLatLng = [pos.coords.latitude, pos.coords.longitude];
-        
-        // Update user marker
-        if (userMarker) map.removeLayer(userMarker);
-        userMarker = L.circleMarker(userLatLng, { 
-          radius: 8, 
-          color: 'green', 
-          fillColor: 'green', 
-          fillOpacity: 0.8 
-        }).addTo(map);
-        map.panTo(userLatLng);
-
-        // Update distance traveled and progress
-        distanceTraveled = calculateDistanceTraveled(userLatLng);
-        updateProgress();
-
-        // Check if off route
-        if (checkOffRoute(userLatLng)) {
-          if (!isOffRoute) {
-            isOffRoute = true;
-            speakInstruction("You are off route. Recalculating...", true);
-            // Could trigger re-routing here
-          }
-          return;
-        } else {
-          if (isOffRoute) {
-            // Just got back on route
-            speakInstruction("Back on route.", true);
-          }
-          isOffRoute = false;
-        }
-
-        // Check distance to next instruction
-        const distToNext = distanceToNextInstruction(userLatLng, currentInstructionIndex + 1);
-
-        // Advance warning (50m before turn)
-        if (distToNext < 50 && distToNext > 30 && currentInstructionIndex + 1 < data.directions.length) {
-          if (!advanceWarningGiven) {
-            const nextInstruction = data.directions[currentInstructionIndex + 1];
-            speakInstruction(`In 50 meters, ${nextInstruction}`, true);
-            advanceWarningGiven = true;
-          }
-        }
-
-        // Move to next instruction when close enough (20m)
-        if (distToNext < 20 && currentInstructionIndex + 1 < data.directions.length) {
-          currentInstructionIndex++;
-          advanceWarningGiven = false; // Reset for next instruction
-          updateActiveInstruction(currentInstructionIndex);
-          speakInstruction(data.directions[currentInstructionIndex], true);
-        }
-
-        // Check if arrived at destination
-        const coords = data.route.geometry.coordinates;
-        if (coords && coords.length > 0) {
-          const [destLon, destLat] = coords[coords.length - 1];
-          const distToDestination = map.distance(userLatLng, [destLat, destLon]);
-
-          if (distToDestination < 10 && currentInstructionIndex === data.directions.length - 1) {
-            speakInstruction("You have arrived at your destination.", true);
-            setTimeout(clearRoute, 3000);
-          }
-        }
-      },
-      err => console.error('GPS error:', err),
-      { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
-    );
+  if (!navigator.geolocation) {
+    showToast('Geolocation is not supported by your browser', 'error');
+    return;
   }
+
+  // More lenient geolocation options to prevent timeout errors
+  const geoOptions = {
+    enableHighAccuracy: true,
+    maximumAge: 10000,  // Allow cached positions up to 10 seconds old
+    timeout: 30000      // Increase timeout to 30 seconds
+  };
+
+  gpsWatchId = navigator.geolocation.watchPosition(
+    pos => {
+      const userLatLng = [pos.coords.latitude, pos.coords.longitude];
+
+      // Update user marker
+      if (userMarker) map.removeLayer(userMarker);
+      userMarker = L.circleMarker(userLatLng, { 
+        radius: 10,
+        color: '#2196F3',
+        fillColor: '#2196F3',
+        fillOpacity: 0.8,
+        weight: 3,
+        className: 'pulse-marker'
+      }).addTo(map);
+
+      // Auto-recenter in navigation mode
+      if (isNavigationMode && autoRecenter) {
+        map.setView(userLatLng, 18, { animate: true, duration: 0.5 });
+      }
+
+      // Update distance traveled and progress
+      distanceTraveled = calculateDistanceTraveled(userLatLng);
+      updateProgress();
+      updateNavigationBar(data);
+
+      // Check if off route
+      if (checkOffRoute(userLatLng)) {
+        if (!isOffRoute) {
+          isOffRoute = true;
+          speakInstruction("You are off route. Recalculating...", true);
+          // Could trigger re-routing here
+        }
+        return;
+      } else {
+        if (isOffRoute) {
+          // Just got back on route
+          speakInstruction("Back on route.", true);
+        }
+        isOffRoute = false;
+      }
+
+      // Check distance to next instruction
+      const distToNext = distanceToNextInstruction(userLatLng, currentInstructionIndex + 1);
+
+      // Advance warning (50m before turn)
+      if (distToNext < 50 && distToNext > 30 && currentInstructionIndex + 1 < data.directions.length) {
+        if (!advanceWarningGiven) {
+          const nextInstruction = data.directions[currentInstructionIndex + 1];
+          speakInstruction(`In 50 meters, ${nextInstruction}`, true);
+          advanceWarningGiven = true;
+        }
+      }
+
+      // Move to next instruction when close enough (20m)
+      if (distToNext < 20 && currentInstructionIndex + 1 < data.directions.length) {
+        currentInstructionIndex++;
+        advanceWarningGiven = false; // Reset for next instruction
+        updateActiveInstruction(currentInstructionIndex);
+        speakInstruction(data.directions[currentInstructionIndex], true);
+      }
+
+      // Check if arrived at destination
+      const coords = data.route.geometry.coordinates;
+      if (coords && coords.length > 0) {
+        const [destLon, destLat] = coords[coords.length - 1];
+        const distToDestination = map.distance(userLatLng, [destLat, destLon]);
+
+        if (distToDestination < 10 && currentInstructionIndex === data.directions.length - 1) {
+          speakInstruction("You have arrived at your destination.", true);
+          setTimeout(() => {
+            exitNavigationMode();
+          }, 3000);
+        }
+      }
+    },
+    err => {
+      // Better error handling with user-friendly messages
+      let errorMsg = 'GPS error: ';
+      switch (err.code) {
+        case err.PERMISSION_DENIED:
+          errorMsg += 'Location permission denied. Please enable location access.';
+          break;
+        case err.POSITION_UNAVAILABLE:
+          errorMsg += 'Location unavailable. Please check your device settings.';
+          break;
+        case err.TIMEOUT:
+          errorMsg += 'Location request timed out. Retrying...';
+          break;
+        default:
+          errorMsg += err.message;
+      }
+      console.warn(errorMsg);
+      showToast(errorMsg, 'warning');
+    },
+    geoOptions
+  );
 }
+
+// Allow user to disable auto-recenter by dragging map
+map.on('dragstart', function () {
+  if (isNavigationMode) {
+    autoRecenter = false;
+  }
+});
