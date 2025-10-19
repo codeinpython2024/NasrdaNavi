@@ -44,14 +44,15 @@ def turn_direction(angle_diff):
     else:
         return "Turn right"
 
+# In your app.py
 def generate_turn_instructions(path):
-    """Produce clear, distance-aware turn-by-turn instructions."""
-    instructions = []
+    """Produce clear, distance-aware turn-by-turn instructions with locations."""
+    instructions_data = []  # <-- Changed from 'instructions'
     total_distance = 0.0
     segment_distance = 0.0
 
     if len(path) < 2:
-        return ["You are already at your destination."], 0
+        return [], 0  # <-- Return empty list
 
     current_road = G.get_edge_data(path[0], path[1])["road_name"]
 
@@ -72,19 +73,31 @@ def generate_turn_instructions(path):
             next_road = G.get_edge_data(path[i + 1], path[i + 2])["road_name"]
 
             if turn != "Continue straight":
-                instructions.append(
-                    f"Continue on {current_road} for {int(segment_distance)} m, then {turn.lower()} onto {next_road}."
+                instruction_text = (
+                    f"Continue on {current_road} for {int(segment_distance)} meters, then {turn.lower()} onto {next_road}."
                 )
+                # --- THIS IS THE KEY CHANGE ---
+                # Add the instruction text AND the coordinate where the turn happens
+                turn_location = path[i + 1]  # The node where the turn occurs
+                instructions_data.append({
+                    "text": instruction_text,
+                    "location": turn_location
+                })
+                # ------------------------------
                 current_road = next_road
                 segment_distance = 0.0
 
     # Final segment
-    instructions.append(
-        f"Continue on {current_road} for {int(segment_distance)} m and arrive at your destination."
+    final_text = (
+        f"Continue on {current_road} for {int(segment_distance)} meters and arrive at your destination."
     )
+    # --- ALSO ADD LOCATION FOR FINAL STEP ---
+    instructions_data.append({
+        "text": final_text,
+        "location": path[-1]  # The final destination node
+    })
 
-    return instructions, total_distance
-
+    return instructions_data, total_distance  # <-- Return the new list of objects
 
 @app.route("/")
 def index():
