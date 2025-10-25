@@ -153,7 +153,7 @@ function performSearch() {
             .bindPopup(`${match.name} (${match.type})`)
             .openPopup();
     } else {
-        const layer = L.geoJSON(geom, { style: { color: '#016B61', weight: 3 }, tempHighlight: true }).addTo(map);
+        const layer = L.geoJSON(geom, { style: { color: 'red', weight: 4 }, tempHighlight: true }).addTo(map);
         map.fitBounds(layer.getBounds());
         layer.bindPopup(`${match.name} (${match.type})`).openPopup();
         setTimeout(() => map.removeLayer(layer), 6000);
