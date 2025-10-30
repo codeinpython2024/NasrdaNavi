@@ -237,53 +237,52 @@ function loadGeoJSONLayers() {
                 }
             });
 
-            // Add road labels (hover tooltips) - use midpoint for LineStrings
-            roads.features.forEach(feature => {
-                if (feature.properties?.name && feature.geometry) {
-                    try {
-                        let lon, lat;
-                        
-                        // For LineString, get midpoint
-                        if (feature.geometry.type === 'LineString' && feature.geometry.coordinates.length > 0) {
-                            const coords = feature.geometry.coordinates;
-                            const midIndex = Math.floor(coords.length / 2);
-                            [lon, lat] = coords[midIndex];
-                        } else if (feature.geometry.type === 'MultiLineString' && feature.geometry.coordinates.length > 0) {
-                            // For MultiLineString, get midpoint of first line segment
-                            const firstLine = feature.geometry.coordinates[0];
-                            if (firstLine && firstLine.length > 0) {
-                                const midIndex = Math.floor(firstLine.length / 2);
-                                [lon, lat] = firstLine[midIndex];
-                            } else {
-                                // Fallback to center calculation
-                                const center = getCenterFromGeoJSON({ type: 'FeatureCollection', features: [feature] });
-                                [lon, lat] = center;
-                            }
-                        } else if (feature.geometry.type === 'Point') {
-                            [lon, lat] = feature.geometry.coordinates;
-                        } else {
-                            // For other types, use center
-                            const center = getCenterFromGeoJSON({ type: 'FeatureCollection', features: [feature] });
-                            [lon, lat] = center;
-                        }
-                        
-                        // Validate coordinates before creating marker
-                        if (isFinite(lon) && isFinite(lat) && !isNaN(lon) && !isNaN(lat) && lon !== undefined && lat !== undefined) {
-                            const el = document.createElement('div');
-                            el.className = 'road-label';
-                            el.textContent = feature.properties.name;
-                            el.style.cssText = 'background: rgba(255, 255, 255, 0.7); padding: 2px 6px; border-radius: 3px; font-size: 10px; pointer-events: none;';
-                            
-                            new mapboxgl.Marker({ element: el })
-                                .setLngLat([lon, lat])
-                                .addTo(map);
-                        } else {
-                            console.warn('Invalid coordinates for road label:', feature.properties.name, {lon, lat});
-                        }
-                    } catch (e) {
-                        console.warn('Error creating road label:', e, feature);
-                    }
+            // Add road labels as symbol layer (only visible on hover/zoom, less cluttered)
+            map.addLayer({
+                id: LAYER_IDS.roads + '-labels',
+                type: 'symbol',
+                source: 'roads-source',
+                layout: {
+                    'text-field': ['get', 'name'],
+                    'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
+                    'text-size': 11,
+                    'text-optional': true,
+                    'symbol-placement': 'line',
+                    'symbol-spacing': 300,
+                    'text-padding': 2,
+                    'text-allow-overlap': false,
+                    'text-ignore-placement': false
+                },
+                paint: {
+                    'text-color': '#333333',
+                    'text-halo-color': '#ffffff',
+                    'text-halo-width': 1.5,
+                    'text-halo-blur': 1
+                },
+                minzoom: 15 // Only show labels when zoomed in
+            });
+
+            // Add hover tooltips for roads
+            let hoveredRoadId = null;
+            map.on('mouseenter', LAYER_IDS.roads, (e) => {
+                map.getCanvas().style.cursor = 'pointer';
+                const feature = e.features[0];
+                if (feature.properties?.name) {
+                    hoveredRoadId = feature.id;
+                    // Show popup on hover
+                    const coordinates = e.lngLat;
+                    new mapboxgl.Popup()
+                        .setLngLat(coordinates)
+                        .setHTML(`<strong>${feature.properties.name}</strong>`)
+                        .addTo(map);
                 }
+            });
+
+            map.on('mouseleave', LAYER_IDS.roads, () => {
+                map.getCanvas().style.cursor = '';
+                hoveredRoadId = null;
+                // Close popups
+                document.querySelectorAll('.mapboxgl-popup').forEach(popup => popup.remove());
             });
 
             // Add buildings layer
