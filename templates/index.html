@@ -37,7 +37,24 @@
             padding: 12px;
             border-radius: 10px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-            width: 260px; /* make it neat and consistent */
+            width: 260px;
+            max-width: calc(100% - 20px);
+        }
+
+        @media (max-width: 768px) {
+            .map-toolbar {
+                width: calc(100% - 20px);
+                left: 10px;
+                right: 10px;
+            }
+            
+            #directionsPanel {
+                width: calc(100% - 1.5rem) !important;
+                left: 0.75rem !important;
+                right: 0.75rem !important;
+                top: auto !important;
+                bottom: 10px !important;
+            }
         }
 
         .directions {
@@ -95,6 +112,69 @@
         #searchResults div:hover {
             background-color: #f2f2f2;
         }
+
+        #searchResults div:focus {
+            background-color: #e9ecef;
+            outline: 2px solid #007bff;
+        }
+
+        .route-status {
+            padding: 8px;
+            margin-top: 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .route-status.waiting-start {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        .route-status.waiting-end {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .search-result-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            border-bottom: 1px solid #dee2e6;
+            cursor: pointer;
+        }
+
+        .search-result-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .search-result-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        .search-result-actions button {
+            padding: 2px 6px;
+            font-size: 10px;
+        }
+
+        .marker-start {
+            color: #28a745;
+        }
+
+        .marker-end {
+            color: #dc3545;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
     </style>
 </head>
 
@@ -102,8 +182,8 @@
 <!-- Toolbar -->
 <div class="map-toolbar">
     <div class="input-group mb-2">
-        <input id="searchBox" type="text" class="form-control" placeholder="Search offline feature...">
-        <button id="searchBtn" class="btn btn-primary">Search</button>
+        <input id="searchBox" type="text" class="form-control" placeholder="Search offline feature..." aria-label="Search for features" autocomplete="off">
+        <button id="searchBtn" class="btn btn-primary" aria-label="Search">Search</button>
     </div>
     <div id="searchResults"></div>
 
@@ -114,9 +194,12 @@
     </div>
 
 
+    <!-- Route Status -->
+    <div id="routeStatus" class="route-status" style="display: none;"></div>
+
     <div class="d-flex gap-2 mt-2">
-        <button id="clearBtn" class="btn btn-outline-danger btn-sm w-100">Clear Route</button>
-        <button id="nearestBtn" class="btn btn-outline-success btn-sm w-100">Find Nearest</button>
+        <button id="clearBtn" class="btn btn-outline-danger btn-sm w-100" aria-label="Clear route">Clear Route</button>
+        <button id="cancelBtn" class="btn btn-outline-warning btn-sm w-100" style="display: none;" aria-label="Cancel route selection">Cancel</button>
     </div>
 </div>
 
@@ -124,20 +207,36 @@
 <div id="map"></div>
 
 <!-- Directions Panel -->
-<div id="directionsPanel" class="card position-absolute top-0 end-0 m-3 shadow"
-"
-style="z-index: 1000; width: 300px;">
-<div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-    <span>Turn-by-Turn Directions</span>
-    <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#directionsBody">
-        Toggle
-    </button>
-</div>
-<div id="directionsBody" class="collapse show">
-    <div class="card-body p-2 directions">
-        <p class="text-muted mb-0">Select start and end route - No route loaded yet.</p>
+<div id="directionsPanel" class="card position-absolute top-0 end-0 m-3 shadow" style="z-index: 1000; width: 300px; max-width: calc(100% - 1.5rem);">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <span>Turn-by-Turn Directions</span>
+        <div>
+            <button id="speechToggle" class="btn btn-sm btn-light me-1" type="button" title="Toggle Speech" aria-label="Toggle speech synthesis">
+                🔊
+            </button>
+            <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#directionsBody" aria-label="Toggle directions panel">
+                Toggle
+            </button>
+        </div>
+    </div>
+    <div id="directionsBody" class="collapse show">
+        <div class="card-body p-2 directions">
+            <p class="text-muted mb-0">Click on the map to set start point, then click again for end point.</p>
+        </div>
+    </div>
+    <div id="routeSummary" class="card-footer bg-light" style="display: none;">
+        <small class="text-muted"><strong>Distance:</strong> <span id="routeDistance">-</span> m</small>
     </div>
 </div>
+
+<!-- Status Message -->
+<div id="statusMessage" class="alert alert-info position-absolute top-0 start-50 translate-middle-x mt-2" style="z-index: 2000; display: none;" role="alert"></div>
+
+<!-- Loading Spinner -->
+<div id="loadingSpinner" class="position-absolute top-50 start-50 translate-middle" style="z-index: 3000; display: none;">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
 </div>
 
 <!-- Scripts -->
