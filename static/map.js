@@ -191,6 +191,7 @@ if (cancelBtn) {
 
 // --- Load Roads & Buildings ---
 function loadGeoJSONLayers() {
+    console.log('Loading GeoJSON layers...');
     Promise.all([
         fetch('/static/roads.geojson').then(r => {
             if (!r.ok) throw new Error(`Failed to load roads: ${r.statusText}`);
@@ -202,6 +203,15 @@ function loadGeoJSONLayers() {
         })
     ])
         .then(([roads, buildings]) => {
+            console.log(`Loaded ${roads.features?.length || 0} roads and ${buildings.features?.length || 0} buildings`);
+            
+            // Validate data
+            if (!roads || !roads.features || roads.features.length === 0) {
+                console.warn('No road features found in GeoJSON');
+            }
+            if (!buildings || !buildings.features || buildings.features.length === 0) {
+                console.warn('No building features found in GeoJSON');
+            }
             // Add roads layer
             map.addSource('roads-source', {
                 type: 'geojson',
@@ -229,6 +239,17 @@ function loadGeoJSONLayers() {
                             const coords = feature.geometry.coordinates;
                             const midIndex = Math.floor(coords.length / 2);
                             [lon, lat] = coords[midIndex];
+                        } else if (feature.geometry.type === 'MultiLineString' && feature.geometry.coordinates.length > 0) {
+                            // For MultiLineString, get midpoint of first line segment
+                            const firstLine = feature.geometry.coordinates[0];
+                            if (firstLine && firstLine.length > 0) {
+                                const midIndex = Math.floor(firstLine.length / 2);
+                                [lon, lat] = firstLine[midIndex];
+                            } else {
+                                // Fallback to center calculation
+                                const center = getCenterFromGeoJSON({ type: 'FeatureCollection', features: [feature] });
+                                [lon, lat] = center;
+                            }
                         } else if (feature.geometry.type === 'Point') {
                             [lon, lat] = feature.geometry.coordinates;
                         } else {
@@ -238,7 +259,7 @@ function loadGeoJSONLayers() {
                         }
                         
                         // Validate coordinates before creating marker
-                        if (isFinite(lon) && isFinite(lat) && !isNaN(lon) && !isNaN(lat)) {
+                        if (isFinite(lon) && isFinite(lat) && !isNaN(lon) && !isNaN(lat) && lon !== undefined && lat !== undefined) {
                             const el = document.createElement('div');
                             el.className = 'road-label';
                             el.textContent = feature.properties.name;
@@ -247,6 +268,8 @@ function loadGeoJSONLayers() {
                             new mapboxgl.Marker({ element: el })
                                 .setLngLat([lon, lat])
                                 .addTo(map);
+                        } else {
+                            console.warn('Invalid coordinates for road label:', feature.properties.name, {lon, lat});
                         }
                     } catch (e) {
                         console.warn('Error creating road label:', e, feature);
@@ -753,7 +776,15 @@ function calculateRoute() {
             // Plot markers for each turn
             for (let i = 0; i < data.directions.length - 1; i++) {
                 const stepObj = data.directions[i];
+                if (!stepObj.location) continue;
+                
                 const [lon, lat] = stepObj.location;
+                
+                // Validate coordinates before creating marker
+                if (!isFinite(lon) || !isFinite(lat) || isNaN(lon) || isNaN(lat)) {
+                    console.warn(`Invalid coordinates for step ${i + 1}:`, stepObj.location);
+                    continue;
+                }
 
                 const el = document.createElement('div');
                 el.className = 'step-label bg-danger text-white rounded-circle';
