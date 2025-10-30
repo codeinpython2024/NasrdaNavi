@@ -1,9 +1,18 @@
 // --- Initialize Map with Mapbox GL JS ---
+// Campus bounds calculated from GeoJSON data:
+// Bounds: [7.383311885048632, 8.986260622829548] to [7.389412099633819, 8.992891300009468]
+// Center: [7.386361992341225, 8.989575961419508]
+const CAMPUS_CENTER = [7.386361992341225, 8.989575961419508]; // [lng, lat]
+const CAMPUS_BOUNDS = [
+    [7.383311885048632, 8.986260622829548], // Southwest corner
+    [7.389412099633819, 8.992891300009468]  // Northeast corner
+];
+
 const map = new mapboxgl.Map({
     container: 'map',
     style: 'mapbox://styles/mapbox/streets-v12',
-    center: [7.5, 8.5], // [lng, lat]
-    zoom: 14
+    center: CAMPUS_CENTER, // [lng, lat] - Campus center
+    zoom: 16 // Higher zoom to see campus details
 });
 
 // Wait for map to load before adding layers
@@ -97,38 +106,38 @@ function calculateDistance(point1, point2) {
 // Get bounds from GeoJSON
 function getBoundsFromGeoJSON(geojson) {
     if (!geojson || !geojson.features || geojson.features.length === 0) {
-        // Return default bounds if invalid
-        return [[7.0, 8.0], [8.0, 9.0]];
+        // Return campus bounds as default
+        return CAMPUS_BOUNDS;
     }
     try {
         const bbox = turf.bbox(geojson);
         // Validate bbox values
         if (bbox.some(v => !isFinite(v) || isNaN(v))) {
-            return [[7.0, 8.0], [8.0, 9.0]];
+            return CAMPUS_BOUNDS;
         }
         return [[bbox[0], bbox[1]], [bbox[2], bbox[3]]];
     } catch (e) {
         console.warn('Error calculating bounds:', e);
-        return [[7.0, 8.0], [8.0, 9.0]];
+        return CAMPUS_BOUNDS;
     }
 }
 
 // Get center from GeoJSON
 function getCenterFromGeoJSON(geojson) {
     if (!geojson) {
-        return [7.5, 8.5]; // Default center
+        return CAMPUS_CENTER; // Campus center as default
     }
     try {
         const center = turf.center(geojson);
         const coords = center.geometry.coordinates; // [lng, lat]
         // Validate coordinates
         if (!isFinite(coords[0]) || !isFinite(coords[1]) || isNaN(coords[0]) || isNaN(coords[1])) {
-            return [7.5, 8.5]; // Default center
+            return CAMPUS_CENTER; // Campus center as default
         }
         return coords;
     } catch (e) {
         console.warn('Error calculating center:', e);
-        return [7.5, 8.5]; // Default center
+        return CAMPUS_CENTER; // Campus center as default
     }
 }
 
@@ -316,12 +325,32 @@ function loadGeoJSONLayers() {
                     // Validate bounds before using
                     if (bounds && bounds[0] && bounds[1] && 
                         bounds[0][0] !== bounds[1][0] && bounds[0][1] !== bounds[1][1]) {
-                        map.fitBounds(bounds, { padding: 50 });
-                        map.zoomIn(1);
+                        // Fit bounds with padding to show campus area
+                        map.fitBounds(bounds, { 
+                            padding: { top: 50, bottom: 50, left: 50, right: 50 },
+                            duration: 1000 // Smooth animation
+                        });
+                    } else {
+                        // Fallback: use campus bounds
+                        map.fitBounds(CAMPUS_BOUNDS, { 
+                            padding: { top: 50, bottom: 50, left: 50, right: 50 },
+                            duration: 1000
+                        });
                     }
                 } catch (e) {
                     console.warn('Error fitting bounds:', e);
+                    // Fallback to campus bounds
+                    map.fitBounds(CAMPUS_BOUNDS, { 
+                        padding: { top: 50, bottom: 50, left: 50, right: 50 },
+                        duration: 1000
+                    });
                 }
+            } else {
+                // No features loaded, use campus bounds
+                map.fitBounds(CAMPUS_BOUNDS, { 
+                    padding: { top: 50, bottom: 50, left: 50, right: 50 },
+                    duration: 1000
+                });
             }
 
             // Prepare offline search data
