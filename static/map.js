@@ -17,6 +17,18 @@ let isSpeaking = false;
 let debounceTimer = null;
 let currentHighlightLayer = null;
 
+// --- Turn-by-Turn Navigation Variables ---
+let gpsWatchId = null;
+let userMarker = null;
+let isNavigationMode = false;
+let autoRecenter = true;
+let currentInstructionIndex = 0;
+let routeData = null;
+let distanceTraveled = 0;
+let isOffRoute = false;
+let advanceWarningGiven = false;
+let lastSpokenInstruction = null;
+
 // --- UI Elements ---
 const routeStatusEl = document.getElementById('routeStatus');
 const cancelBtn = document.getElementById('cancelBtn');
@@ -25,6 +37,12 @@ const loadingSpinner = document.getElementById('loadingSpinner');
 const speechToggle = document.getElementById('speechToggle');
 const routeSummaryEl = document.getElementById('routeSummary');
 const routeDistanceEl = document.getElementById('routeDistance');
+const navBar = document.getElementById('navBar');
+const currentInstructionEl = document.getElementById('currentInstruction');
+const distanceToTurnEl = document.getElementById('distanceToTurn');
+const routeProgressEl = document.getElementById('routeProgress');
+const recenterBtn = document.getElementById('recenterBtn');
+const exitNavBtn = document.getElementById('exitNavBtn');
 
 // --- Utility Functions ---
 function showStatus(message, type = 'info', duration = 3000) {
@@ -182,10 +200,11 @@ function updateDirectionsPanel(directions, totalDistance = null) {
     ul.className = 'list-group list-group-flush';
     directions.forEach((stepObj, i) => {
         const li = document.createElement('li');
-        li.className = 'list-group-item p-2';
+        li.className = `list-group-item p-2 ${i === currentInstructionIndex ? 'active' : ''}`;
+        li.id = `instruction-${i}`;
         li.setAttribute('tabindex', '0');
         li.setAttribute('role', 'button');
-        li.innerHTML = `<strong>${i + 1}.</strong> ${stepObj.text}`;
+        li.innerHTML = `<strong>${i + 1}.</strong> ${stepObj.text || stepObj}`;
         ul.appendChild(li);
     });
     container.appendChild(ul);
@@ -198,6 +217,31 @@ function updateDirectionsPanel(directions, totalDistance = null) {
 
     // Smoothly open the panel
     collapseDirections(false);
+    
+    // Scroll active instruction into view
+    updateActiveInstruction(currentInstructionIndex);
+}
+
+// --- Update Active Instruction Highlight ---
+function updateActiveInstruction(index) {
+    if (!routeData || !routeData.directions) return;
+    
+    // Remove previous highlight
+    const prevEl = document.getElementById(`instruction-${currentInstructionIndex}`);
+    if (prevEl) {
+        prevEl.classList.remove('active');
+    }
+    
+    // Add new highlight
+    currentInstructionIndex = index;
+    const newEl = document.getElementById(`instruction-${index}`);
+    if (newEl) {
+        newEl.classList.add('active');
+        newEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    
+    // Update navigation bar
+    updateNavigationBar();
 }
 
 
@@ -206,15 +250,32 @@ function clearRoute() {
     if (routeLayer) map.removeLayer(routeLayer);
     if (startMarker) map.removeLayer(startMarker);
     if (endMarker) map.removeLayer(endMarker);
+    if (userMarker) map.removeLayer(userMarker);
     stepMarkers.forEach(m => map.removeLayer(m));
+
+    // Stop GPS tracking
+    if (gpsWatchId !== null) {
+        navigator.geolocation.clearWatch(gpsWatchId);
+        gpsWatchId = null;
+    }
 
     routeLayer = null;
     startMarker = null;
     endMarker = null;
+    userMarker = null;
     stepMarkers = [];
     startPoint = null;
     endPoint = null;
     clickCount = 0;
+    routeData = null;
+    currentInstructionIndex = 0;
+    distanceTraveled = 0;
+    isOffRoute = false;
+    advanceWarningGiven = false;
+    lastSpokenInstruction = null;
+
+    // Exit navigation mode
+    exitNavigationMode();
 
     const container = document.querySelector('#directionsPanel .directions');
     if (container)
@@ -486,18 +547,33 @@ function calculateRoute() {
                 stepMarkers.push(marker);
             }
 
+            // Store route data for navigation
+            routeData = data;
+            currentInstructionIndex = 0;
+            distanceTraveled = 0;
+            isOffRoute = false;
+            advanceWarningGiven = false;
+            lastSpokenInstruction = null;
+
             updateDirectionsPanel(data.directions, data.total_distance_m);
 
-            // Speak directions sequentially
-            if (speechEnabled) {
-                data.directions.forEach(stepObj => {
-                    speakSequentially(stepObj.text);
-                });
+            // Enter navigation mode
+            enterNavigationMode();
+
+            // Speak only the first instruction
+            if (speechEnabled && data.directions.length > 0) {
+                const firstInstruction = typeof data.directions[0] === 'string' 
+                    ? data.directions[0] 
+                    : data.directions[0].text;
+                speakInstruction(firstInstruction, true);
             }
+
+            // Start GPS tracking
+            startGPSTracking(data);
 
             clickCount = 0;
             updateRouteStatus();
-            showStatus('Route calculated successfully', 'success', 2000);
+            showStatus('Route calculated successfully. Starting navigation...', 'success', 2000);
         })
         .catch(err => {
             showLoading(false);
@@ -548,5 +624,331 @@ map.on('contextmenu', (e) => {
         clickCount = 0;
         updateRouteStatus();
         showStatus('Route selection cancelled', 'warning');
+    }
+});
+
+// --- Turn-by-Turn Navigation Functions ---
+
+// Speak instruction with debouncing
+function speakInstruction(text, force = false) {
+    if (!speechEnabled || !window.speechSynthesis) return;
+
+    // Don't repeat the same instruction unless forced
+    if (text === lastSpokenInstruction && !force) {
+        return;
+    }
+
+    window.speechSynthesis.cancel();
+    lastSpokenInstruction = text;
+
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.rate = 1.0;
+    utter.onend = () => {
+        // Clear after speaking to allow repeats if needed
+        setTimeout(() => {
+            if (lastSpokenInstruction === text) {
+                lastSpokenInstruction = null;
+            }
+        }, 5000);
+    };
+    window.speechSynthesis.speak(utter);
+}
+
+// Enter navigation mode
+function enterNavigationMode() {
+    isNavigationMode = true;
+    autoRecenter = true;
+    
+    // Show navigation bar
+    if (navBar) navBar.style.display = 'block';
+    
+    // Update navigation bar
+    updateNavigationBar();
+}
+
+// Exit navigation mode
+function exitNavigationMode() {
+    isNavigationMode = false;
+    autoRecenter = false;
+    
+    // Hide navigation bar
+    if (navBar) navBar.style.display = 'none';
+}
+
+// Recenter map on user location
+function recenterMap() {
+    autoRecenter = true;
+    if (userMarker) {
+        map.setView(userMarker.getLatLng(), 18);
+    }
+}
+
+// Navigation bar button handlers
+if (recenterBtn) {
+    recenterBtn.addEventListener('click', recenterMap);
+}
+
+if (exitNavBtn) {
+    exitNavBtn.addEventListener('click', () => {
+        clearRoute();
+    });
+}
+
+// Update navigation bar with current instruction
+function updateNavigationBar() {
+    if (!isNavigationMode || !routeData) return;
+
+    if (currentInstructionEl && routeData.directions) {
+        const instruction = routeData.directions[currentInstructionIndex];
+        const instructionText = typeof instruction === 'string' ? instruction : instruction.text;
+        currentInstructionEl.textContent = instructionText || 'Navigation in progress...';
+    }
+
+    if (distanceToTurnEl && userMarker && routeData.route) {
+        const distToNext = distanceToNextInstruction(userMarker.getLatLng(), currentInstructionIndex + 1);
+        const span = distanceToTurnEl.querySelector('span');
+        
+        if (distToNext < Infinity && currentInstructionIndex + 1 < routeData.directions.length) {
+            if (span) {
+                span.textContent = `Next turn in ${Math.round(distToNext)}m`;
+            } else {
+                distanceToTurnEl.innerHTML = `<i class="fas fa-route"></i> <span>Next turn in ${Math.round(distToNext)}m</span>`;
+            }
+        } else if (routeData.route.geometry && routeData.route.geometry.coordinates) {
+            const coords = routeData.route.geometry.coordinates;
+            if (coords.length > 0) {
+                const [destLon, destLat] = coords[coords.length - 1];
+                const distToDestination = map.distance(userMarker.getLatLng(), [destLat, destLon]);
+                if (span) {
+                    span.textContent = `${Math.round(distToDestination)}m to destination`;
+                } else {
+                    distanceToTurnEl.innerHTML = `<i class="fas fa-route"></i> <span>${Math.round(distToDestination)}m to destination</span>`;
+                }
+            }
+        }
+    }
+
+    // Update progress bar
+    if (routeProgressEl && routeData.total_distance_m) {
+        const progressPercent = Math.min(100, (distanceTraveled / routeData.total_distance_m * 100));
+        routeProgressEl.style.width = `${progressPercent}%`;
+    }
+}
+
+// Calculate distance to next instruction point
+function distanceToNextInstruction(userLatLng, instructionIndex) {
+    if (!routeData || !routeData.route || !routeData.route.geometry) {
+        return Infinity;
+    }
+
+    const coords = routeData.route.geometry.coordinates;
+    if (!coords || instructionIndex >= coords.length) {
+        return Infinity;
+    }
+
+    // Get the location for this instruction from directions
+    if (routeData.directions && routeData.directions[instructionIndex - 1]) {
+        const instruction = routeData.directions[instructionIndex - 1];
+        if (instruction.location) {
+            const [lon, lat] = instruction.location;
+            return map.distance(userLatLng, [lat, lon]);
+        }
+    }
+
+    // Fallback: estimate based on route coordinates
+    // Find closest point on route to user
+    let minDist = Infinity;
+    let closestIndex = 0;
+    for (let i = 0; i < coords.length; i++) {
+        const [lon, lat] = coords[i];
+        const dist = map.distance(userLatLng, [lat, lon]);
+        if (dist < minDist) {
+            minDist = dist;
+            closestIndex = i;
+        }
+    }
+
+    // Calculate distance from closest point to target instruction
+    if (instructionIndex < coords.length) {
+        const [targetLon, targetLat] = coords[instructionIndex];
+        return map.distance(userLatLng, [targetLat, targetLon]);
+    }
+
+    return Infinity;
+}
+
+// Calculate distance traveled along route
+function calculateDistanceTraveled(userLatLng) {
+    if (!routeData || !routeData.route || !routeData.route.geometry) return 0;
+
+    const coords = routeData.route.geometry.coordinates;
+    if (!coords || coords.length < 2) return 0;
+
+    let minDist = Infinity;
+    let closestIndex = 0;
+
+    // Find closest point on route
+    for (let i = 0; i < coords.length; i++) {
+        const [lon, lat] = coords[i];
+        const dist = map.distance(userLatLng, [lat, lon]);
+        if (dist < minDist) {
+            minDist = dist;
+            closestIndex = i;
+        }
+    }
+
+    // Sum distances from start to closest point
+    let traveled = 0;
+    for (let i = 0; i < closestIndex; i++) {
+        const [lon1, lat1] = coords[i];
+        const [lon2, lat2] = coords[i + 1];
+        traveled += map.distance([lat1, lon1], [lat2, lon2]);
+    }
+
+    return traveled;
+}
+
+// Check if user is off route
+function checkOffRoute(userLatLng) {
+    if (!routeData || !routeData.route || !routeData.route.geometry) return false;
+
+    const coords = routeData.route.geometry.coordinates;
+    if (!coords) return false;
+
+    let minDistance = Infinity;
+
+    // Find minimum distance to any point on the route
+    for (let i = 0; i < coords.length; i++) {
+        const [lon, lat] = coords[i];
+        const dist = map.distance(userLatLng, [lat, lon]);
+        if (dist < minDistance) {
+            minDistance = dist;
+        }
+    }
+
+    // If more than 30m from route, consider off-route
+    return minDistance > 30;
+}
+
+// GPS tracking with improved instruction management
+function startGPSTracking(data) {
+    if (gpsWatchId !== null) {
+        navigator.geolocation.clearWatch(gpsWatchId);
+        gpsWatchId = null;
+    }
+
+    if (!navigator.geolocation) {
+        showStatus('Geolocation is not supported by your browser', 'warning', 5000);
+        return;
+    }
+
+    const geoOptions = {
+        enableHighAccuracy: true,
+        maximumAge: 10000,
+        timeout: 30000
+    };
+
+    gpsWatchId = navigator.geolocation.watchPosition(
+        pos => {
+            const userLatLng = [pos.coords.latitude, pos.coords.longitude];
+
+            // Update user marker
+            if (userMarker) map.removeLayer(userMarker);
+            userMarker = L.circleMarker(userLatLng, { 
+                radius: 10,
+                color: '#2196F3',
+                fillColor: '#2196F3',
+                fillOpacity: 0.8,
+                weight: 3,
+                className: 'pulse-marker'
+            }).addTo(map);
+
+            // Auto-recenter in navigation mode
+            if (isNavigationMode && autoRecenter) {
+                map.setView(userLatLng, 18, { animate: true, duration: 0.5 });
+            }
+
+            // Update distance traveled and progress
+            distanceTraveled = calculateDistanceTraveled(userLatLng);
+            updateNavigationBar();
+
+            // Check if off route
+            if (checkOffRoute(userLatLng)) {
+                if (!isOffRoute) {
+                    isOffRoute = true;
+                    speakInstruction("You are off route. Recalculating...", true);
+                }
+                return;
+            } else {
+                if (isOffRoute) {
+                    speakInstruction("Back on route.", true);
+                }
+                isOffRoute = false;
+            }
+
+            // Check distance to next instruction
+            const distToNext = distanceToNextInstruction(userLatLng, currentInstructionIndex + 1);
+
+            // Advance warning (50m before turn)
+            if (distToNext < 50 && distToNext > 30 && currentInstructionIndex + 1 < data.directions.length) {
+                if (!advanceWarningGiven) {
+                    const nextInstruction = data.directions[currentInstructionIndex + 1];
+                    const nextText = typeof nextInstruction === 'string' ? nextInstruction : nextInstruction.text;
+                    speakInstruction(`In 50 meters, ${nextText}`, true);
+                    advanceWarningGiven = true;
+                }
+            }
+
+            // Move to next instruction when close enough (20m)
+            if (distToNext < 20 && currentInstructionIndex + 1 < data.directions.length) {
+                currentInstructionIndex++;
+                advanceWarningGiven = false;
+                updateActiveInstruction(currentInstructionIndex);
+                const nextInstruction = data.directions[currentInstructionIndex];
+                const nextText = typeof nextInstruction === 'string' ? nextInstruction : nextInstruction.text;
+                speakInstruction(nextText, true);
+            }
+
+            // Check if arrived at destination
+            const coords = data.route.geometry.coordinates;
+            if (coords && coords.length > 0) {
+                const [destLon, destLat] = coords[coords.length - 1];
+                const distToDestination = map.distance(userLatLng, [destLat, destLon]);
+
+                if (distToDestination < 10 && currentInstructionIndex === data.directions.length - 1) {
+                    speakInstruction("You have arrived at your destination.", true);
+                    setTimeout(() => {
+                        exitNavigationMode();
+                        showStatus('Arrived at destination!', 'success', 5000);
+                    }, 3000);
+                }
+            }
+        },
+        err => {
+            let errorMsg = 'GPS error: ';
+            switch (err.code) {
+                case err.PERMISSION_DENIED:
+                    errorMsg += 'Location permission denied. Please enable location access.';
+                    break;
+                case err.POSITION_UNAVAILABLE:
+                    errorMsg += 'Location unavailable. Please check your device settings.';
+                    break;
+                case err.TIMEOUT:
+                    errorMsg += 'Location request timed out. Retrying...';
+                    break;
+                default:
+                    errorMsg += err.message;
+            }
+            console.warn(errorMsg);
+            showStatus(errorMsg, 'warning', 5000);
+        },
+        geoOptions
+    );
+}
+
+// Allow user to disable auto-recenter by dragging map
+map.on('dragstart', function () {
+    if (isNavigationMode) {
+        autoRecenter = false;
     }
 });
