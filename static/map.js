@@ -1,12 +1,18 @@
-// --- Initialize Map ---
-const map = L.map('map').setView([8.5, 7.5], 14);
+// --- Initialize Map with Mapbox GL JS ---
+const map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/streets-v12',
+    center: [7.5, 8.5], // [lng, lat]
+    zoom: 14
+});
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors'
-}).addTo(map);
+// Wait for map to load before adding layers
+map.on('load', () => {
+    loadGeoJSONLayers();
+});
 
 // --- Initialize variables ---
-let startMarker, endMarker, routeLayer, stepMarkers = [];
+let startMarker, endMarker, stepMarkers = [];
 let localFeatures = [];
 let startPoint = null;
 let endPoint = null;
@@ -16,6 +22,15 @@ let speechQueue = [];
 let isSpeaking = false;
 let debounceTimer = null;
 let currentHighlightLayer = null;
+
+// Mapbox layer IDs
+const LAYER_IDS = {
+    roads: 'roads-layer',
+    buildings: 'buildings-layer',
+    route: 'route-layer',
+    highlight: 'highlight-layer',
+    userLocation: 'user-location-layer'
+};
 
 // --- Turn-by-Turn Navigation Variables ---
 let gpsWatchId = null;
@@ -72,6 +87,25 @@ function updateRouteStatus() {
     }
 }
 
+// Calculate distance between two points using Turf.js
+function calculateDistance(point1, point2) {
+    const from = turf.point([point1.lng || point1[0], point1.lat || point1[1]]);
+    const to = turf.point([point2.lng || point2[0], point2.lat || point2[1]]);
+    return turf.distance(from, to, { units: 'meters' }) * 1000; // Convert to meters
+}
+
+// Get bounds from GeoJSON
+function getBoundsFromGeoJSON(geojson) {
+    const bbox = turf.bbox(geojson);
+    return [[bbox[0], bbox[1]], [bbox[2], bbox[3]]];
+}
+
+// Get center from GeoJSON
+function getCenterFromGeoJSON(geojson) {
+    const center = turf.center(geojson);
+    return center.geometry.coordinates; // [lng, lat]
+}
+
 // --- Speech Synthesis with Queue ---
 function speakSequentially(text) {
     if (!speechEnabled) return;
@@ -89,92 +123,150 @@ function processSpeechQueue() {
     
     utterance.onend = () => {
         isSpeaking = false;
-        processSpeechQueue(); // Process next in queue
+        processSpeechQueue();
     };
     
     utterance.onerror = () => {
         isSpeaking = false;
-        processSpeechQueue(); // Continue with next even on error
+        processSpeechQueue();
     };
     
     window.speechSynthesis.speak(utterance);
 }
 
 // Speech toggle
-speechToggle.addEventListener('click', () => {
-    speechEnabled = !speechEnabled;
-    if (!speechEnabled) {
-        window.speechSynthesis.cancel();
-        speechQueue = [];
-        isSpeaking = false;
-        speechToggle.textContent = '🔇';
-        speechToggle.classList.add('text-muted');
-    } else {
-        speechToggle.textContent = '🔊';
-        speechToggle.classList.remove('text-muted');
-    }
-});
+if (speechToggle) {
+    speechToggle.addEventListener('click', () => {
+        speechEnabled = !speechEnabled;
+        if (!speechEnabled) {
+            window.speechSynthesis.cancel();
+            speechQueue = [];
+            isSpeaking = false;
+            speechToggle.textContent = '🔇';
+            speechToggle.classList.add('text-muted');
+        } else {
+            speechToggle.textContent = '🔊';
+            speechToggle.classList.remove('text-muted');
+        }
+    });
+}
 
 // Cancel button
-cancelBtn.addEventListener('click', () => {
-    if (startMarker) map.removeLayer(startMarker);
-    startMarker = null;
-    startPoint = null;
-    clickCount = 0;
-    updateRouteStatus();
-    showStatus('Route selection cancelled', 'warning');
-});
+if (cancelBtn) {
+    cancelBtn.addEventListener('click', () => {
+        if (startMarker) startMarker.remove();
+        startMarker = null;
+        startPoint = null;
+        clickCount = 0;
+        updateRouteStatus();
+        showStatus('Route selection cancelled', 'warning');
+    });
+}
 
 // --- Load Roads & Buildings ---
-Promise.all([
-    fetch('/static/roads.geojson').then(r => {
-        if (!r.ok) throw new Error(`Failed to load roads: ${r.statusText}`);
-        return r.json();
-    }),
-    fetch('/static/buildings.geojson').then(r => {
-        if (!r.ok) throw new Error(`Failed to load buildings: ${r.statusText}`);
-        return r.json();
-    })
-])
-    .then(([roads, buildings]) => {
-        const roadsLayer = L.geoJSON(roads, {
-            style: {color: 'black', weight: 2},
-            onEachFeature: (feature, layer) => {
-                const name = feature.properties?.name || 'Unnamed Road';
-                layer.bindTooltip(name, {direction: 'center', className: 'road-label'});
-            }
-        }).addTo(map);
+function loadGeoJSONLayers() {
+    Promise.all([
+        fetch('/static/roads.geojson').then(r => {
+            if (!r.ok) throw new Error(`Failed to load roads: ${r.statusText}`);
+            return r.json();
+        }),
+        fetch('/static/buildings.geojson').then(r => {
+            if (!r.ok) throw new Error(`Failed to load buildings: ${r.statusText}`);
+            return r.json();
+        })
+    ])
+        .then(([roads, buildings]) => {
+            // Add roads layer
+            map.addSource('roads-source', {
+                type: 'geojson',
+                data: roads
+            });
 
-        const buildingsLayer = L.geoJSON(buildings, {
-            style: {color: 'coral', fillOpacity: 0.8}
-        }).addTo(map);
+            map.addLayer({
+                id: LAYER_IDS.roads,
+                type: 'line',
+                source: 'roads-source',
+                paint: {
+                    'line-color': '#000000',
+                    'line-width': 2
+                }
+            });
 
-        const bounds = L.featureGroup([roadsLayer, buildingsLayer]).getBounds();
-        map.fitBounds(bounds);
-        map.zoomIn(1);
+            // Add road labels (hover tooltips)
+            roads.features.forEach(feature => {
+                if (feature.properties?.name) {
+                    const coordinates = feature.geometry.coordinates;
+                    coordinates.forEach(coord => {
+                        const [lon, lat] = coord;
+                        const el = document.createElement('div');
+                        el.className = 'road-label';
+                        el.textContent = feature.properties.name;
+                        el.style.cssText = 'background: rgba(255, 255, 255, 0.7); padding: 2px 6px; border-radius: 3px; font-size: 10px; pointer-events: none;';
+                        
+                        new mapboxgl.Marker({ element: el })
+                            .setLngLat([lon, lat])
+                            .addTo(map);
+                    });
+                }
+            });
 
-        // Prepare offline search data
-        roads.features.forEach(f => {
-            if (f.properties.name)
-                localFeatures.push({name: f.properties.name, type: 'road', geometry: f.geometry});
+            // Add buildings layer
+            map.addSource('buildings-source', {
+                type: 'geojson',
+                data: buildings
+            });
+
+            map.addLayer({
+                id: LAYER_IDS.buildings,
+                type: 'fill',
+                source: 'buildings-source',
+                paint: {
+                    'fill-color': 'coral',
+                    'fill-opacity': 0.8
+                }
+            });
+
+            map.addLayer({
+                id: LAYER_IDS.buildings + '-outline',
+                type: 'line',
+                source: 'buildings-source',
+                paint: {
+                    'line-color': 'coral',
+                    'line-width': 2
+                }
+            });
+
+            // Fit bounds to show all features
+            const allFeatures = {
+                type: 'FeatureCollection',
+                features: [...roads.features, ...buildings.features]
+            };
+            const bounds = getBoundsFromGeoJSON(allFeatures);
+            map.fitBounds(bounds, { padding: 50 });
+            map.zoomIn(1);
+
+            // Prepare offline search data
+            roads.features.forEach(f => {
+                if (f.properties.name)
+                    localFeatures.push({name: f.properties.name, type: 'road', geometry: f.geometry});
+            });
+            buildings.features.forEach(f => {
+                if (f.properties.name)
+                    localFeatures.push({
+                        name: f.properties.name,
+                        type: 'building',
+                        geometry: f.geometry,
+                        departments: f.properties.departments || []
+                    });
+            });
+
+            showStatus('Map loaded successfully', 'success', 2000);
+        })
+        .catch(err => {
+            console.error('Error loading GeoJSON:', err);
+            showStatus('Error loading map data: ' + err.message, 'danger', 5000);
         });
-        buildings.features.forEach(f => {
-            if (f.properties.name)
-                localFeatures.push({
-                    name: f.properties.name,
-                    type: 'building',
-                    geometry: f.geometry,
-                    departments: f.properties.departments || []
-                });
-        });
-
-        showStatus('Map loaded successfully', 'success', 2000);
-    })
-    .catch(err => {
-        console.error('Error loading GeoJSON:', err);
-        showStatus('Error loading map data: ' + err.message, 'danger', 5000);
-    });
-
+}
 
 // --- Smooth Collapse Helpers ---
 function collapseDirections(hide = false) {
@@ -182,7 +274,6 @@ function collapseDirections(hide = false) {
     const bsCollapse = bootstrap.Collapse.getInstance(collapseEl) || new bootstrap.Collapse(collapseEl, {toggle: false});
     if (hide) bsCollapse.hide(); else bsCollapse.show();
 }
-
 
 // --- Update Directions Panel ---
 function updateDirectionsPanel(directions, totalDistance = null) {
@@ -244,14 +335,21 @@ function updateActiveInstruction(index) {
     updateNavigationBar();
 }
 
-
 // --- Clear Route Function ---
 function clearRoute() {
-    if (routeLayer) map.removeLayer(routeLayer);
-    if (startMarker) map.removeLayer(startMarker);
-    if (endMarker) map.removeLayer(endMarker);
-    if (userMarker) map.removeLayer(userMarker);
-    stepMarkers.forEach(m => map.removeLayer(m));
+    // Remove route layer
+    if (map.getLayer(LAYER_IDS.route)) {
+        map.removeLayer(LAYER_IDS.route);
+    }
+    if (map.getSource('route-source')) {
+        map.removeSource('route-source');
+    }
+
+    // Remove markers
+    if (startMarker) startMarker.remove();
+    if (endMarker) endMarker.remove();
+    if (userMarker) userMarker.remove();
+    stepMarkers.forEach(m => m.remove());
 
     // Stop GPS tracking
     if (gpsWatchId !== null) {
@@ -259,7 +357,6 @@ function clearRoute() {
         gpsWatchId = null;
     }
 
-    routeLayer = null;
     startMarker = null;
     endMarker = null;
     userMarker = null;
@@ -295,7 +392,6 @@ function clearRoute() {
 
 // Attach to Clear button
 document.getElementById('clearBtn').addEventListener('click', clearRoute);
-
 
 // --- Search Logic with Debouncing ---
 const searchBox = document.getElementById('searchBox');
@@ -366,35 +462,34 @@ function setLocationFromSearch(match, type) {
         [lon, lat] = geom.coordinates;
     } else {
         // Get centroid for polygons/lines
-        const layer = L.geoJSON(geom);
-        const bounds = layer.getBounds();
-        const center = bounds.getCenter();
-        lat = center.lat;
-        lon = center.lng;
+        const center = getCenterFromGeoJSON({ type: 'Feature', geometry: geom });
+        [lon, lat] = center;
     }
     
     if (type === 'start') {
-        if (startMarker) map.removeLayer(startMarker);
+        if (startMarker) startMarker.remove();
         startPoint = {lat, lng: lon};
-        startMarker = L.marker(startPoint, {
-            icon: L.divIcon({
-                className: 'marker-start',
-                html: '<div style="background-color: #28a745; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold;">S</div>',
-                iconSize: [30, 30]
-            })
-        }).addTo(map).bindPopup('Start').openPopup();
+        const el = document.createElement('div');
+        el.className = 'marker-start';
+        el.innerHTML = '<div style="background-color: #28a745; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold;">S</div>';
+        startMarker = new mapboxgl.Marker({ element: el })
+            .setLngLat([lon, lat])
+            .setPopup(new mapboxgl.Popup().setText('Start'))
+            .addTo(map);
+        startMarker.togglePopup();
         clickCount = 1;
         showStatus('Start point set from search', 'success');
     } else {
-        if (endMarker) map.removeLayer(endMarker);
+        if (endMarker) endMarker.remove();
         endPoint = {lat, lng: lon};
-        endMarker = L.marker(endPoint, {
-            icon: L.divIcon({
-                className: 'marker-end',
-                html: '<div style="background-color: #dc3545; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold;">E</div>',
-                iconSize: [30, 30]
-            })
-        }).addTo(map).bindPopup('End').openPopup();
+        const el = document.createElement('div');
+        el.className = 'marker-end';
+        el.innerHTML = '<div style="background-color: #dc3545; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold;">E</div>';
+        endMarker = new mapboxgl.Marker({ element: el })
+            .setLngLat([lon, lat])
+            .setPopup(new mapboxgl.Popup().setText('End'))
+            .addTo(map);
+        endMarker.togglePopup();
         
         if (startPoint) {
             // Automatically calculate route
@@ -405,40 +500,63 @@ function setLocationFromSearch(match, type) {
         }
     }
     
-    map.setView([lat, lon], 17);
+    map.flyTo({ center: [lon, lat], zoom: 17 });
     updateRouteStatus();
     highlightFeature(match);
 }
 
 function highlightFeature(match) {
     // Remove any previous temporary highlights
-    if (currentHighlightLayer) {
-        map.removeLayer(currentHighlightLayer);
+    if (map.getLayer(LAYER_IDS.highlight)) {
+        map.removeLayer(LAYER_IDS.highlight);
+    }
+    if (map.getSource('highlight-source')) {
+        map.removeSource('highlight-source');
     }
     
     const geom = match.geometry;
     
     if (geom.type === 'Point') {
         const [lon, lat] = geom.coordinates;
-        map.setView([lat, lon], 17);
-        const marker = L.marker([lat, lon])
-            .addTo(map)
-            .bindPopup(`${match.name} (${match.type})`)
-            .openPopup();
+        map.flyTo({ center: [lon, lat], zoom: 17 });
+        const el = document.createElement('div');
+        el.innerHTML = '📍';
+        el.style.fontSize = '24px';
+        const marker = new mapboxgl.Marker({ element: el })
+            .setLngLat([lon, lat])
+            .setPopup(new mapboxgl.Popup().setText(`${match.name} (${match.type})`))
+            .addTo(map);
+        marker.togglePopup();
         currentHighlightLayer = marker;
     } else {
-        const layer = L.geoJSON(geom, { 
-            style: { color: 'red', weight: 4 }, 
-            tempHighlight: true 
-        }).addTo(map);
-        map.fitBounds(layer.getBounds());
-        layer.bindPopup(`${match.name} (${match.type})`).openPopup();
-        currentHighlightLayer = layer;
-        setTimeout(() => {
-            if (currentHighlightLayer === layer) {
-                map.removeLayer(layer);
-                currentHighlightLayer = null;
+        map.addSource('highlight-source', {
+            type: 'geojson',
+            data: { type: 'Feature', geometry: geom }
+        });
+        
+        map.addLayer({
+            id: LAYER_IDS.highlight,
+            type: geom.type === 'Polygon' || geom.type === 'MultiPolygon' ? 'fill' : 'line',
+            source: 'highlight-source',
+            paint: {
+                'line-color': 'red',
+                'line-width': 4,
+                'fill-color': 'red',
+                'fill-opacity': 0.3
             }
+        });
+        
+        const bounds = getBoundsFromGeoJSON({ type: 'Feature', geometry: geom });
+        map.fitBounds(bounds, { padding: 50 });
+        
+        setTimeout(() => {
+            if (map.getLayer(LAYER_IDS.highlight)) {
+                map.removeLayer(LAYER_IDS.highlight);
+            }
+            if (map.getSource('highlight-source')) {
+                map.removeSource('highlight-source');
+            }
+            currentHighlightLayer = null;
         }, 6000);
     }
 
@@ -458,7 +576,8 @@ function highlightFeature(match) {
             li.setAttribute('role', 'button');
             li.onclick = () => {
                 showStatus(`Selected department: ${dep} in ${match.name}`, 'info');
-                map.fitBounds(L.geoJSON(match.geometry).getBounds());
+                const bounds = getBoundsFromGeoJSON({ type: 'Feature', geometry: match.geometry });
+                map.fitBounds(bounds, { padding: 50 });
             };
             departmentsUl.appendChild(li);
         });
@@ -499,7 +618,6 @@ searchBox.addEventListener('keydown', (e) => {
     }
 });
 
-
 // --- Routing Logic ---
 function calculateRoute() {
     if (!startPoint || !endPoint) {
@@ -525,25 +643,51 @@ function calculateRoute() {
                 return;
             }
 
-            if (routeLayer) map.removeLayer(routeLayer);
-            stepMarkers.forEach(m => map.removeLayer(m));
+            // Remove existing route layer
+            if (map.getLayer(LAYER_IDS.route)) {
+                map.removeLayer(LAYER_IDS.route);
+            }
+            if (map.getSource('route-source')) {
+                map.removeSource('route-source');
+            }
+
+            // Remove step markers
+            stepMarkers.forEach(m => m.remove());
             stepMarkers = [];
 
-            routeLayer = L.geoJSON(data.route, {style: {color: 'green', weight: 4}}).addTo(map);
-            map.fitBounds(routeLayer.getBounds());
+            // Add route layer
+            map.addSource('route-source', {
+                type: 'geojson',
+                data: data.route
+            });
 
-            // Plot markers for each turn, but not the final destination
+            map.addLayer({
+                id: LAYER_IDS.route,
+                type: 'line',
+                source: 'route-source',
+                paint: {
+                    'line-color': 'green',
+                    'line-width': 4
+                }
+            });
+
+            // Fit bounds to route
+            const bounds = getBoundsFromGeoJSON(data.route);
+            map.fitBounds(bounds, { padding: 50 });
+
+            // Plot markers for each turn
             for (let i = 0; i < data.directions.length - 1; i++) {
                 const stepObj = data.directions[i];
                 const [lon, lat] = stepObj.location;
 
-                const marker = L.marker([lat, lon], {
-                    icon: L.divIcon({
-                        className: 'step-label bg-danger text-white rounded-circle',
-                        html: `<b>${i + 1}</b>`,
-                        iconSize: [24, 24],
-                    }),
-                }).addTo(map);
+                const el = document.createElement('div');
+                el.className = 'step-label bg-danger text-white rounded-circle';
+                el.style.cssText = 'width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px;';
+                el.textContent = i + 1;
+
+                const marker = new mapboxgl.Marker({ element: el })
+                    .setLngLat([lon, lat])
+                    .addTo(map);
                 stepMarkers.push(marker);
             }
 
@@ -582,17 +726,19 @@ function calculateRoute() {
         });
 }
 
-map.on('click', e => {
+// Map click handler
+map.on('click', (e) => {
     if (clickCount === 0) {
-        startPoint = e.latlng;
-        if (startMarker) map.removeLayer(startMarker);
-        startMarker = L.marker(startPoint, {
-            icon: L.divIcon({
-                className: 'marker-start',
-                html: '<div style="background-color: #28a745; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold;">S</div>',
-                iconSize: [30, 30]
-            })
-        }).addTo(map).bindPopup('Start').openPopup();
+        startPoint = { lat: e.lngLat.lat, lng: e.lngLat.lng };
+        if (startMarker) startMarker.remove();
+        const el = document.createElement('div');
+        el.className = 'marker-start';
+        el.innerHTML = '<div style="background-color: #28a745; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold;">S</div>';
+        startMarker = new mapboxgl.Marker({ element: el })
+            .setLngLat([startPoint.lng, startPoint.lat])
+            .setPopup(new mapboxgl.Popup().setText('Start'))
+            .addTo(map);
+        startMarker.togglePopup();
         clickCount = 1;
         updateRouteStatus();
         showStatus('Start point set. Click again for end point.', 'info');
@@ -600,15 +746,16 @@ map.on('click', e => {
     }
 
     if (clickCount === 1) {
-        endPoint = e.latlng;
-        if (endMarker) map.removeLayer(endMarker);
-        endMarker = L.marker(endPoint, {
-            icon: L.divIcon({
-                className: 'marker-end',
-                html: '<div style="background-color: #dc3545; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold;">E</div>',
-                iconSize: [30, 30]
-            })
-        }).addTo(map).bindPopup('End').openPopup();
+        endPoint = { lat: e.lngLat.lat, lng: e.lngLat.lng };
+        if (endMarker) endMarker.remove();
+        const el = document.createElement('div');
+        el.className = 'marker-end';
+        el.innerHTML = '<div style="background-color: #dc3545; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold;">E</div>';
+        endMarker = new mapboxgl.Marker({ element: el })
+            .setLngLat([endPoint.lng, endPoint.lat])
+            .setPopup(new mapboxgl.Popup().setText('End'))
+            .addTo(map);
+        endMarker.togglePopup();
         
         calculateRoute();
     }
@@ -617,8 +764,8 @@ map.on('click', e => {
 // Right-click to cancel route selection
 map.on('contextmenu', (e) => {
     if (clickCount === 1) {
-        e.originalEvent.preventDefault();
-        if (startMarker) map.removeLayer(startMarker);
+        e.preventDefault();
+        if (startMarker) startMarker.remove();
         startMarker = null;
         startPoint = null;
         clickCount = 0;
@@ -633,7 +780,6 @@ map.on('contextmenu', (e) => {
 function speakInstruction(text, force = false) {
     if (!speechEnabled || !window.speechSynthesis) return;
 
-    // Don't repeat the same instruction unless forced
     if (text === lastSpokenInstruction && !force) {
         return;
     }
@@ -644,7 +790,6 @@ function speakInstruction(text, force = false) {
     const utter = new SpeechSynthesisUtterance(text);
     utter.rate = 1.0;
     utter.onend = () => {
-        // Clear after speaking to allow repeats if needed
         setTimeout(() => {
             if (lastSpokenInstruction === text) {
                 lastSpokenInstruction = null;
@@ -659,10 +804,7 @@ function enterNavigationMode() {
     isNavigationMode = true;
     autoRecenter = true;
     
-    // Show navigation bar
     if (navBar) navBar.style.display = 'block';
-    
-    // Update navigation bar
     updateNavigationBar();
 }
 
@@ -671,7 +813,6 @@ function exitNavigationMode() {
     isNavigationMode = false;
     autoRecenter = false;
     
-    // Hide navigation bar
     if (navBar) navBar.style.display = 'none';
 }
 
@@ -679,7 +820,8 @@ function exitNavigationMode() {
 function recenterMap() {
     autoRecenter = true;
     if (userMarker) {
-        map.setView(userMarker.getLatLng(), 18);
+        const lngLat = userMarker.getLngLat();
+        map.flyTo({ center: [lngLat.lng, lngLat.lat], zoom: 18 });
     }
 }
 
@@ -705,7 +847,9 @@ function updateNavigationBar() {
     }
 
     if (distanceToTurnEl && userMarker && routeData.route) {
-        const distToNext = distanceToNextInstruction(userMarker.getLatLng(), currentInstructionIndex + 1);
+        const userLngLat = userMarker.getLngLat();
+        const userPoint = { lat: userLngLat.lat, lng: userLngLat.lng };
+        const distToNext = distanceToNextInstruction(userPoint, currentInstructionIndex + 1);
         const span = distanceToTurnEl.querySelector('span');
         
         if (distToNext < Infinity && currentInstructionIndex + 1 < routeData.directions.length) {
@@ -718,7 +862,7 @@ function updateNavigationBar() {
             const coords = routeData.route.geometry.coordinates;
             if (coords.length > 0) {
                 const [destLon, destLat] = coords[coords.length - 1];
-                const distToDestination = map.distance(userMarker.getLatLng(), [destLat, destLon]);
+                const distToDestination = calculateDistance(userPoint, { lat: destLat, lng: destLon });
                 if (span) {
                     span.textContent = `${Math.round(distToDestination)}m to destination`;
                 } else {
@@ -736,7 +880,7 @@ function updateNavigationBar() {
 }
 
 // Calculate distance to next instruction point
-function distanceToNextInstruction(userLatLng, instructionIndex) {
+function distanceToNextInstruction(userPoint, instructionIndex) {
     if (!routeData || !routeData.route || !routeData.route.geometry) {
         return Infinity;
     }
@@ -751,34 +895,21 @@ function distanceToNextInstruction(userLatLng, instructionIndex) {
         const instruction = routeData.directions[instructionIndex - 1];
         if (instruction.location) {
             const [lon, lat] = instruction.location;
-            return map.distance(userLatLng, [lat, lon]);
+            return calculateDistance(userPoint, { lat, lng: lon });
         }
     }
 
     // Fallback: estimate based on route coordinates
-    // Find closest point on route to user
-    let minDist = Infinity;
-    let closestIndex = 0;
-    for (let i = 0; i < coords.length; i++) {
-        const [lon, lat] = coords[i];
-        const dist = map.distance(userLatLng, [lat, lon]);
-        if (dist < minDist) {
-            minDist = dist;
-            closestIndex = i;
-        }
-    }
-
-    // Calculate distance from closest point to target instruction
     if (instructionIndex < coords.length) {
         const [targetLon, targetLat] = coords[instructionIndex];
-        return map.distance(userLatLng, [targetLat, targetLon]);
+        return calculateDistance(userPoint, { lat: targetLat, lng: targetLon });
     }
 
     return Infinity;
 }
 
 // Calculate distance traveled along route
-function calculateDistanceTraveled(userLatLng) {
+function calculateDistanceTraveled(userPoint) {
     if (!routeData || !routeData.route || !routeData.route.geometry) return 0;
 
     const coords = routeData.route.geometry.coordinates;
@@ -790,7 +921,7 @@ function calculateDistanceTraveled(userLatLng) {
     // Find closest point on route
     for (let i = 0; i < coords.length; i++) {
         const [lon, lat] = coords[i];
-        const dist = map.distance(userLatLng, [lat, lon]);
+        const dist = calculateDistance(userPoint, { lat, lng: lon });
         if (dist < minDist) {
             minDist = dist;
             closestIndex = i;
@@ -802,14 +933,14 @@ function calculateDistanceTraveled(userLatLng) {
     for (let i = 0; i < closestIndex; i++) {
         const [lon1, lat1] = coords[i];
         const [lon2, lat2] = coords[i + 1];
-        traveled += map.distance([lat1, lon1], [lat2, lon2]);
+        traveled += calculateDistance({ lat: lat1, lng: lon1 }, { lat: lat2, lng: lon2 });
     }
 
     return traveled;
 }
 
 // Check if user is off route
-function checkOffRoute(userLatLng) {
+function checkOffRoute(userPoint) {
     if (!routeData || !routeData.route || !routeData.route.geometry) return false;
 
     const coords = routeData.route.geometry.coordinates;
@@ -820,7 +951,7 @@ function checkOffRoute(userLatLng) {
     // Find minimum distance to any point on the route
     for (let i = 0; i < coords.length; i++) {
         const [lon, lat] = coords[i];
-        const dist = map.distance(userLatLng, [lat, lon]);
+        const dist = calculateDistance(userPoint, { lat, lng: lon });
         if (dist < minDistance) {
             minDistance = dist;
         }
@@ -851,29 +982,28 @@ function startGPSTracking(data) {
     gpsWatchId = navigator.geolocation.watchPosition(
         pos => {
             const userLatLng = [pos.coords.latitude, pos.coords.longitude];
+            const userPoint = { lat: userLatLng[0], lng: userLatLng[1] };
 
             // Update user marker
-            if (userMarker) map.removeLayer(userMarker);
-            userMarker = L.circleMarker(userLatLng, { 
-                radius: 10,
-                color: '#2196F3',
-                fillColor: '#2196F3',
-                fillOpacity: 0.8,
-                weight: 3,
-                className: 'pulse-marker'
-            }).addTo(map);
+            if (userMarker) userMarker.remove();
+            const el = document.createElement('div');
+            el.className = 'pulse-marker';
+            el.style.cssText = 'width: 20px; height: 20px; border-radius: 50%; background-color: #2196F3; border: 3px solid #2196F3; box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.7);';
+            userMarker = new mapboxgl.Marker({ element: el })
+                .setLngLat([userLatLng[1], userLatLng[0]])
+                .addTo(map);
 
             // Auto-recenter in navigation mode
             if (isNavigationMode && autoRecenter) {
-                map.setView(userLatLng, 18, { animate: true, duration: 0.5 });
+                map.flyTo({ center: [userLatLng[1], userLatLng[0]], zoom: 18, duration: 500 });
             }
 
             // Update distance traveled and progress
-            distanceTraveled = calculateDistanceTraveled(userLatLng);
+            distanceTraveled = calculateDistanceTraveled(userPoint);
             updateNavigationBar();
 
             // Check if off route
-            if (checkOffRoute(userLatLng)) {
+            if (checkOffRoute(userPoint)) {
                 if (!isOffRoute) {
                     isOffRoute = true;
                     speakInstruction("You are off route. Recalculating...", true);
@@ -887,7 +1017,7 @@ function startGPSTracking(data) {
             }
 
             // Check distance to next instruction
-            const distToNext = distanceToNextInstruction(userLatLng, currentInstructionIndex + 1);
+            const distToNext = distanceToNextInstruction(userPoint, currentInstructionIndex + 1);
 
             // Advance warning (50m before turn)
             if (distToNext < 50 && distToNext > 30 && currentInstructionIndex + 1 < data.directions.length) {
@@ -913,7 +1043,7 @@ function startGPSTracking(data) {
             const coords = data.route.geometry.coordinates;
             if (coords && coords.length > 0) {
                 const [destLon, destLat] = coords[coords.length - 1];
-                const distToDestination = map.distance(userLatLng, [destLat, destLon]);
+                const distToDestination = calculateDistance(userPoint, { lat: destLat, lng: destLon });
 
                 if (distToDestination < 10 && currentInstructionIndex === data.directions.length - 1) {
                     speakInstruction("You have arrived at your destination.", true);

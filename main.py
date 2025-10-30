@@ -4,8 +4,16 @@ import networkx as nx
 from shapely.geometry import LineString
 from scipy.spatial import cKDTree
 import math
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = Flask(__name__)
+
+# Get Mapbox access token from environment
+MAPBOX_ACCESS_TOKEN = os.getenv('MAPBOX_ACCESS_TOKEN', '')
 
 # Load your GeoJSON roads file
 roads = gpd.read_file("static/roads.geojson")
@@ -101,7 +109,7 @@ def generate_turn_instructions(path):
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", mapbox_token=MAPBOX_ACCESS_TOKEN)
 
 @app.route("/route")
 def route():
