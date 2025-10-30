@@ -96,14 +96,40 @@ function calculateDistance(point1, point2) {
 
 // Get bounds from GeoJSON
 function getBoundsFromGeoJSON(geojson) {
-    const bbox = turf.bbox(geojson);
-    return [[bbox[0], bbox[1]], [bbox[2], bbox[3]]];
+    if (!geojson || !geojson.features || geojson.features.length === 0) {
+        // Return default bounds if invalid
+        return [[7.0, 8.0], [8.0, 9.0]];
+    }
+    try {
+        const bbox = turf.bbox(geojson);
+        // Validate bbox values
+        if (bbox.some(v => !isFinite(v) || isNaN(v))) {
+            return [[7.0, 8.0], [8.0, 9.0]];
+        }
+        return [[bbox[0], bbox[1]], [bbox[2], bbox[3]]];
+    } catch (e) {
+        console.warn('Error calculating bounds:', e);
+        return [[7.0, 8.0], [8.0, 9.0]];
+    }
 }
 
 // Get center from GeoJSON
 function getCenterFromGeoJSON(geojson) {
-    const center = turf.center(geojson);
-    return center.geometry.coordinates; // [lng, lat]
+    if (!geojson) {
+        return [7.5, 8.5]; // Default center
+    }
+    try {
+        const center = turf.center(geojson);
+        const coords = center.geometry.coordinates; // [lng, lat]
+        // Validate coordinates
+        if (!isFinite(coords[0]) || !isFinite(coords[1]) || isNaN(coords[0]) || isNaN(coords[1])) {
+            return [7.5, 8.5]; // Default center
+        }
+        return coords;
+    } catch (e) {
+        console.warn('Error calculating center:', e);
+        return [7.5, 8.5]; // Default center
+    }
 }
 
 // --- Speech Synthesis with Queue ---
@@ -192,21 +218,39 @@ function loadGeoJSONLayers() {
                 }
             });
 
-            // Add road labels (hover tooltips)
+            // Add road labels (hover tooltips) - use midpoint for LineStrings
             roads.features.forEach(feature => {
-                if (feature.properties?.name) {
-                    const coordinates = feature.geometry.coordinates;
-                    coordinates.forEach(coord => {
-                        const [lon, lat] = coord;
-                        const el = document.createElement('div');
-                        el.className = 'road-label';
-                        el.textContent = feature.properties.name;
-                        el.style.cssText = 'background: rgba(255, 255, 255, 0.7); padding: 2px 6px; border-radius: 3px; font-size: 10px; pointer-events: none;';
+                if (feature.properties?.name && feature.geometry) {
+                    try {
+                        let lon, lat;
                         
-                        new mapboxgl.Marker({ element: el })
-                            .setLngLat([lon, lat])
-                            .addTo(map);
-                    });
+                        // For LineString, get midpoint
+                        if (feature.geometry.type === 'LineString' && feature.geometry.coordinates.length > 0) {
+                            const coords = feature.geometry.coordinates;
+                            const midIndex = Math.floor(coords.length / 2);
+                            [lon, lat] = coords[midIndex];
+                        } else if (feature.geometry.type === 'Point') {
+                            [lon, lat] = feature.geometry.coordinates;
+                        } else {
+                            // For other types, use center
+                            const center = getCenterFromGeoJSON({ type: 'FeatureCollection', features: [feature] });
+                            [lon, lat] = center;
+                        }
+                        
+                        // Validate coordinates before creating marker
+                        if (isFinite(lon) && isFinite(lat) && !isNaN(lon) && !isNaN(lat)) {
+                            const el = document.createElement('div');
+                            el.className = 'road-label';
+                            el.textContent = feature.properties.name;
+                            el.style.cssText = 'background: rgba(255, 255, 255, 0.7); padding: 2px 6px; border-radius: 3px; font-size: 10px; pointer-events: none;';
+                            
+                            new mapboxgl.Marker({ element: el })
+                                .setLngLat([lon, lat])
+                                .addTo(map);
+                        }
+                    } catch (e) {
+                        console.warn('Error creating road label:', e, feature);
+                    }
                 }
             });
 
@@ -241,9 +285,21 @@ function loadGeoJSONLayers() {
                 type: 'FeatureCollection',
                 features: [...roads.features, ...buildings.features]
             };
-            const bounds = getBoundsFromGeoJSON(allFeatures);
-            map.fitBounds(bounds, { padding: 50 });
-            map.zoomIn(1);
+            
+            // Only fit bounds if we have valid features
+            if (allFeatures.features.length > 0) {
+                try {
+                    const bounds = getBoundsFromGeoJSON(allFeatures);
+                    // Validate bounds before using
+                    if (bounds && bounds[0] && bounds[1] && 
+                        bounds[0][0] !== bounds[1][0] && bounds[0][1] !== bounds[1][1]) {
+                        map.fitBounds(bounds, { padding: 50 });
+                        map.zoomIn(1);
+                    }
+                } catch (e) {
+                    console.warn('Error fitting bounds:', e);
+                }
+            }
 
             // Prepare offline search data
             roads.features.forEach(f => {
@@ -466,6 +522,12 @@ function setLocationFromSearch(match, type) {
         [lon, lat] = center;
     }
     
+    // Validate coordinates
+    if (!isFinite(lon) || !isFinite(lat) || isNaN(lon) || isNaN(lat)) {
+        showStatus('Invalid location coordinates', 'error');
+        return;
+    }
+    
     if (type === 'start') {
         if (startMarker) startMarker.remove();
         startPoint = {lat, lng: lon};
@@ -518,6 +580,11 @@ function highlightFeature(match) {
     
     if (geom.type === 'Point') {
         const [lon, lat] = geom.coordinates;
+        // Validate coordinates
+        if (!isFinite(lon) || !isFinite(lat) || isNaN(lon) || isNaN(lat)) {
+            showStatus('Invalid point coordinates', 'error');
+            return;
+        }
         map.flyTo({ center: [lon, lat], zoom: 17 });
         const el = document.createElement('div');
         el.innerHTML = '📍';
@@ -672,8 +739,16 @@ function calculateRoute() {
             });
 
             // Fit bounds to route
-            const bounds = getBoundsFromGeoJSON(data.route);
-            map.fitBounds(bounds, { padding: 50 });
+            try {
+                const bounds = getBoundsFromGeoJSON(data.route);
+                // Validate bounds before using
+                if (bounds && bounds[0] && bounds[1] && 
+                    bounds[0][0] !== bounds[1][0] && bounds[0][1] !== bounds[1][1]) {
+                    map.fitBounds(bounds, { padding: 50 });
+                }
+            } catch (e) {
+                console.warn('Error fitting route bounds:', e);
+            }
 
             // Plot markers for each turn
             for (let i = 0; i < data.directions.length - 1; i++) {
