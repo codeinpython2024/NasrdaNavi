@@ -1,3 +1,61 @@
+/**
+ * Enhanced Mapbox GL JS Navigation System
+ * 
+ * MAPBOX FEATURES IMPLEMENTED:
+ * 
+ * 1. BUILT-IN CONTROLS:
+ *    - NavigationControl: Zoom and rotation controls with pitch visualization
+ *    - GeolocateControl: User location tracking with high accuracy
+ *    - ScaleControl: Metric scale bar
+ *    - FullscreenControl: Full-screen map mode
+ *    - AttributionControl: Compact attribution display
+ * 
+ * 2. CUSTOM CONTROLS:
+ *    - Style Switcher: Switch between 6 map styles (streets, satellite, outdoors, light, dark, navigation)
+ *    - 3D Terrain Toggle: Enable/disable 3D terrain with elevation data and sky atmosphere
+ *    - Layer Toggle: Show/hide roads, buildings, road labels, and route layers
+ *    - Pitch/Bearing Control: Adjust camera angle and reset view
+ * 
+ * 3. MAP STYLES:
+ *    - Mapbox Standard (modern 3D style), Streets (default), Satellite Streets, Outdoors, Light, Dark, Navigation Day
+ *    - Preserves custom layers (roads, buildings, routes) when switching styles
+ * 
+ * 4. 3D FEATURES:
+ *    - Terrain: Raster DEM with 1.2x exaggeration (optimized for campus-scale terrain)
+ *    - Sky Layer: Atmospheric rendering for 3D effect
+ *    - Hillshade: Subtle terrain shading for depth perception
+ *    - Contour Lines: Topographic lines at zoom 16+ for campus detail
+ *    - Subtle Fog: Depth perception without obscuring campus features
+ *    - Pitch Control: 0-60 degrees camera tilt
+ *    - Bearing Control: 360-degree rotation
+ * 
+ * 5. ROUTE VISUALIZATION:
+ *    - Gradient route line: Green (start) → Yellow (middle) → Red (end)
+ *    - Animated dashed overlay: Moving dashes for visual feedback
+ *    - Line metrics enabled for gradient effects
+ *    - Smooth animations with requestAnimationFrame
+ * 
+ * 6. LAYER MANAGEMENT:
+ *    - Dynamic layer visibility toggling
+ *    - Custom GeoJSON layers (roads, buildings)
+ *    - Layer persistence across style changes
+ *    - Proper layer ordering and z-index
+ * 
+ * 7. INTERACTIONS:
+ *    - Hover effects on roads with popups
+ *    - Smooth flyTo animations
+ *    - EaseTo transitions for pitch/bearing
+ *    - Interactive markers with scale effects
+ * 
+ * 8. PERFORMANCE:
+ *    - Antialiasing enabled for smooth rendering
+ *    - RequestAnimationFrame for efficient animations
+ *    - Proper layer cleanup and memory management
+ *    - Optimized GeoJSON rendering
+ *    - MaxBounds restriction to campus area for better performance
+ *    - Emissive strength on all custom layers for proper GL JS v3 lighting
+ */
+
 // --- Initialize Map with Mapbox GL JS ---
 // Campus bounds calculated from GeoJSON data:
 // Bounds: [7.383311885048632, 8.986260622829548] to [7.389412099633819, 8.992891300009468]
@@ -10,14 +68,734 @@ const CAMPUS_BOUNDS = [
 
 const map = new mapboxgl.Map({
     container: 'map',
-    style: 'mapbox://styles/mapbox/streets-v12',
+    style: 'mapbox://styles/mapbox/standard', // Modern standard style with 3D features
     center: CAMPUS_CENTER, // [lng, lat] - Campus center
-    zoom: 16 // Higher zoom to see campus details
+    zoom: 16, // Higher zoom to see campus details
+    pitch: 70, // Slanted 3D view - maximum tilt for dramatic perspective (0-85 degrees)
+    bearing: 20, // Initial bearing (0-360 degrees)
+    antialias: true, // Enable antialiasing for smoother rendering
+    maxBounds: CAMPUS_BOUNDS // Restrict panning to campus area for better performance
 });
+
+// Add Mapbox Controls
+// 1. Navigation Control (zoom and rotation)
+const nav = new mapboxgl.NavigationControl({
+    visualizePitch: true,
+    showZoom: true,
+    showCompass: true
+});
+map.addControl(nav, 'top-left');
+
+// 2. Geolocate Control (find user location)
+const geolocate = new mapboxgl.GeolocateControl({
+    positionOptions: {
+        enableHighAccuracy: true
+    },
+    trackUserLocation: true,
+    showUserHeading: true,
+    showUserLocation: true
+});
+map.addControl(geolocate, 'top-left');
+
+// 3. Scale Control
+const scale = new mapboxgl.ScaleControl({
+    maxWidth: 100,
+    unit: 'metric'
+});
+map.addControl(scale, 'bottom-left');
+
+// 4. Fullscreen Control
+const fullscreen = new mapboxgl.FullscreenControl();
+map.addControl(fullscreen, 'top-right');
+
+// 5. Attribution Control (already default, but customizing)
+map.addControl(new mapboxgl.AttributionControl({
+    compact: true
+}));
+
+// Map Styles Configuration
+const MAP_STYLES = {
+    standard: 'mapbox://styles/mapbox/standard',  // Modern default style with 3D features
+    streets: 'mapbox://styles/mapbox/streets-v12',
+    satellite: 'mapbox://styles/mapbox/satellite-streets-v12',
+    outdoors: 'mapbox://styles/mapbox/outdoors-v12',
+    light: 'mapbox://styles/mapbox/light-v11',
+    dark: 'mapbox://styles/mapbox/dark-v11',
+    navigation: 'mapbox://styles/mapbox/navigation-day-v1'
+};
+
+let currentStyle = 'standard';
+let terrain3DEnabled = true; // Enable 3D terrain by default
+
+// Custom Map Style Switcher Control
+class StyleSwitcherControl {
+    onAdd(map) {
+        this._map = map;
+        this._container = document.createElement('div');
+        this._container.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
+        this._container.innerHTML = `
+            <button type="button" title="Change Map Style" aria-label="Change map style" style="position: relative;">
+                <i class="fas fa-layer-group"></i>
+            </button>
+        `;
+
+        const button = this._container.querySelector('button');
+        const dropdown = document.createElement('div');
+        dropdown.className = 'style-dropdown';
+        dropdown.style.cssText = 'padding: 8px; min-width: 150px;';
+        dropdown.style.display = 'none';  // Initialize as hidden
+
+        Object.keys(MAP_STYLES).forEach(styleName => {
+            const styleBtn = document.createElement('button');
+            styleBtn.className = 'style-option';
+            styleBtn.textContent = styleName.charAt(0).toUpperCase() + styleName.slice(1);
+            styleBtn.style.cssText = 'display: block; width: 100%; padding: 8px; margin: 4px 0; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer; text-align: left;';
+            styleBtn.onclick = () => {
+                switchMapStyle(styleName);
+                dropdown.style.display = 'none';
+            };
+
+            styleBtn.onmouseenter = () => {
+                styleBtn.style.backgroundColor = '#f0f0f0';
+            };
+            styleBtn.onmouseleave = () => {
+                styleBtn.style.backgroundColor = 'white';
+            };
+
+            dropdown.appendChild(styleBtn);
+        });
+
+        this._container.appendChild(dropdown);
+
+        button.onclick = (e) => {
+            e.stopPropagation();
+            dropdown.style.display = (dropdown.style.display === 'none' || dropdown.style.display === '') ? 'block' : 'none';
+        };
+
+        // Prevent dropdown clicks from closing it
+        dropdown.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        document.addEventListener('click', () => {
+            dropdown.style.display = 'none';
+        });
+
+        return this._container;
+    }
+
+    onRemove() {
+        this._container.parentNode.removeChild(this._container);
+        this._map = undefined;
+    }
+}
+
+// Custom 3D Terrain Toggle Control with exaggeration slider
+class Terrain3DControl {
+    onAdd(map) {
+        this._map = map;
+        this._container = document.createElement('div');
+        this._container.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
+        this._container.innerHTML = `
+            <button type="button" id="terrain3DBtn" title="Toggle 3D Terrain" aria-label="Toggle 3D terrain" style="position: relative;">
+                <i class="fas fa-mountain"></i>
+            </button>
+        `;
+
+        const button = this._container.querySelector('button');
+        const dropdown = document.createElement('div');
+        dropdown.className = 'terrain-dropdown';
+        dropdown.style.cssText = 'padding: 12px; min-width: 200px;';
+        dropdown.style.display = 'none';  // Initialize as hidden
+        dropdown.innerHTML = `
+            <div style="margin-bottom: 8px; font-weight: bold; font-size: 12px; color: #333;">Terrain Settings</div>
+            <label style="display: block; margin: 8px 0; cursor: pointer;">
+                <input type="checkbox" id="terrain3DToggle" ${terrain3DEnabled ? 'checked' : ''}> Enable 3D Terrain
+            </label>
+            <div id="terrainExaggerationControl" style="margin-top: 12px; ${terrain3DEnabled ? '' : 'display: none;'}">
+                <label style="display: block; font-size: 11px; color: #666; margin-bottom: 4px;">
+                    Exaggeration: <span id="exaggerationValue">1.2</span>x
+                </label>
+                <input type="range" id="exaggerationSlider" min="0.5" max="5" step="0.1" value="1.2" 
+                       style="width: 100%; cursor: pointer;">
+            </div>
+        `;
+
+        this._container.appendChild(dropdown);
+
+        button.onclick = (e) => {
+            e.stopPropagation();
+            dropdown.style.display = (dropdown.style.display === 'none' || dropdown.style.display === '') ? 'block' : 'none';
+        };
+
+        // Prevent dropdown clicks from closing it
+        dropdown.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        document.addEventListener('click', () => {
+            dropdown.style.display = 'none';
+        });
+
+        // Setup terrain toggle
+        setTimeout(() => {
+            const terrainToggle = document.getElementById('terrain3DToggle');
+            const exaggerationControl = document.getElementById('terrainExaggerationControl');
+            const exaggerationSlider = document.getElementById('exaggerationSlider');
+            const exaggerationValue = document.getElementById('exaggerationValue');
+
+            if (terrainToggle) {
+                terrainToggle.addEventListener('change', (e) => {
+                    e.stopPropagation();
+                    toggle3DTerrain();
+                    if (exaggerationControl) {
+                        exaggerationControl.style.display = terrain3DEnabled ? 'block' : 'none';
+                    }
+                });
+            }
+
+            if (exaggerationSlider && exaggerationValue) {
+                exaggerationSlider.addEventListener('input', (e) => {
+                    e.stopPropagation();
+                    const value = parseFloat(e.target.value);
+                    exaggerationValue.textContent = value.toFixed(1);
+                    if (terrain3DEnabled && map.getTerrain()) {
+                        map.setTerrain({ source: 'mapbox-dem', exaggeration: value });
+                    }
+                });
+            }
+        }, 100);
+
+        return this._container;
+    }
+
+    onRemove() {
+        this._container.parentNode.removeChild(this._container);
+        this._map = undefined;
+    }
+}
+
+// Custom Layer Toggle Control
+class LayerToggleControl {
+    onAdd(map) {
+        this._map = map;
+        this._container = document.createElement('div');
+        this._container.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
+        this._container.innerHTML = `
+            <button type="button" title="Toggle Layers" aria-label="Toggle map layers" style="position: relative;">
+                <i class="fas fa-list"></i>
+            </button>
+        `;
+
+        const button = this._container.querySelector('button');
+        const dropdown = document.createElement('div');
+        dropdown.className = 'layer-dropdown';
+        dropdown.style.cssText = 'padding: 12px; min-width: 180px;';
+        dropdown.style.display = 'none';  // Initialize as hidden
+        dropdown.innerHTML = `
+            <div style="margin-bottom: 8px; font-weight: bold; font-size: 12px; color: #333;">Map Layers</div>
+            <label style="display: block; margin: 8px 0; cursor: pointer;">
+                <input type="checkbox" id="roadsLayerToggle" checked> Roads
+            </label>
+            <label style="display: block; margin: 8px 0; cursor: pointer;">
+                <input type="checkbox" id="buildingsLayerToggle" checked> Buildings
+            </label>
+            <label style="display: block; margin: 8px 0; cursor: pointer;">
+                <input type="checkbox" id="roadLabelsToggle" checked> Road Labels
+            </label>
+            <label style="display: block; margin: 8px 0; cursor: pointer;">
+                <input type="checkbox" id="routeLayerToggle" checked> Route
+            </label>
+        `;
+
+        this._container.appendChild(dropdown);
+
+        button.onclick = (e) => {
+            e.stopPropagation();
+            dropdown.style.display = (dropdown.style.display === 'none' || dropdown.style.display === '') ? 'block' : 'none';
+        };
+
+        // Prevent dropdown clicks from closing it
+        dropdown.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        document.addEventListener('click', () => {
+            dropdown.style.display = 'none';
+        });
+
+        return this._container;
+    }
+
+    onRemove() {
+        this._container.parentNode.removeChild(this._container);
+        this._map = undefined;
+    }
+}
+
+// Custom Pitch and Bearing Control with enhanced features
+class PitchBearingControl {
+    onAdd(map) {
+        this._map = map;
+        this._container = document.createElement('div');
+        this._container.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
+        this._container.innerHTML = `
+            <button type="button" id="pitchUpBtn" title="Increase Pitch (Tilt Up)" aria-label="Increase pitch">
+                <i class="fas fa-angle-up"></i>
+            </button>
+            <button type="button" id="pitchDownBtn" title="Decrease Pitch (Tilt Down)" aria-label="Decrease pitch">
+                <i class="fas fa-angle-down"></i>
+            </button>
+            <button type="button" id="rotateLeftBtn" title="Rotate Left" aria-label="Rotate map left">
+                <i class="fas fa-undo"></i>
+            </button>
+            <button type="button" id="rotateRightBtn" title="Rotate Right" aria-label="Rotate map right">
+                <i class="fas fa-redo"></i>
+            </button>
+            <button type="button" id="resetViewBtn" title="Reset View (North Up, Level)" aria-label="Reset camera view">
+                <i class="fas fa-compass"></i>
+            </button>
+        `;
+
+        const pitchUpBtn = this._container.querySelector('#pitchUpBtn');
+        const pitchDownBtn = this._container.querySelector('#pitchDownBtn');
+        const rotateLeftBtn = this._container.querySelector('#rotateLeftBtn');
+        const rotateRightBtn = this._container.querySelector('#rotateRightBtn');
+        const resetViewBtn = this._container.querySelector('#resetViewBtn');
+
+        pitchUpBtn.onclick = () => {
+            const currentPitch = map.getPitch();
+            map.easeTo({ pitch: Math.min(currentPitch + 15, 85), duration: 300 });
+        };
+
+        pitchDownBtn.onclick = () => {
+            const currentPitch = map.getPitch();
+            map.easeTo({ pitch: Math.max(currentPitch - 15, 0), duration: 300 });
+        };
+
+        rotateLeftBtn.onclick = () => {
+            const currentBearing = map.getBearing();
+            map.easeTo({ bearing: currentBearing - 45, duration: 400 });
+        };
+
+        rotateRightBtn.onclick = () => {
+            const currentBearing = map.getBearing();
+            map.easeTo({ bearing: currentBearing + 45, duration: 400 });
+        };
+
+        resetViewBtn.onclick = () => {
+            map.easeTo({
+                pitch: 0,
+                bearing: 0,
+                duration: 800,
+                easing: (t) => t * (2 - t)
+            });
+        };
+
+        return this._container;
+    }
+
+    onRemove() {
+        this._container.parentNode.removeChild(this._container);
+        this._map = undefined;
+    }
+}
+
+// Add custom controls
+map.addControl(new StyleSwitcherControl(), 'top-right');
+map.addControl(new Terrain3DControl(), 'top-right');
+map.addControl(new LayerToggleControl(), 'top-right');
+map.addControl(new PitchBearingControl(), 'top-right');
+
+// Switch map style function
+function switchMapStyle(styleName) {
+    if (!MAP_STYLES[styleName]) return;
+
+    currentStyle = styleName;
+    const currentLayers = {};
+    const currentSources = {};
+
+    // Save current custom layers and sources
+    if (map.getSource('roads-source')) {
+        currentSources['roads-source'] = map.getSource('roads-source').serialize();
+    }
+    if (map.getSource('buildings-source')) {
+        currentSources['buildings-source'] = map.getSource('buildings-source').serialize();
+    }
+    if (map.getSource('route-source')) {
+        currentSources['route-source'] = map.getSource('route-source').serialize();
+    }
+
+    // Change style
+    map.setStyle(MAP_STYLES[styleName]);
+
+    // Re-add custom layers after style loads
+    map.once('style.load', () => {
+        // Re-add sources and layers
+        if (currentSources['roads-source']) {
+            map.addSource('roads-source', currentSources['roads-source']);
+            addRoadsLayers();
+        }
+        if (currentSources['buildings-source']) {
+            map.addSource('buildings-source', currentSources['buildings-source']);
+            addBuildingsLayers();
+        }
+        if (currentSources['route-source']) {
+            map.addSource('route-source', currentSources['route-source']);
+            addRouteLayer();
+        }
+
+        // Re-enable terrain if it was enabled
+        if (terrain3DEnabled) {
+            enable3DTerrain();
+        }
+
+        showStatus(`Map style changed to ${styleName}`, 'info', 2000);
+    });
+}
+
+// Toggle 3D terrain
+function toggle3DTerrain() {
+    terrain3DEnabled = !terrain3DEnabled;
+    const btn = document.getElementById('terrain3DBtn');
+
+    if (terrain3DEnabled) {
+        enable3DTerrain();
+        if (btn) {
+            btn.style.backgroundColor = '#007bff';
+            btn.style.color = 'white';
+        }
+        showStatus('3D terrain enabled', 'info', 2000);
+    } else {
+        disable3DTerrain();
+        if (btn) {
+            btn.style.backgroundColor = '';
+            btn.style.color = '';
+        }
+        showStatus('3D terrain disabled', 'info', 2000);
+    }
+}
+
+// Enable 3D terrain with enhanced visual effects
+function enable3DTerrain() {
+    // Add terrain source with high-resolution DEM
+    if (!map.getSource('mapbox-dem')) {
+        map.addSource('mapbox-dem', {
+            type: 'raster-dem',
+            url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
+            tileSize: 512,
+            maxzoom: 14
+        });
+    }
+
+    // Set terrain with realistic exaggeration for campus-scale terrain
+    map.setTerrain({
+        source: 'mapbox-dem',
+        exaggeration: 1.2  // Realistic campus terrain (campuses have minimal elevation changes)
+    });
+
+    // Add enhanced sky layer with dynamic atmosphere
+    if (!map.getLayer('sky')) {
+        map.addLayer({
+            id: 'sky',
+            type: 'sky',
+            paint: {
+                'sky-type': 'atmosphere',
+                'sky-atmosphere-sun': [0.0, 90.0],  // Sun position for better lighting
+                'sky-atmosphere-sun-intensity': 20,  // Increased intensity
+                'sky-atmosphere-halo-color': 'rgba(135, 206, 235, 0.8)',  // Sky blue halo
+                'sky-atmosphere-color': 'rgba(135, 206, 250, 0.5)',  // Light sky blue
+                'sky-gradient-center': [0, 0],
+                'sky-gradient-radius': 90,
+                'sky-opacity': [
+                    'interpolate',
+                    ['exponential', 0.1],
+                    ['zoom'],
+                    5, 0.3,
+                    10, 0.7,
+                    15, 1
+                ]
+            }
+        });
+    }
+
+    // Add hillshade layer for enhanced terrain visualization
+    if (!map.getLayer('hillshade')) {
+        map.addLayer({
+            id: 'hillshade',
+            type: 'hillshade',
+            source: 'mapbox-dem',
+            layout: {},
+            paint: {
+                'hillshade-exaggeration': 0.5,  // Subtle for campus terrain
+                'hillshade-shadow-color': '#473B24',
+                'hillshade-highlight-color': '#FFFFFF',
+                'hillshade-accent-color': '#F0E68C',
+                'hillshade-illumination-direction': 315,  // Northwest lighting
+                'hillshade-illumination-anchor': 'viewport'
+            }
+        }, 'waterway-label');  // Place below labels
+    }
+
+    // Add contour lines for topographic effect (if available)
+    if (!map.getLayer('contours')) {
+        map.addLayer({
+            id: 'contours',
+            type: 'line',
+            source: {
+                type: 'vector',
+                url: 'mapbox://mapbox.mapbox-terrain-v2'
+            },
+            'source-layer': 'contour',
+            layout: {
+                'line-join': 'round',
+                'line-cap': 'round'
+            },
+            paint: {
+                'line-color': '#877b59',
+                'line-width': [
+                    'interpolate',
+                    ['exponential', 1.5],
+                    ['zoom'],
+                    14, 0.5,
+                    18, 1.5
+                ],
+                'line-opacity': [
+                    'interpolate',
+                    ['linear'],
+                    ['zoom'],
+                    14, 0.3,
+                    16, 0.6,
+                    18, 0.8
+                ]
+            },
+            minzoom: 16  // Campus-level detail visibility
+        });
+    }
+
+    // Animate pitch for better 3D view with smooth transition
+    map.easeTo({
+        pitch: 60,
+        bearing: map.getBearing() || 0,
+        duration: 1500,
+        easing: (t) => t * (2 - t)  // Ease-out quad for smooth animation
+    });
+
+    // Add subtle fog for depth perception without obscuring campus details
+    map.setFog({
+        'range': [1, 5],
+        'color': 'rgba(200, 220, 240, 0.15)',  // Much more subtle for campus visibility
+        'horizon-blend': 0.05
+        // Removed high-color, space-color, star-intensity for campus-level simplicity
+    });
+}
+
+// Disable 3D terrain and cleanup all related layers
+function disable3DTerrain() {
+    // Remove terrain
+    map.setTerrain(null);
+
+    // Remove fog
+    map.setFog(null);
+
+    // Remove sky layer
+    if (map.getLayer('sky')) {
+        map.removeLayer('sky');
+    }
+
+    // Remove hillshade layer
+    if (map.getLayer('hillshade')) {
+        map.removeLayer('hillshade');
+    }
+
+    // Remove contour layer
+    if (map.getLayer('contours')) {
+        map.removeLayer('contours');
+    }
+
+    // Remove contour lines
+    if (map.getLayer('contours')) {
+        map.removeLayer('contours');
+    }
+
+    // Reset pitch and bearing with smooth animation
+    map.easeTo({
+        pitch: 0,
+        bearing: 0,
+        duration: 1500,
+        easing: (t) => t * (2 - t)  // Ease-out quad
+    });
+}
+
+// Helper functions to add layers
+function addRoadsLayers() {
+    if (map.getLayer(LAYER_IDS.roads)) return;
+
+    map.addLayer({
+        id: LAYER_IDS.roads,
+        type: 'line',
+        source: 'roads-source',
+        paint: {
+            'line-color': '#000000',
+            'line-width': 2,
+            'line-emissive-strength': 0.5  // GL JS v3: Makes lines glow appropriately in 3D lighting
+        }
+    });
+
+    map.addLayer({
+        id: LAYER_IDS.roads + '-labels',
+        type: 'symbol',
+        source: 'roads-source',
+        layout: {
+            'text-field': ['get', 'name'],
+            'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
+            'text-size': 11,
+            'text-optional': true,
+            'symbol-placement': 'line',
+            'symbol-spacing': 300,
+            'text-padding': 2,
+            'text-allow-overlap': false,
+            'text-ignore-placement': false
+        },
+        paint: {
+            'text-color': '#333333',
+            'text-halo-color': '#ffffff',
+            'text-halo-width': 1.5,
+            'text-halo-blur': 1,
+            'text-emissive-strength': 0.5  // GL JS v3: Proper text visibility in 3D lighting
+        },
+        minzoom: 15
+    });
+}
+
+function addBuildingsLayers() {
+    if (map.getLayer(LAYER_IDS.buildings)) return;
+
+    map.addLayer({
+        id: LAYER_IDS.buildings,
+        type: 'fill',
+        source: 'buildings-source',
+        paint: {
+            'fill-color': 'coral',
+            'fill-opacity': 0.8,
+            'fill-emissive-strength': 0.6  // GL JS v3: Makes buildings visible in all lighting conditions
+        }
+    });
+
+    map.addLayer({
+        id: LAYER_IDS.buildings + '-outline',
+        type: 'line',
+        source: 'buildings-source',
+        paint: {
+            'line-color': 'coral',
+            'line-width': 2,
+            'line-emissive-strength': 0.6  // GL JS v3: Outline visibility in 3D lighting
+        }
+    });
+}
+
+function addRouteLayer() {
+    if (map.getLayer(LAYER_IDS.route)) return;
+
+    // Add main route line with gradient effect
+    map.addLayer({
+        id: LAYER_IDS.route,
+        type: 'line',
+        source: 'route-source',
+        paint: {
+            'line-color': [
+                'interpolate',
+                ['linear'],
+                ['line-progress'],
+                0, '#00ff00',    // Start: green
+                0.5, '#ffff00',  // Middle: yellow
+                1, '#ff0000'     // End: red
+            ],
+            'line-width': 6,
+            'line-opacity': 0.8,
+            'line-emissive-strength': 0.8  // GL JS v3: Route stands out in all lighting conditions
+        },
+        layout: {
+            'line-cap': 'round',
+            'line-join': 'round'
+        }
+    });
+
+    // Add animated dashed line on top for visual effect
+    map.addLayer({
+        id: LAYER_IDS.route + '-dashed',
+        type: 'line',
+        source: 'route-source',
+        paint: {
+            'line-color': '#ffffff',
+            'line-width': 2,
+            'line-dasharray': [0, 4, 3],
+            'line-opacity': 0.9,
+            'line-emissive-strength': 1.0  // GL JS v3: Animated dashes highly visible
+        },
+        layout: {
+            'line-cap': 'round',
+            'line-join': 'round'
+        }
+    });
+
+    // Animate the dashed line
+    animateRouteLine();
+}
+
+// Animate route dashed line
+let dashArraySequence = [
+    [0, 4, 3],
+    [0.5, 4, 2.5],
+    [1, 4, 2],
+    [1.5, 4, 1.5],
+    [2, 4, 1],
+    [2.5, 4, 0.5],
+    [3, 4, 0],
+    [0, 0.5, 3, 3.5],
+    [0, 1, 3, 3],
+    [0, 1.5, 3, 2.5],
+    [0, 2, 3, 2],
+    [0, 2.5, 3, 1.5],
+    [0, 3, 3, 1],
+    [0, 3.5, 3, 0.5]
+];
+let step = 0;
+
+function animateRouteLine() {
+    if (!map.getLayer(LAYER_IDS.route + '-dashed')) return;
+
+    step = (step + 1) % dashArraySequence.length;
+    map.setPaintProperty(
+        LAYER_IDS.route + '-dashed',
+        'line-dasharray',
+        dashArraySequence[step]
+    );
+
+    requestAnimationFrame(animateRouteLine);
+}
 
 // Wait for map to load before adding layers
 map.on('load', () => {
     loadGeoJSONLayers();
+
+    // Enable 3D terrain by default
+    if (terrain3DEnabled) {
+        enable3DTerrain();
+        // Update button styling to show it's active
+        setTimeout(() => {
+            const btn = document.getElementById('terrain3DBtn');
+            if (btn) {
+                btn.style.backgroundColor = '#007bff';
+                btn.style.color = 'white';
+            }
+        }, 100);
+    }
+
+    // Set up layer toggle listeners after map loads
+    setTimeout(() => {
+        setupLayerToggles();
+    }, 500);
 });
 
 // --- Initialize variables ---
@@ -56,6 +834,7 @@ let lastSpokenInstruction = null;
 // --- UI Elements ---
 const routeStatusEl = document.getElementById('routeStatus');
 const cancelBtn = document.getElementById('cancelBtn');
+const reverseBtn = document.getElementById('reverseBtn');
 const statusMessageEl = document.getElementById('statusMessage');
 const loadingSpinner = document.getElementById('loadingSpinner');
 const speechToggle = document.getElementById('speechToggle');
@@ -67,6 +846,9 @@ const distanceToTurnEl = document.getElementById('distanceToTurn');
 const routeProgressEl = document.getElementById('routeProgress');
 const recenterBtn = document.getElementById('recenterBtn');
 const exitNavBtn = document.getElementById('exitNavBtn');
+const compassEl = document.getElementById('compass');
+const compassArrowEl = document.getElementById('compassArrow');
+const readAllBtn = document.getElementById('readAllBtn');
 
 // --- Utility Functions ---
 function showStatus(message, type = 'info', duration = 3000) {
@@ -88,11 +870,19 @@ function updateRouteStatus() {
     if (clickCount === 0) {
         routeStatusEl.style.display = 'none';
         cancelBtn.style.display = 'none';
+        reverseBtn.style.display = 'none';
     } else if (clickCount === 1) {
         routeStatusEl.textContent = '✓ Start point set. Click on map for end point.';
         routeStatusEl.className = 'route-status waiting-end';
         routeStatusEl.style.display = 'block';
         cancelBtn.style.display = 'block';
+        reverseBtn.style.display = 'none';
+    }
+}
+
+function showReverseButton(show = true) {
+    if (reverseBtn) {
+        reverseBtn.style.display = show ? 'block' : 'none';
     }
 }
 
@@ -100,7 +890,7 @@ function updateRouteStatus() {
 function calculateDistance(point1, point2) {
     const from = turf.point([point1.lng || point1[0], point1.lat || point1[1]]);
     const to = turf.point([point2.lng || point2[0], point2.lat || point2[1]]);
-    return turf.distance(from, to, { units: 'meters' }) * 1000; // Convert to meters
+    return turf.distance(from, to, { units: 'meters' }); // Returns distance in meters
 }
 
 // Get bounds from GeoJSON
@@ -186,6 +976,30 @@ if (speechToggle) {
     });
 }
 
+// Read All Directions button
+if (readAllBtn) {
+    readAllBtn.addEventListener('click', () => {
+        if (!routeData || !routeData.directions || routeData.directions.length === 0) {
+            showStatus('No directions to read', 'warning', 2000);
+            return;
+        }
+
+        // Cancel any ongoing speech
+        window.speechSynthesis.cancel();
+        speechQueue = [];
+        isSpeaking = false;
+
+        // Queue all directions
+        routeData.directions.forEach((stepObj, i) => {
+            const text = typeof stepObj === 'string' ? stepObj : stepObj.text;
+            const announcement = `Step ${i + 1}. ${text}`;
+            speakSequentially(announcement);
+        });
+
+        showStatus('Reading all directions...', 'info', 2000);
+    });
+}
+
 // Cancel button
 if (cancelBtn) {
     cancelBtn.addEventListener('click', () => {
@@ -195,6 +1009,29 @@ if (cancelBtn) {
         clickCount = 0;
         updateRouteStatus();
         showStatus('Route selection cancelled', 'warning');
+    });
+}
+
+// Reverse route button
+if (reverseBtn) {
+    reverseBtn.addEventListener('click', () => {
+        if (startPoint && endPoint) {
+            // Swap start and end points
+            const temp = startPoint;
+            startPoint = endPoint;
+            endPoint = temp;
+
+            // Swap markers
+            if (startMarker && endMarker) {
+                const tempLngLat = startMarker.getLngLat();
+                startMarker.setLngLat(endMarker.getLngLat());
+                endMarker.setLngLat(tempLngLat);
+            }
+
+            // Recalculate route
+            calculateRoute();
+            showStatus('Route reversed', 'info', 2000);
+        }
     });
 }
 
@@ -221,46 +1058,13 @@ function loadGeoJSONLayers() {
             if (!buildings || !buildings.features || buildings.features.length === 0) {
                 console.warn('No building features found in GeoJSON');
             }
-            // Add roads layer
+
+            // Add roads source and layers
             map.addSource('roads-source', {
                 type: 'geojson',
                 data: roads
             });
-
-            map.addLayer({
-                id: LAYER_IDS.roads,
-                type: 'line',
-                source: 'roads-source',
-                paint: {
-                    'line-color': '#000000',
-                    'line-width': 2
-                }
-            });
-
-            // Add road labels as symbol layer (only visible on hover/zoom, less cluttered)
-            map.addLayer({
-                id: LAYER_IDS.roads + '-labels',
-                type: 'symbol',
-                source: 'roads-source',
-                layout: {
-                    'text-field': ['get', 'name'],
-                    'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
-                    'text-size': 11,
-                    'text-optional': true,
-                    'symbol-placement': 'line',
-                    'symbol-spacing': 300,
-                    'text-padding': 2,
-                    'text-allow-overlap': false,
-                    'text-ignore-placement': false
-                },
-                paint: {
-                    'text-color': '#333333',
-                    'text-halo-color': '#ffffff',
-                    'text-halo-width': 1.5,
-                    'text-halo-blur': 1
-                },
-                minzoom: 15 // Only show labels when zoomed in
-            });
+            addRoadsLayers();
 
             // Add hover tooltips for roads
             let hoveredRoadId = null;
@@ -285,31 +1089,12 @@ function loadGeoJSONLayers() {
                 document.querySelectorAll('.mapboxgl-popup').forEach(popup => popup.remove());
             });
 
-            // Add buildings layer
+            // Add buildings source and layers
             map.addSource('buildings-source', {
                 type: 'geojson',
                 data: buildings
             });
-
-            map.addLayer({
-                id: LAYER_IDS.buildings,
-                type: 'fill',
-                source: 'buildings-source',
-                paint: {
-                    'fill-color': 'coral',
-                    'fill-opacity': 0.8
-                }
-            });
-
-            map.addLayer({
-                id: LAYER_IDS.buildings + '-outline',
-                type: 'line',
-                source: 'buildings-source',
-                paint: {
-                    'line-color': 'coral',
-                    'line-width': 2
-                }
-            });
+            addBuildingsLayers();
 
             // Fit bounds to show all features
             const allFeatures = {
@@ -391,25 +1176,57 @@ function updateDirectionsPanel(directions, totalDistance = null) {
         container.innerHTML = `<p class="text-muted mb-0">No route loaded yet.</p>`;
         collapseDirections(true);
         routeSummaryEl.style.display = 'none';
+        if (readAllBtn) readAllBtn.style.display = 'none';
         return;
     }
 
+    // Show Read All button when directions are available
+    if (readAllBtn) readAllBtn.style.display = 'inline-block';
+
     const ul = document.createElement('ul');
     ul.className = 'list-group list-group-flush';
+    ul.setAttribute('role', 'list');
+    ul.setAttribute('aria-label', 'Turn-by-turn directions');
+
     directions.forEach((stepObj, i) => {
         const li = document.createElement('li');
         li.className = `list-group-item p-2 ${i === currentInstructionIndex ? 'active' : ''}`;
         li.id = `instruction-${i}`;
         li.setAttribute('tabindex', '0');
         li.setAttribute('role', 'button');
+        li.setAttribute('aria-label', `Step ${i + 1}: ${stepObj.text || stepObj}`);
         li.innerHTML = `<strong>${i + 1}.</strong> ${stepObj.text || stepObj}`;
+
+        // Add click handler to jump to instruction and speak it
+        li.addEventListener('click', () => {
+            if (routeData && routeData.directions[i] && routeData.directions[i].location) {
+                const [lon, lat] = routeData.directions[i].location;
+                map.flyTo({ center: [lon, lat], zoom: 18 });
+                updateActiveInstruction(i);
+
+                // Speak the clicked instruction
+                const instructionText = stepObj.text || stepObj;
+                speakInstruction(instructionText, true);
+            }
+        });
+
+        // Keyboard support
+        li.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                li.click();
+            }
+        });
+
         ul.appendChild(li);
     });
     container.appendChild(ul);
 
-    // Show route summary
+    // Show route summary with estimated time
     if (totalDistance !== null) {
-        routeDistanceEl.textContent = totalDistance.toLocaleString();
+        const distanceKm = (totalDistance / 1000).toFixed(2);
+        const estimatedTime = Math.ceil(totalDistance / 1.4 / 60); // Assuming 1.4 m/s walking speed
+        routeDistanceEl.innerHTML = `${totalDistance.toLocaleString()} m (${distanceKm} km) • ~${estimatedTime} min walk`;
         routeSummaryEl.style.display = 'block';
     }
 
@@ -444,7 +1261,10 @@ function updateActiveInstruction(index) {
 
 // --- Clear Route Function ---
 function clearRoute() {
-    // Remove route layer
+    // Remove route layers (main and dashed)
+    if (map.getLayer(LAYER_IDS.route + '-dashed')) {
+        map.removeLayer(LAYER_IDS.route + '-dashed');
+    }
     if (map.getLayer(LAYER_IDS.route)) {
         map.removeLayer(LAYER_IDS.route);
     }
@@ -488,6 +1308,7 @@ function clearRoute() {
     // Smoothly collapse the panel
     collapseDirections(true);
     routeSummaryEl.style.display = 'none';
+    if (readAllBtn) readAllBtn.style.display = 'none';
     updateRouteStatus();
 
     window.speechSynthesis.cancel();
@@ -500,6 +1321,56 @@ function clearRoute() {
 // Attach to Clear button
 document.getElementById('clearBtn').addEventListener('click', clearRoute);
 
+// Set up layer toggle listeners
+function setupLayerToggles() {
+    const roadsToggle = document.getElementById('roadsLayerToggle');
+    const buildingsToggle = document.getElementById('buildingsLayerToggle');
+    const roadLabelsToggle = document.getElementById('roadLabelsToggle');
+    const routeToggle = document.getElementById('routeLayerToggle');
+
+    if (roadsToggle) {
+        roadsToggle.addEventListener('change', (e) => {
+            const visibility = e.target.checked ? 'visible' : 'none';
+            if (map.getLayer(LAYER_IDS.roads)) {
+                map.setLayoutProperty(LAYER_IDS.roads, 'visibility', visibility);
+            }
+        });
+    }
+
+    if (buildingsToggle) {
+        buildingsToggle.addEventListener('change', (e) => {
+            const visibility = e.target.checked ? 'visible' : 'none';
+            if (map.getLayer(LAYER_IDS.buildings)) {
+                map.setLayoutProperty(LAYER_IDS.buildings, 'visibility', visibility);
+            }
+            if (map.getLayer(LAYER_IDS.buildings + '-outline')) {
+                map.setLayoutProperty(LAYER_IDS.buildings + '-outline', 'visibility', visibility);
+            }
+        });
+    }
+
+    if (roadLabelsToggle) {
+        roadLabelsToggle.addEventListener('change', (e) => {
+            const visibility = e.target.checked ? 'visible' : 'none';
+            if (map.getLayer(LAYER_IDS.roads + '-labels')) {
+                map.setLayoutProperty(LAYER_IDS.roads + '-labels', 'visibility', visibility);
+            }
+        });
+    }
+
+    if (routeToggle) {
+        routeToggle.addEventListener('change', (e) => {
+            const visibility = e.target.checked ? 'visible' : 'none';
+            if (map.getLayer(LAYER_IDS.route)) {
+                map.setLayoutProperty(LAYER_IDS.route, 'visibility', visibility);
+            }
+            if (map.getLayer(LAYER_IDS.route + '-dashed')) {
+                map.setLayoutProperty(LAYER_IDS.route + '-dashed', 'visibility', visibility);
+            }
+        });
+    }
+}
+
 // --- Search Logic with Debouncing ---
 const searchBox = document.getElementById('searchBox');
 const searchBtn = document.getElementById('searchBtn');
@@ -508,6 +1379,9 @@ const resultsDiv = document.getElementById('searchResults');
 function performSearch() {
     const query = searchBox.value.trim().toLowerCase();
     resultsDiv.innerHTML = '';
+    resultsDiv.setAttribute('role', 'listbox');
+    resultsDiv.setAttribute('aria-label', 'Search results');
+
     if (!query) {
         resultsDiv.style.display = 'none';
         return;
@@ -515,7 +1389,7 @@ function performSearch() {
 
     const matches = localFeatures.filter(f => f.name.toLowerCase().includes(query)).slice(0, 10);
     if (matches.length === 0) {
-        resultsDiv.innerHTML = '<div class="p-2 text-muted">No results found</div>';
+        resultsDiv.innerHTML = '<div class="p-2 text-muted" role="alert">No results found</div>';
         resultsDiv.style.display = 'block';
         return;
     }
@@ -554,6 +1428,8 @@ function performSearch() {
         
         item.onclick = () => {
             highlightFeature(match);
+            resultsDiv.style.display = 'none';
+            searchBox.value = match.name; // Update search box with selected name
         };
         
         resultsDiv.appendChild(item);
@@ -620,8 +1496,15 @@ function setLocationFromSearch(match, type) {
 
 function highlightFeature(match) {
     // Remove any previous temporary highlights
+    if (currentHighlightLayer && currentHighlightLayer.remove) {
+        currentHighlightLayer.remove();
+        currentHighlightLayer = null;
+    }
     if (map.getLayer(LAYER_IDS.highlight)) {
         map.removeLayer(LAYER_IDS.highlight);
+    }
+    if (map.getLayer(LAYER_IDS.highlight + '-outline')) {
+        map.removeLayer(LAYER_IDS.highlight + '-outline');
     }
     if (map.getSource('highlight-source')) {
         map.removeSource('highlight-source');
@@ -636,46 +1519,118 @@ function highlightFeature(match) {
             showStatus('Invalid point coordinates', 'error');
             return;
         }
-        map.flyTo({ center: [lon, lat], zoom: 17 });
+        map.flyTo({ center: [lon, lat], zoom: 17, duration: 1000 });
+
+        // Create animated pulsing marker
         const el = document.createElement('div');
         el.innerHTML = '📍';
-        el.style.fontSize = '24px';
+        el.style.cssText = 'font-size: 32px; animation: pulse 1.5s infinite; filter: drop-shadow(0 0 8px rgba(255, 0, 0, 0.8));';
+
         const marker = new mapboxgl.Marker({ element: el })
             .setLngLat([lon, lat])
-            .setPopup(new mapboxgl.Popup().setText(`${match.name} (${match.type})`))
+            .setPopup(new mapboxgl.Popup({ offset: 25 }).setHTML(`<strong>${match.name}</strong><br><em>${match.type}</em>`))
             .addTo(map);
         marker.togglePopup();
         currentHighlightLayer = marker;
+
+        showStatus(`Selected: ${match.name}`, 'info', 3000);
     } else {
+        // Add highlight source
         map.addSource('highlight-source', {
             type: 'geojson',
             data: { type: 'Feature', geometry: geom }
         });
         
-        map.addLayer({
-            id: LAYER_IDS.highlight,
-            type: geom.type === 'Polygon' || geom.type === 'MultiPolygon' ? 'fill' : 'line',
-            source: 'highlight-source',
-            paint: {
-                'line-color': 'red',
-                'line-width': 4,
-                'fill-color': 'red',
-                'fill-opacity': 0.3
-            }
-        });
+        // Determine layer type based on geometry
+        const isPolygon = geom.type === 'Polygon' || geom.type === 'MultiPolygon';
+        const isLine = geom.type === 'LineString' || geom.type === 'MultiLineString';
+
+        if (isPolygon) {
+        // Add fill layer with pulsing animation
+            map.addLayer({
+                id: LAYER_IDS.highlight,
+                type: 'fill',
+                source: 'highlight-source',
+                paint: {
+                    'fill-color': '#ffff00',
+                    'fill-opacity': 0.5,
+                    'fill-emissive-strength': 1.0
+                }
+            });
+
+            // Add outline for better visibility
+            map.addLayer({
+                id: LAYER_IDS.highlight + '-outline',
+                type: 'line',
+                source: 'highlight-source',
+                paint: {
+                    'line-color': '#ff0000',
+                    'line-width': 4,
+                    'line-emissive-strength': 1.0
+                }
+            });
+        } else if (isLine) {
+            // Highlight line with thick, bright styling
+            map.addLayer({
+                id: LAYER_IDS.highlight,
+                type: 'line',
+                source: 'highlight-source',
+                paint: {
+                    'line-color': '#ff0000',
+                    'line-width': 6,
+                    'line-emissive-strength': 1.0
+                }
+            });
+        }
         
+        // Fit bounds to feature
         const bounds = getBoundsFromGeoJSON({ type: 'Feature', geometry: geom });
-        map.fitBounds(bounds, { padding: 50 });
+        map.fitBounds(bounds, { padding: 80, duration: 1000 });
+
+        // Show popup at center
+        const center = getCenterFromGeoJSON({ type: 'Feature', geometry: geom });
+        new mapboxgl.Popup({ closeButton: true, closeOnClick: true })
+            .setLngLat(center)
+            .setHTML(`<strong>${match.name}</strong><br><em>${match.type}</em>`)
+            .addTo(map);
+
+        showStatus(`Highlighted: ${match.name}`, 'success', 3000);
+
+        // Animate the highlight with opacity pulsing
+        let opacity = 0.5;
+        let increasing = false;
+        const pulseInterval = setInterval(() => {
+            if (increasing) {
+                opacity += 0.05;
+                if (opacity >= 0.7) increasing = false;
+            } else {
+                opacity -= 0.05;
+                if (opacity <= 0.3) increasing = true;
+            }
+
+            if (map.getLayer(LAYER_IDS.highlight)) {
+                if (isPolygon) {
+                    map.setPaintProperty(LAYER_IDS.highlight, 'fill-opacity', opacity);
+                }
+            } else {
+                clearInterval(pulseInterval);
+            }
+        }, 100);
         
+        // Remove highlight after 10 seconds
         setTimeout(() => {
+            clearInterval(pulseInterval);
             if (map.getLayer(LAYER_IDS.highlight)) {
                 map.removeLayer(LAYER_IDS.highlight);
+            }
+            if (map.getLayer(LAYER_IDS.highlight + '-outline')) {
+                map.removeLayer(LAYER_IDS.highlight + '-outline');
             }
             if (map.getSource('highlight-source')) {
                 map.removeSource('highlight-source');
             }
             currentHighlightLayer = null;
-        }, 6000);
+        }, 10000);
     }
 
     // Display department list if building has departments
@@ -773,21 +1728,13 @@ function calculateRoute() {
             stepMarkers.forEach(m => m.remove());
             stepMarkers = [];
 
-            // Add route layer
+            // Add route source and layer
             map.addSource('route-source', {
                 type: 'geojson',
-                data: data.route
+                data: data.route,
+                lineMetrics: true // Enable line-gradient
             });
-
-            map.addLayer({
-                id: LAYER_IDS.route,
-                type: 'line',
-                source: 'route-source',
-                paint: {
-                    'line-color': 'green',
-                    'line-width': 4
-                }
-            });
+            addRouteLayer();
 
             // Fit bounds to route
             try {
@@ -851,19 +1798,72 @@ function calculateRoute() {
 
             clickCount = 0;
             updateRouteStatus();
+            showReverseButton(true);
             showStatus('Route calculated successfully. Starting navigation...', 'success', 2000);
         })
         .catch(err => {
             showLoading(false);
             console.error('Routing error:', err);
-            showStatus('Routing error: ' + err.message, 'danger', 5000);
+
+            // More user-friendly error messages
+            let errorMsg = 'Unable to calculate route';
+            if (err.message.includes('Failed to fetch')) {
+                errorMsg = 'Network error. Please check your connection.';
+            } else if (err.message.includes('No connected road path')) {
+                errorMsg = 'No route found. Try selecting points closer to roads.';
+            }
+
+            showStatus(errorMsg, 'danger', 5000);
         });
+}
+
+// Snap point to nearest road using Turf.js
+function snapToNearestRoad(clickedPoint) {
+    const roadsSource = map.getSource('roads-source');
+    if (!roadsSource) {
+        return clickedPoint; // Return original if no roads loaded
+    }
+
+    const roadsData = roadsSource._data;
+    if (!roadsData || !roadsData.features || roadsData.features.length === 0) {
+        return clickedPoint;
+    }
+
+    const point = turf.point([clickedPoint.lng, clickedPoint.lat]);
+    let nearestPoint = null;
+    let minDistance = Infinity;
+
+    // Find the nearest point on any road
+    roadsData.features.forEach(road => {
+        if (road.geometry.type === 'LineString' || road.geometry.type === 'MultiLineString') {
+            try {
+                const snapped = turf.nearestPointOnLine(road, point);
+                const distance = turf.distance(point, snapped, { units: 'meters' });
+
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearestPoint = snapped.geometry.coordinates;
+                }
+            } catch (e) {
+                console.warn('Error snapping to road:', e);
+            }
+        }
+    });
+
+    // If we found a nearby road (within 100m), use it; otherwise use original point
+    if (nearestPoint && minDistance < 100) {
+        return { lng: nearestPoint[0], lat: nearestPoint[1] };
+    }
+
+    return clickedPoint;
 }
 
 // Map click handler
 map.on('click', (e) => {
     if (clickCount === 0) {
-        startPoint = { lat: e.lngLat.lat, lng: e.lngLat.lng };
+        const clickedPoint = { lat: e.lngLat.lat, lng: e.lngLat.lng };
+        startPoint = snapToNearestRoad(clickedPoint);
+
         if (startMarker) startMarker.remove();
         const el = document.createElement('div');
         el.className = 'marker-start';
@@ -880,7 +1880,9 @@ map.on('click', (e) => {
     }
 
     if (clickCount === 1) {
-        endPoint = { lat: e.lngLat.lat, lng: e.lngLat.lng };
+        const clickedPoint = { lat: e.lngLat.lat, lng: e.lngLat.lng };
+        endPoint = snapToNearestRoad(clickedPoint);
+
         if (endMarker) endMarker.remove();
         const el = document.createElement('div');
         el.className = 'marker-end';
@@ -939,7 +1941,13 @@ function enterNavigationMode() {
     autoRecenter = true;
     
     if (navBar) navBar.style.display = 'block';
+    if (compassEl) compassEl.style.display = 'flex';
     updateNavigationBar();
+
+    // Start compass updates if device supports orientation
+    if (window.DeviceOrientationEvent) {
+        window.addEventListener('deviceorientation', handleOrientation);
+    }
 }
 
 // Exit navigation mode
@@ -948,6 +1956,22 @@ function exitNavigationMode() {
     autoRecenter = false;
     
     if (navBar) navBar.style.display = 'none';
+    if (compassEl) compassEl.style.display = 'none';
+
+    // Stop compass updates
+    if (window.DeviceOrientationEvent) {
+        window.removeEventListener('deviceorientation', handleOrientation);
+    }
+}
+
+// Handle device orientation for compass
+function handleOrientation(event) {
+    if (!isNavigationMode || !compassArrowEl) return;
+
+    const alpha = event.alpha; // Direction in degrees (0-360)
+    if (alpha !== null) {
+        compassArrowEl.style.transform = `rotate(${360 - alpha}deg)`;
+    }
 }
 
 // Recenter map on user location

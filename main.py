@@ -1,4 +1,5 @@
 from flask import Flask, render_template, jsonify, request
+from flask_cors import CORS
 import geopandas as gpd
 import networkx as nx
 from shapely.geometry import LineString
@@ -6,17 +7,28 @@ from scipy.spatial import cKDTree
 import math
 import os
 from dotenv import load_dotenv
+import logging
 
 # Load environment variables from .env file
 load_dotenv()
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Get Mapbox access token from environment
 MAPBOX_ACCESS_TOKEN = os.getenv('MAPBOX_ACCESS_TOKEN', '')
 
 # Load your GeoJSON roads file
-roads = gpd.read_file("static/roads.geojson")
+try:
+    roads = gpd.read_file("static/roads.geojson")
+    logger.info(f"Loaded {len(roads)} road features")
+except Exception as e:
+    logger.error(f"Failed to load roads.geojson: {e}")
+    raise
 
 # Build a network graph
 G = nx.Graph()
@@ -113,24 +125,54 @@ def index():
 
 @app.route("/route")
 def route():
-    start = tuple(map(float, request.args.get("start").split(",")))
-    end = tuple(map(float, request.args.get("end").split(",")))
-
-    start_node = snap_to_graph(*start)
-    end_node = snap_to_graph(*end)
-
     try:
+        # Validate input parameters
+        start_param = request.args.get("start")
+        end_param = request.args.get("end")
+        
+        if not start_param or not end_param:
+            return jsonify({"error": "Missing start or end coordinates"}), 400
+        
+        # Parse coordinates
+        try:
+            start = tuple(map(float, start_param.split(",")))
+            end = tuple(map(float, end_param.split(",")))
+        except (ValueError, AttributeError):
+            return jsonify({"error": "Invalid coordinate format. Use: lng,lat"}), 400
+        
+        # Validate coordinate ranges
+        if not (-180 <= start[0] <= 180 and -90 <= start[1] <= 90):
+            return jsonify({"error": "Invalid start coordinates"}), 400
+        if not (-180 <= end[0] <= 180 and -90 <= end[1] <= 90):
+            return jsonify({"error": "Invalid end coordinates"}), 400
+        
+        logger.info(f"Calculating route from {start} to {end}")
+        
+        start_node = snap_to_graph(*start)
+        end_node = snap_to_graph(*end)
+        
+        # Check if start and end are the same
+        if start_node == end_node:
+            return jsonify({"error": "Start and end points are the same location"}), 400
+
         path = nx.shortest_path(G, source=start_node, target=end_node, weight="weight")
         route_geom = LineString(path)
         directions, total_distance = generate_turn_instructions(path)
+        
+        logger.info(f"Route calculated successfully: {len(path)} nodes, {total_distance:.0f}m")
+        
         return jsonify({
             "route": {"type": "Feature", "geometry": route_geom.__geo_interface__},
             "directions": directions,
             "total_distance_m": int(total_distance)
         })
     except nx.NetworkXNoPath:
-        return jsonify({"error": "No connected road path found — showing direct line."}), 400
+        logger.warning("No path found between points")
+        return jsonify({"error": "No connected road path found between these points"}), 400
+    except Exception as e:
+        logger.error(f"Error calculating route: {e}")
+        return jsonify({"error": f"Error calculating route: {str(e)}"}), 500
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, port=5001)
 
