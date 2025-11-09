@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: nasrdanavi
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -w 4 -b 0.0.0.0:$PORT main:app
+    envVars:
+      - key: MAPBOX_ACCESS_TOKEN
+        sync: false
