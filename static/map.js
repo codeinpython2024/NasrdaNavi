@@ -66,16 +66,31 @@ const CAMPUS_BOUNDS = [
     [7.389412099633819, 8.992891300009468]  // Northeast corner
 ];
 
+const INITIAL_TILT_PITCH = 80;
+
 const map = new mapboxgl.Map({
     container: 'map',
-    style: 'mapbox://styles/mapbox/standard', // Modern standard style with 3D features
+    style: 'mapbox://styles/mapbox/standard', // Standard style with theme configuration
     center: CAMPUS_CENTER, // [lng, lat] - Campus center
     zoom: 16, // Higher zoom to see campus details
-    pitch: 70, // Slanted 3D view - maximum tilt for dramatic perspective (0-85 degrees)
+    pitch: INITIAL_TILT_PITCH, // Start with tilted view
     bearing: 20, // Initial bearing (0-360 degrees)
     antialias: true, // Enable antialiasing for smoother rendering
-    maxBounds: CAMPUS_BOUNDS // Restrict panning to campus area for better performance
+    maxBounds: CAMPUS_BOUNDS, // Restrict panning to campus area for better performance
+    config: {
+        theme: 'monochrome' // Set monochrome theme
+    }
 });
+
+// Store initial camera state to prevent style from resetting it
+const INITIAL_CAMERA = {
+    center: CAMPUS_CENTER,
+    zoom: 16,
+    pitch: INITIAL_TILT_PITCH,
+    bearing: 20
+};
+
+// No animation needed - map starts at the desired tilt
 
 // Add Mapbox Controls
 // 1. Navigation Control (zoom and rotation)
@@ -573,13 +588,16 @@ function enable3DTerrain() {
         });
     }
 
-    // Animate pitch for better 3D view with smooth transition
-    map.easeTo({
-        pitch: 60,
-        bearing: map.getBearing() || 0,
-        duration: 1500,
-        easing: (t) => t * (2 - t)  // Ease-out quad for smooth animation
-    });
+    // Maintain current pitch (don't override initial pitch setting)
+    // Only animate if pitch is currently 0 (flat view)
+    if (map.getPitch() < 10) {
+        map.easeTo({
+            pitch: 80,
+            bearing: map.getBearing() || 0,
+            duration: 1500,
+            easing: (t) => t * (2 - t)  // Ease-out quad for smooth animation
+        });
+    }
 
     // Add subtle fog for depth perception without obscuring campus details
     map.setFog({
@@ -801,6 +819,7 @@ map.on('load', () => {
 // --- Initialize variables ---
 let startMarker, endMarker, stepMarkers = [];
 let localFeatures = [];
+let roadsGeoJSON = null;
 let startPoint = null;
 let endPoint = null;
 let clickCount = 0;
@@ -830,6 +849,8 @@ let distanceTraveled = 0;
 let isOffRoute = false;
 let advanceWarningGiven = false;
 let lastSpokenInstruction = null;
+let hasEnteredRouteProximity = false; // Becomes true after user gets near the route once
+
 
 // --- UI Elements ---
 const routeStatusEl = document.getElementById('routeStatus');
@@ -856,7 +877,7 @@ function showStatus(message, type = 'info', duration = 3000) {
     statusMessageEl.className = `alert alert-${type} position-absolute top-0 start-50 translate-middle-x mt-2`;
     statusMessageEl.style.display = 'block';
     statusMessageEl.classList.add('fade-in');
-    
+
     setTimeout(() => {
         statusMessageEl.style.display = 'none';
     }, duration);
@@ -893,16 +914,31 @@ function calculateDistance(point1, point2) {
     return turf.distance(from, to, { units: 'meters' }); // Returns distance in meters
 }
 
-// Get bounds from GeoJSON
+// Get bounds from GeoJSON (accepts FeatureCollection, Feature, or Geometry)
 function getBoundsFromGeoJSON(geojson) {
-    if (!geojson || !geojson.features || geojson.features.length === 0) {
-        // Return campus bounds as default
+    if (!geojson) {
         return CAMPUS_BOUNDS;
     }
     try {
-        const bbox = turf.bbox(geojson);
+        let input = geojson;
+        // Normalize to an object Turf can bbox over
+        if (geojson.type === 'FeatureCollection') {
+            if (!geojson.features || geojson.features.length === 0) {
+                return CAMPUS_BOUNDS;
+            }
+        } else if (geojson.type === 'Feature') {
+            // ok as-is
+        } else if (geojson.type) {
+            // Assume a bare Geometry object
+            input = { type: 'Feature', geometry: geojson };
+        } else if (geojson.geometry) {
+            // Object with geometry property
+            input = { type: 'Feature', geometry: geojson.geometry };
+        }
+
+        const bbox = turf.bbox(input);
         // Validate bbox values
-        if (bbox.some(v => !isFinite(v) || isNaN(v))) {
+        if (!Array.isArray(bbox) || bbox.length !== 4 || bbox.some(v => !isFinite(v) || isNaN(v))) {
             return CAMPUS_BOUNDS;
         }
         return [[bbox[0], bbox[1]], [bbox[2], bbox[3]]];
@@ -934,28 +970,28 @@ function getCenterFromGeoJSON(geojson) {
 // --- Speech Synthesis with Queue ---
 function speakSequentially(text) {
     if (!speechEnabled) return;
-    
+
     speechQueue.push(text);
     processSpeechQueue();
 }
 
 function processSpeechQueue() {
     if (isSpeaking || speechQueue.length === 0) return;
-    
+
     isSpeaking = true;
     const text = speechQueue.shift();
     const utterance = new SpeechSynthesisUtterance(text);
-    
+
     utterance.onend = () => {
         isSpeaking = false;
         processSpeechQueue();
     };
-    
+
     utterance.onerror = () => {
         isSpeaking = false;
         processSpeechQueue();
     };
-    
+
     window.speechSynthesis.speak(utterance);
 }
 
@@ -1050,7 +1086,8 @@ function loadGeoJSONLayers() {
     ])
         .then(([roads, buildings]) => {
             console.log(`Loaded ${roads.features?.length || 0} roads and ${buildings.features?.length || 0} buildings`);
-            
+            roadsGeoJSON = roads;
+
             // Validate data
             if (!roads || !roads.features || roads.features.length === 0) {
                 console.warn('No road features found in GeoJSON');
@@ -1068,6 +1105,7 @@ function loadGeoJSONLayers() {
 
             // Add hover tooltips for roads
             let hoveredRoadId = null;
+            let roadHoverPopup = null;
             map.on('mouseenter', LAYER_IDS.roads, (e) => {
                 map.getCanvas().style.cursor = 'pointer';
                 const feature = e.features[0];
@@ -1075,7 +1113,10 @@ function loadGeoJSONLayers() {
                     hoveredRoadId = feature.id;
                     // Show popup on hover
                     const coordinates = e.lngLat;
-                    new mapboxgl.Popup()
+                    if (roadHoverPopup) {
+                        roadHoverPopup.remove();
+                    }
+                    roadHoverPopup = new mapboxgl.Popup({ closeButton: false, closeOnClick: false })
                         .setLngLat(coordinates)
                         .setHTML(`<strong>${feature.properties.name}</strong>`)
                         .addTo(map);
@@ -1085,8 +1126,10 @@ function loadGeoJSONLayers() {
             map.on('mouseleave', LAYER_IDS.roads, () => {
                 map.getCanvas().style.cursor = '';
                 hoveredRoadId = null;
-                // Close popups
-                document.querySelectorAll('.mapboxgl-popup').forEach(popup => popup.remove());
+                if (roadHoverPopup) {
+                    roadHoverPopup.remove();
+                    roadHoverPopup = null;
+                }
             });
 
             // Add buildings source and layers
@@ -1101,22 +1144,22 @@ function loadGeoJSONLayers() {
                 type: 'FeatureCollection',
                 features: [...roads.features, ...buildings.features]
             };
-            
+
             // Only fit bounds if we have valid features
             if (allFeatures.features.length > 0) {
                 try {
                     const bounds = getBoundsFromGeoJSON(allFeatures);
                     // Validate bounds before using
-                    if (bounds && bounds[0] && bounds[1] && 
+                    if (bounds && bounds[0] && bounds[1] &&
                         bounds[0][0] !== bounds[1][0] && bounds[0][1] !== bounds[1][1]) {
                         // Fit bounds with padding to show campus area
-                        map.fitBounds(bounds, { 
+                        map.fitBounds(bounds, {
                             padding: { top: 50, bottom: 50, left: 50, right: 50 },
                             duration: 1000 // Smooth animation
                         });
                     } else {
                         // Fallback: use campus bounds
-                        map.fitBounds(CAMPUS_BOUNDS, { 
+                        map.fitBounds(CAMPUS_BOUNDS, {
                             padding: { top: 50, bottom: 50, left: 50, right: 50 },
                             duration: 1000
                         });
@@ -1124,14 +1167,14 @@ function loadGeoJSONLayers() {
                 } catch (e) {
                     console.warn('Error fitting bounds:', e);
                     // Fallback to campus bounds
-                    map.fitBounds(CAMPUS_BOUNDS, { 
+                    map.fitBounds(CAMPUS_BOUNDS, {
                         padding: { top: 50, bottom: 50, left: 50, right: 50 },
                         duration: 1000
                     });
                 }
             } else {
                 // No features loaded, use campus bounds
-                map.fitBounds(CAMPUS_BOUNDS, { 
+                map.fitBounds(CAMPUS_BOUNDS, {
                     padding: { top: 50, bottom: 50, left: 50, right: 50 },
                     duration: 1000
                 });
@@ -1140,7 +1183,7 @@ function loadGeoJSONLayers() {
             // Prepare offline search data
             roads.features.forEach(f => {
                 if (f.properties.name)
-                    localFeatures.push({name: f.properties.name, type: 'road', geometry: f.geometry});
+                    localFeatures.push({ name: f.properties.name, type: 'road', geometry: f.geometry });
             });
             buildings.features.forEach(f => {
                 if (f.properties.name)
@@ -1163,7 +1206,7 @@ function loadGeoJSONLayers() {
 // --- Smooth Collapse Helpers ---
 function collapseDirections(hide = false) {
     const collapseEl = document.getElementById('directionsBody');
-    const bsCollapse = bootstrap.Collapse.getInstance(collapseEl) || new bootstrap.Collapse(collapseEl, {toggle: false});
+    const bsCollapse = bootstrap.Collapse.getInstance(collapseEl) || new bootstrap.Collapse(collapseEl, { toggle: false });
     if (hide) bsCollapse.hide(); else bsCollapse.show();
 }
 
@@ -1232,7 +1275,7 @@ function updateDirectionsPanel(directions, totalDistance = null) {
 
     // Smoothly open the panel
     collapseDirections(false);
-    
+
     // Scroll active instruction into view
     updateActiveInstruction(currentInstructionIndex);
 }
@@ -1240,13 +1283,13 @@ function updateDirectionsPanel(directions, totalDistance = null) {
 // --- Update Active Instruction Highlight ---
 function updateActiveInstruction(index) {
     if (!routeData || !routeData.directions) return;
-    
+
     // Remove previous highlight
     const prevEl = document.getElementById(`instruction-${currentInstructionIndex}`);
     if (prevEl) {
         prevEl.classList.remove('active');
     }
-    
+
     // Add new highlight
     currentInstructionIndex = index;
     const newEl = document.getElementById(`instruction-${index}`);
@@ -1254,13 +1297,14 @@ function updateActiveInstruction(index) {
         newEl.classList.add('active');
         newEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
-    
+
     // Update navigation bar
     updateNavigationBar();
 }
 
 // --- Clear Route Function ---
 function clearRoute() {
+
     // Remove route layers (main and dashed)
     if (map.getLayer(LAYER_IDS.route + '-dashed')) {
         map.removeLayer(LAYER_IDS.route + '-dashed');
@@ -1297,6 +1341,7 @@ function clearRoute() {
     isOffRoute = false;
     advanceWarningGiven = false;
     lastSpokenInstruction = null;
+    hasEnteredRouteProximity = false;
 
     // Exit navigation mode
     exitNavigationMode();
@@ -1314,7 +1359,7 @@ function clearRoute() {
     window.speechSynthesis.cancel();
     speechQueue = [];
     isSpeaking = false;
-    
+
     showStatus('Route cleared', 'info', 2000);
 }
 
@@ -1397,13 +1442,13 @@ function performSearch() {
     matches.forEach(match => {
         const item = document.createElement('div');
         item.className = 'search-result-item';
-        
+
         const nameSpan = document.createElement('span');
         nameSpan.textContent = `${match.name} (${match.type})`;
-        
+
         const actionsDiv = document.createElement('div');
         actionsDiv.className = 'search-result-actions';
-        
+
         const setStartBtn = document.createElement('button');
         setStartBtn.className = 'btn btn-sm btn-success';
         setStartBtn.textContent = 'Start';
@@ -1411,7 +1456,7 @@ function performSearch() {
             e.stopPropagation();
             setLocationFromSearch(match, 'start');
         };
-        
+
         const setEndBtn = document.createElement('button');
         setEndBtn.className = 'btn btn-sm btn-danger';
         setEndBtn.textContent = 'End';
@@ -1419,19 +1464,19 @@ function performSearch() {
             e.stopPropagation();
             setLocationFromSearch(match, 'end');
         };
-        
+
         actionsDiv.appendChild(setStartBtn);
         actionsDiv.appendChild(setEndBtn);
-        
+
         item.appendChild(nameSpan);
         item.appendChild(actionsDiv);
-        
+
         item.onclick = () => {
             highlightFeature(match);
             resultsDiv.style.display = 'none';
             searchBox.value = match.name; // Update search box with selected name
         };
-        
+
         resultsDiv.appendChild(item);
     });
     resultsDiv.style.display = 'block';
@@ -1440,7 +1485,7 @@ function performSearch() {
 function setLocationFromSearch(match, type) {
     const geom = match.geometry;
     let lat, lon;
-    
+
     if (geom.type === 'Point') {
         [lon, lat] = geom.coordinates;
     } else {
@@ -1448,16 +1493,16 @@ function setLocationFromSearch(match, type) {
         const center = getCenterFromGeoJSON({ type: 'Feature', geometry: geom });
         [lon, lat] = center;
     }
-    
+
     // Validate coordinates
     if (!isFinite(lon) || !isFinite(lat) || isNaN(lon) || isNaN(lat)) {
         showStatus('Invalid location coordinates', 'error');
         return;
     }
-    
+
     if (type === 'start') {
         if (startMarker) startMarker.remove();
-        startPoint = {lat, lng: lon};
+        startPoint = { lat, lng: lon };
         const el = document.createElement('div');
         el.className = 'marker-start';
         el.innerHTML = '<div style="background-color: #28a745; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold;">S</div>';
@@ -1470,7 +1515,7 @@ function setLocationFromSearch(match, type) {
         showStatus('Start point set from search', 'success');
     } else {
         if (endMarker) endMarker.remove();
-        endPoint = {lat, lng: lon};
+        endPoint = { lat, lng: lon };
         const el = document.createElement('div');
         el.className = 'marker-end';
         el.innerHTML = '<div style="background-color: #dc3545; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold;">E</div>';
@@ -1479,7 +1524,7 @@ function setLocationFromSearch(match, type) {
             .setPopup(new mapboxgl.Popup().setText('End'))
             .addTo(map);
         endMarker.togglePopup();
-        
+
         if (startPoint) {
             // Automatically calculate route
             calculateRoute();
@@ -1488,7 +1533,7 @@ function setLocationFromSearch(match, type) {
             showStatus('End point set. Set start point to calculate route.', 'info');
         }
     }
-    
+
     map.flyTo({ center: [lon, lat], zoom: 17 });
     updateRouteStatus();
     highlightFeature(match);
@@ -1509,9 +1554,9 @@ function highlightFeature(match) {
     if (map.getSource('highlight-source')) {
         map.removeSource('highlight-source');
     }
-    
+
     const geom = match.geometry;
-    
+
     if (geom.type === 'Point') {
         const [lon, lat] = geom.coordinates;
         // Validate coordinates
@@ -1540,13 +1585,13 @@ function highlightFeature(match) {
             type: 'geojson',
             data: { type: 'Feature', geometry: geom }
         });
-        
+
         // Determine layer type based on geometry
         const isPolygon = geom.type === 'Polygon' || geom.type === 'MultiPolygon';
         const isLine = geom.type === 'LineString' || geom.type === 'MultiLineString';
 
         if (isPolygon) {
-        // Add fill layer with pulsing animation
+            // Add fill layer with pulsing animation
             map.addLayer({
                 id: LAYER_IDS.highlight,
                 type: 'fill',
@@ -1582,7 +1627,7 @@ function highlightFeature(match) {
                 }
             });
         }
-        
+
         // Fit bounds to feature
         const bounds = getBoundsFromGeoJSON({ type: 'Feature', geometry: geom });
         map.fitBounds(bounds, { padding: 80, duration: 1000 });
@@ -1616,7 +1661,7 @@ function highlightFeature(match) {
                 clearInterval(pulseInterval);
             }
         }, 100);
-        
+
         // Remove highlight after 10 seconds
         setTimeout(() => {
             clearInterval(pulseInterval);
@@ -1636,10 +1681,10 @@ function highlightFeature(match) {
     // Display department list if building has departments
     const departmentList = document.getElementById('departmentList');
     const departmentsUl = document.getElementById('departments');
-    
+
     // Always clear first
     departmentsUl.innerHTML = '';
-    
+
     if (match.type === 'building' && match.departments?.length) {
         match.departments.forEach(dep => {
             const li = document.createElement('li');
@@ -1649,7 +1694,7 @@ function highlightFeature(match) {
             li.setAttribute('role', 'button');
             li.onclick = () => {
                 showStatus(`Selected department: ${dep} in ${match.name}`, 'info');
-                const bounds = getBoundsFromGeoJSON({ type: 'Feature', geometry: match.geometry });
+                const bounds = getBoundsFromGeoJSON({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: match.geometry }] });
                 map.fitBounds(bounds, { padding: 50 });
             };
             departmentsUl.appendChild(li);
@@ -1697,10 +1742,10 @@ function calculateRoute() {
         showStatus('Please set both start and end points', 'warning');
         return;
     }
-    
+
     showLoading(true);
     const url = `/route?start=${startPoint.lng},${startPoint.lat}&end=${endPoint.lng},${endPoint.lat}`;
-    
+
     fetch(url)
         .then(res => {
             if (!res.ok) {
@@ -1710,13 +1755,16 @@ function calculateRoute() {
         })
         .then(data => {
             showLoading(false);
-            
+
             if (data.error) {
                 showStatus('Error: ' + data.error, 'danger', 5000);
                 return;
             }
 
             // Remove existing route layer
+            if (map.getLayer(LAYER_IDS.route + '-dashed')) {
+                map.removeLayer(LAYER_IDS.route + '-dashed');
+            }
             if (map.getLayer(LAYER_IDS.route)) {
                 map.removeLayer(LAYER_IDS.route);
             }
@@ -1738,38 +1786,17 @@ function calculateRoute() {
 
             // Fit bounds to route
             try {
-                const bounds = getBoundsFromGeoJSON(data.route);
+                const bounds = getBoundsFromGeoJSON({
+                    type: 'FeatureCollection',
+                    features: [data.route]
+                });
                 // Validate bounds before using
-                if (bounds && bounds[0] && bounds[1] && 
+                if (bounds && bounds[0] && bounds[1] &&
                     bounds[0][0] !== bounds[1][0] && bounds[0][1] !== bounds[1][1]) {
                     map.fitBounds(bounds, { padding: 50 });
                 }
             } catch (e) {
                 console.warn('Error fitting route bounds:', e);
-            }
-
-            // Plot markers for each turn
-            for (let i = 0; i < data.directions.length - 1; i++) {
-                const stepObj = data.directions[i];
-                if (!stepObj.location) continue;
-                
-                const [lon, lat] = stepObj.location;
-                
-                // Validate coordinates before creating marker
-                if (!isFinite(lon) || !isFinite(lat) || isNaN(lon) || isNaN(lat)) {
-                    console.warn(`Invalid coordinates for step ${i + 1}:`, stepObj.location);
-                    continue;
-                }
-
-                const el = document.createElement('div');
-                el.className = 'step-label bg-danger text-white rounded-circle';
-                el.style.cssText = 'width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px;';
-                el.textContent = i + 1;
-
-                const marker = new mapboxgl.Marker({ element: el })
-                    .setLngLat([lon, lat])
-                    .addTo(map);
-                stepMarkers.push(marker);
             }
 
             // Store route data for navigation
@@ -1782,24 +1809,54 @@ function calculateRoute() {
 
             updateDirectionsPanel(data.directions, data.total_distance_m);
 
-            // Enter navigation mode
-            enterNavigationMode();
-
-            // Speak only the first instruction
-            if (speechEnabled && data.directions.length > 0) {
-                const firstInstruction = typeof data.directions[0] === 'string' 
-                    ? data.directions[0] 
-                    : data.directions[0].text;
-                speakInstruction(firstInstruction, true);
-            }
-
-            // Start GPS tracking
-            startGPSTracking(data);
-
             clickCount = 0;
             updateRouteStatus();
             showReverseButton(true);
-            showStatus('Route calculated successfully. Starting navigation...', 'success', 2000);
+
+            // Set up navigation camera (overview then position at start)
+            const routeCoordinates = data.route.geometry.coordinates;
+            setupNavigationCamera(routeCoordinates).then(() => {
+                // Plot markers for each turn AFTER camera animations complete
+                // This prevents marker jittering during camera movement
+                for (let i = 0; i < data.directions.length - 1; i++) {
+                    const stepObj = data.directions[i];
+                    if (!stepObj.location) continue;
+
+                    const [lon, lat] = stepObj.location;
+
+                    // Validate coordinates before creating marker
+                    if (!isFinite(lon) || !isFinite(lat) || isNaN(lon) || isNaN(lat)) {
+                        console.warn(`Invalid coordinates for step ${i + 1}:`, stepObj.location);
+                        continue;
+                    }
+
+                    const el = document.createElement('div');
+                    el.className = 'step-label bg-danger text-white rounded-circle';
+                    el.style.cssText = 'width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; transition: opacity 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;';
+                    el.textContent = i + 1;
+
+                    const marker = new mapboxgl.Marker({ element: el })
+                        .setLngLat([lon, lat])
+                        .addTo(map);
+                    stepMarkers.push(marker);
+                }
+
+                // Enter navigation mode after camera is positioned
+                enterNavigationMode();
+
+                // Speak only the first instruction
+                if (speechEnabled && data.directions.length > 0) {
+                    const firstInstruction = typeof data.directions[0] === 'string'
+                        ? data.directions[0]
+                        : data.directions[0].text;
+                    speakInstruction(firstInstruction, true);
+                }
+
+                showStatus('Navigation started', 'success', 2000);
+            });
+
+            // Start GPS tracking (can start immediately)
+            startGPSTracking(data);
         })
         .catch(err => {
             showLoading(false);
@@ -1819,28 +1876,77 @@ function calculateRoute() {
 
 // Snap point to nearest road using Turf.js
 function snapToNearestRoad(clickedPoint) {
-    const roadsSource = map.getSource('roads-source');
-    if (!roadsSource) {
+    // Prefer using in-memory GeoJSON to avoid dependency on map style/source state
+    const roadsData = roadsGeoJSON;
+    if (!roadsData || !roadsData.features || roadsData.features.length === 0) {
         return clickedPoint; // Return original if no roads loaded
     }
 
-    const roadsData = roadsSource._data;
-    if (!roadsData || !roadsData.features || roadsData.features.length === 0) {
-        return clickedPoint;
+    const point = turf.point([clickedPoint.lng, clickedPoint.lat]);
+
+    // 1) Try to snap only to rendered road features near the click (pixel-based proximity)
+    let candidateFeatures = [];
+    try {
+        const pixel = map.project([clickedPoint.lng, clickedPoint.lat]);
+        const pad = 50; // Increased from 12 to 50 pixels for better road detection
+        const bbox = [
+            [pixel.x - pad, pixel.y - pad],
+            [pixel.x + pad, pixel.y + pad]
+        ];
+        const rendered = map.queryRenderedFeatures(bbox, { layers: [LAYER_IDS.roads] }) || [];
+        // Filter to our source if present to avoid picking labels or other layers accidentally
+        candidateFeatures = rendered.filter(f => (f.source === 'roads-source'));
+    } catch (e) {
+        // Fallback silently if projection or query fails
+        candidateFeatures = [];
     }
 
-    const point = turf.point([clickedPoint.lng, clickedPoint.lat]);
+    // If no rendered candidates, fall back to all roads but filter by distance first
+    if (!candidateFeatures.length) {
+        // Pre-filter roads within reasonable distance (100m) before detailed calculation
+        candidateFeatures = roadsData.features.filter(road => {
+            try {
+                const roadGeom = road.geometry;
+                if (!roadGeom || !roadGeom.coordinates) return false;
+
+                // Quick distance check using first coordinate of the road
+                let testCoord;
+                if (roadGeom.type === 'LineString') {
+                    testCoord = roadGeom.coordinates[0];
+                } else if (roadGeom.type === 'MultiLineString') {
+                    testCoord = roadGeom.coordinates[0][0];
+                } else {
+                    return false;
+                }
+
+                const quickDist = turf.distance(
+                    point,
+                    turf.point(testCoord),
+                    { units: 'meters' }
+                );
+
+                // Only include roads within 100m for detailed calculation
+                return quickDist < 100;
+            } catch (e) {
+                return false;
+            }
+        });
+    }
+
+    // 2) Compute nearest among candidates
     let nearestPoint = null;
     let minDistance = Infinity;
 
-    // Find the nearest point on any road
-    roadsData.features.forEach(road => {
-        if (road.geometry.type === 'LineString' || road.geometry.type === 'MultiLineString') {
+    for (const road of candidateFeatures) {
+        const geomType = road && road.geometry && road.geometry.type;
+        if (geomType === 'LineString' || geomType === 'MultiLineString') {
             try {
                 const snapped = turf.nearestPointOnLine(road, point);
-                const distance = turf.distance(point, snapped, { units: 'meters' });
+                // turf.distance default is kilometers; convert to meters
+                const km = turf.distance(point, snapped, { units: 'kilometers' });
+                const distance = km * 1000;
 
-                if (distance < minDistance) {
+                if (distance < minDistance) { // Changed from <= to < for strict minimum
                     minDistance = distance;
                     nearestPoint = snapped.geometry.coordinates;
                 }
@@ -1848,10 +1954,11 @@ function snapToNearestRoad(clickedPoint) {
                 console.warn('Error snapping to road:', e);
             }
         }
-    });
+    }
 
-    // If we found a nearby road (within 100m), use it; otherwise use original point
-    if (nearestPoint && minDistance < 100) {
+    // If we found a nearby road (within 75m), use it; otherwise use original point
+    // 75m provides good balance between accuracy and usability
+    if (nearestPoint && isFinite(minDistance) && minDistance < 75) {
         return { lng: nearestPoint[0], lat: nearestPoint[1] };
     }
 
@@ -1892,7 +1999,7 @@ map.on('click', (e) => {
             .setPopup(new mapboxgl.Popup().setText('End'))
             .addTo(map);
         endMarker.togglePopup();
-        
+
         calculateRoute();
     }
 });
@@ -1912,26 +2019,100 @@ map.on('contextmenu', (e) => {
 
 // --- Turn-by-Turn Navigation Functions ---
 
-// Speak instruction with debouncing
+// Position camera for navigation at route start
+async function setupNavigationCamera(routeCoordinates) {
+    if (!routeCoordinates || routeCoordinates.length < 2) {
+        console.warn('Cannot setup navigation camera: insufficient route points');
+        return;
+    }
+
+    // Hide start/end markers during camera animation to prevent jittering
+    const markersHidden = [];
+    if (startMarker) {
+        startMarker.getElement().style.display = 'none';
+        markersHidden.push(startMarker);
+    }
+    if (endMarker) {
+        endMarker.getElement().style.display = 'none';
+        markersHidden.push(endMarker);
+    }
+
+    // Calculate bearing from first two points
+    function calculateBearing(from, to) {
+        const [lon1, lat1] = from;
+        const [lon2, lat2] = to;
+
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const lat1Rad = lat1 * Math.PI / 180;
+        const lat2Rad = lat2 * Math.PI / 180;
+
+        const y = Math.sin(dLon) * Math.cos(lat2Rad);
+        const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) -
+            Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
+
+        const bearing = Math.atan2(y, x) * 180 / Math.PI;
+        return (bearing + 360) % 360;
+    }
+
+    // Get start position and bearing
+    const startPoint = routeCoordinates[0];
+    const nextPoint = routeCoordinates.length > 1 ? routeCoordinates[1] : routeCoordinates[0];
+    const bearing = calculateBearing(startPoint, nextPoint);
+
+    // First show brief overview of the route (already done by fitBounds in calculateRoute)
+    // Wait for fitBounds animation to complete
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    // Then position camera at start for navigation
+    map.flyTo({
+        center: startPoint,
+        zoom: 18,
+        bearing: bearing,
+        pitch: 65, // Good angle for navigation
+        duration: 1500,
+        essential: true,
+        easing: (t) => t * (2 - t) // Ease-out for smooth animation
+    });
+
+    // Wait for flyTo to complete, then restore marker visibility
+    await new Promise(resolve => setTimeout(resolve, 1600));
+    markersHidden.forEach(marker => {
+        marker.getElement().style.display = 'block';
+    });
+}
+
+// Speak instruction with improved debouncing and queue management
 function speakInstruction(text, force = false) {
     if (!speechEnabled || !window.speechSynthesis) return;
 
+    // Prevent duplicate announcements within 3 seconds
     if (text === lastSpokenInstruction && !force) {
         return;
     }
 
+    // Cancel any ongoing speech to prioritize new instruction
     window.speechSynthesis.cancel();
     lastSpokenInstruction = text;
 
     const utter = new SpeechSynthesisUtterance(text);
-    utter.rate = 1.0;
+    utter.rate = 0.95; // Slightly slower for better clarity
+    utter.pitch = 1.0;
+    utter.volume = 1.0;
+
     utter.onend = () => {
+        // Clear the last spoken instruction after 3 seconds to allow re-announcement if needed
         setTimeout(() => {
             if (lastSpokenInstruction === text) {
                 lastSpokenInstruction = null;
             }
-        }, 5000);
+        }, 3000);
     };
+
+    utter.onerror = (event) => {
+        console.warn('Speech synthesis error:', event);
+        lastSpokenInstruction = null;
+    };
+
     window.speechSynthesis.speak(utter);
 }
 
@@ -1939,7 +2120,7 @@ function speakInstruction(text, force = false) {
 function enterNavigationMode() {
     isNavigationMode = true;
     autoRecenter = true;
-    
+
     if (navBar) navBar.style.display = 'block';
     if (compassEl) compassEl.style.display = 'flex';
     updateNavigationBar();
@@ -1954,7 +2135,7 @@ function enterNavigationMode() {
 function exitNavigationMode() {
     isNavigationMode = false;
     autoRecenter = false;
-    
+
     if (navBar) navBar.style.display = 'none';
     if (compassEl) compassEl.style.display = 'none';
 
@@ -1977,7 +2158,29 @@ function handleOrientation(event) {
 // Recenter map on user location
 function recenterMap() {
     autoRecenter = true;
-    if (userMarker) {
+    if (userMarker && routeData) {
+        const lngLat = userMarker.getLngLat();
+        const userPoint = { lat: lngLat.lat, lng: lngLat.lng };
+        const nextPoint = getNextRoutePoint(userPoint);
+
+        if (nextPoint) {
+            const bearing = calculateBearingBetweenPoints(userPoint, nextPoint);
+            map.flyTo({
+                center: [lngLat.lng, lngLat.lat],
+                bearing: bearing,
+                pitch: 65,
+                zoom: 18,
+                duration: 1000
+            });
+        } else {
+            map.flyTo({
+                center: [lngLat.lng, lngLat.lat],
+                pitch: 65,
+                zoom: 18,
+                duration: 1000
+            });
+        }
+    } else if (userMarker) {
         const lngLat = userMarker.getLngLat();
         map.flyTo({ center: [lngLat.lng, lngLat.lat], zoom: 18 });
     }
@@ -2009,12 +2212,12 @@ function updateNavigationBar() {
         const userPoint = { lat: userLngLat.lat, lng: userLngLat.lng };
         const distToNext = distanceToNextInstruction(userPoint, currentInstructionIndex + 1);
         const span = distanceToTurnEl.querySelector('span');
-        
+
         if (distToNext < Infinity && currentInstructionIndex + 1 < routeData.directions.length) {
             if (span) {
-                span.textContent = `Next turn in ${Math.round(distToNext)}m`;
+                span.textContent = `Next turn in ${formatDistance(distToNext)}`;
             } else {
-                distanceToTurnEl.innerHTML = `<i class="fas fa-route"></i> <span>Next turn in ${Math.round(distToNext)}m</span>`;
+                distanceToTurnEl.innerHTML = `<i class="fas fa-route"></i> <span>Next turn in ${formatDistance(distToNext)}</span>`;
             }
         } else if (routeData.route.geometry && routeData.route.geometry.coordinates) {
             const coords = routeData.route.geometry.coordinates;
@@ -2022,9 +2225,9 @@ function updateNavigationBar() {
                 const [destLon, destLat] = coords[coords.length - 1];
                 const distToDestination = calculateDistance(userPoint, { lat: destLat, lng: destLon });
                 if (span) {
-                    span.textContent = `${Math.round(distToDestination)}m to destination`;
+                    span.textContent = `${formatDistance(distToDestination)} to destination`;
                 } else {
-                    distanceToTurnEl.innerHTML = `<i class="fas fa-route"></i> <span>${Math.round(distToDestination)}m to destination</span>`;
+                    distanceToTurnEl.innerHTML = `<i class="fas fa-route"></i> <span>${formatDistance(distToDestination)} to destination</span>`;
                 }
             }
         }
@@ -2097,30 +2300,113 @@ function calculateDistanceTraveled(userPoint) {
     return traveled;
 }
 
-// Check if user is off route
-function checkOffRoute(userPoint) {
-    if (!routeData || !routeData.route || !routeData.route.geometry) return false;
-
+// Minimum distance from a user point to the route (meters)
+function getMinDistanceToRoute(userPoint) {
+    if (!routeData || !routeData.route || !routeData.route.geometry) return Infinity;
     const coords = routeData.route.geometry.coordinates;
-    if (!coords) return false;
-
+    if (!coords) return Infinity;
     let minDistance = Infinity;
-
-    // Find minimum distance to any point on the route
     for (let i = 0; i < coords.length; i++) {
         const [lon, lat] = coords[i];
         const dist = calculateDistance(userPoint, { lat, lng: lon });
-        if (dist < minDistance) {
-            minDistance = dist;
+        if (dist < minDistance) minDistance = dist;
+    }
+    return minDistance;
+}
+
+// Check if user is off route with improved accuracy validation
+function checkOffRoute(userPoint, accuracy = 0) {
+    const minDistance = getMinDistanceToRoute(userPoint);
+    // Use dynamic threshold based on GPS accuracy
+    // If accuracy is poor (>50m), be more lenient with off-route detection
+    const threshold = accuracy > 50 ? 50 : 30;
+    return minDistance > threshold;
+}
+
+// Format distance with appropriate units (meters or kilometers)
+function formatDistance(meters) {
+    if (meters >= 1000) {
+        return `${(meters / 1000).toFixed(1)}km`;
+    }
+    return `${Math.round(meters)}m`;
+}
+
+// Get next route point ahead of user for bearing calculation
+function getNextRoutePoint(userPoint) {
+    if (!routeData || !routeData.route || !routeData.route.geometry) return null;
+    const coords = routeData.route.geometry.coordinates;
+    if (!coords || coords.length < 2) return null;
+
+    // Find closest point to user
+    let minDist = Infinity;
+    let closestIndex = 0;
+    for (let i = 0; i < coords.length; i++) {
+        const [lon, lat] = coords[i];
+        const dist = calculateDistance(userPoint, { lat, lng: lon });
+        if (dist < minDist) {
+            minDist = dist;
+            closestIndex = i;
         }
     }
 
-    // If more than 30m from route, consider off-route
-    return minDistance > 30;
+    // Return point ahead (look ahead 3-5 points or 50m, whichever is greater)
+    const lookAheadIndex = Math.min(closestIndex + 5, coords.length - 1);
+    if (lookAheadIndex > closestIndex) {
+        const [lon, lat] = coords[lookAheadIndex];
+        return { lng: lon, lat: lat };
+    }
+
+    // Fallback: return last point if we're near the end
+    const [lon, lat] = coords[coords.length - 1];
+    return { lng: lon, lat: lat };
+}
+
+// Calculate bearing between two points
+function calculateBearingBetweenPoints(from, to) {
+    const fromLng = from.lng || from[0];
+    const fromLat = from.lat || from[1];
+    const toLng = to.lng || to[0];
+    const toLat = to.lat || to[1];
+
+    const dLon = (toLng - fromLng) * Math.PI / 180;
+    const lat1Rad = fromLat * Math.PI / 180;
+    const lat2Rad = toLat * Math.PI / 180;
+
+    const y = Math.sin(dLon) * Math.cos(lat2Rad);
+    const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) -
+        Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
+
+    const bearing = Math.atan2(y, x) * 180 / Math.PI;
+    return (bearing + 360) % 360;
+}
+
+// Update step marker visibility to highlight current/upcoming turns
+function updateStepMarkerVisibility(currentIndex) {
+    stepMarkers.forEach((marker, i) => {
+        const element = marker.getElement();
+        if (i < currentIndex) {
+            // Completed turns - fade out
+            element.style.opacity = '0.3';
+            element.style.transform = 'scale(0.8)';
+        } else if (i === currentIndex) {
+            // Current/next turn - highlight
+            element.style.opacity = '1.0';
+            element.style.transform = 'scale(1.2)';
+            element.style.boxShadow = '0 0 10px rgba(220, 53, 69, 0.8)';
+        } else {
+            // Future turns - normal
+            element.style.opacity = '0.7';
+            element.style.transform = 'scale(1.0)';
+            element.style.boxShadow = 'none';
+        }
+    });
 }
 
 // GPS tracking with improved instruction management
 function startGPSTracking(data) {
+    // Reset proximity state when starting navigation tracking
+    hasEnteredRouteProximity = false;
+
     if (gpsWatchId !== null) {
         navigator.geolocation.clearWatch(gpsWatchId);
         gpsWatchId = null;
@@ -2139,62 +2425,172 @@ function startGPSTracking(data) {
 
     gpsWatchId = navigator.geolocation.watchPosition(
         pos => {
-            const userLatLng = [pos.coords.latitude, pos.coords.longitude];
-            const userPoint = { lat: userLatLng[0], lng: userLatLng[1] };
+            const rawLat = pos.coords.latitude;
+            const rawLng = pos.coords.longitude;
+            const userPoint = { lat: rawLat, lng: rawLng };
 
-            // Update user marker
+            // Calculate distance to route and determine if user should be shown
+            let displayLat = rawLat;
+            let displayLng = rawLng;
+            let minDistToRoute = Infinity;
+            let shouldShowMarker = false;
+
+            if (isNavigationMode && routeData && routeData.route && routeData.route.geometry) {
+                const coords = routeData.route.geometry.coordinates;
+                if (coords && coords.length > 0) {
+                    // Find nearest point on route
+                    let nearestPoint = null;
+
+                    for (let i = 0; i < coords.length; i++) {
+                        const [routeLng, routeLat] = coords[i];
+                        const dist = calculateDistance(userPoint, { lat: routeLat, lng: routeLng });
+                        if (dist < minDistToRoute) {
+                            minDistToRoute = dist;
+                            nearestPoint = { lat: routeLat, lng: routeLng };
+                        }
+                    }
+
+                    // Only show marker if user is within 100m of the route
+                    if (minDistToRoute < 100) {
+                        shouldShowMarker = true;
+
+                        // Snap to route if very close (within 50m) for accurate display
+                        if (nearestPoint && minDistToRoute < 50) {
+                            displayLat = nearestPoint.lat;
+                            displayLng = nearestPoint.lng;
+                        }
+                    }
+                }
+            } else {
+                // Always show marker when not in navigation mode
+                shouldShowMarker = true;
+            }
+
+            // Update user marker only if close enough to route (or not in navigation mode)
             if (userMarker) userMarker.remove();
-            const el = document.createElement('div');
-            el.className = 'pulse-marker';
-            el.style.cssText = 'width: 20px; height: 20px; border-radius: 50%; background-color: #2196F3; border: 3px solid #2196F3; box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.7);';
-            userMarker = new mapboxgl.Marker({ element: el })
-                .setLngLat([userLatLng[1], userLatLng[0]])
-                .addTo(map);
 
-            // Auto-recenter in navigation mode
-            if (isNavigationMode && autoRecenter) {
-                map.flyTo({ center: [userLatLng[1], userLatLng[0]], zoom: 18, duration: 500 });
+            if (shouldShowMarker) {
+                const el = document.createElement('div');
+                el.className = 'pulse-marker';
+                el.style.cssText = 'width: 20px; height: 20px; border-radius: 50%; background-color: #2196F3; border: 3px solid #2196F3; box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.7);';
+                userMarker = new mapboxgl.Marker({ element: el })
+                    .setLngLat([displayLng, displayLat])
+                    .addTo(map);
+            } else {
+                userMarker = null;
+            }
+
+            // Auto-recenter in navigation mode with dynamic bearing (only if marker is shown)
+            if (isNavigationMode && autoRecenter && shouldShowMarker) {
+                const displayPoint = { lat: displayLat, lng: displayLng };
+                const nextPoint = getNextRoutePoint(displayPoint);
+                const currentCenter = map.getCenter();
+                const distanceMoved = calculateDistance(
+                    { lat: currentCenter.lat, lng: currentCenter.lng },
+                    displayPoint
+                );
+
+                // Use immediate positioning for small movements to keep marker centered
+                // Use smooth animation for larger movements
+                if (distanceMoved < 5) {
+                    // Small movement - use instant positioning to keep marker perfectly centered
+                    if (nextPoint) {
+                        const bearing = calculateBearingBetweenPoints(displayPoint, nextPoint);
+                        map.jumpTo({
+                            center: [displayLng, displayLat],
+                            bearing: bearing,
+                            pitch: 65,
+                            zoom: 18
+                        });
+                    } else {
+                        map.jumpTo({
+                            center: [displayLng, displayLat],
+                            zoom: 18,
+                            pitch: 65
+                        });
+                    }
+                } else {
+                    // Larger movement - use smooth animation
+                    if (nextPoint) {
+                        const bearing = calculateBearingBetweenPoints(displayPoint, nextPoint);
+                        map.easeTo({
+                            center: [displayLng, displayLat],
+                            bearing: bearing,
+                            pitch: 65,
+                            zoom: 18,
+                            duration: 300, // Shorter duration for tighter tracking
+                            easing: (t) => t // Linear easing for predictable movement
+                        });
+                    } else {
+                        map.easeTo({
+                            center: [displayLng, displayLat],
+                            zoom: 18,
+                            pitch: 65,
+                            duration: 300
+                        });
+                    }
+                }
             }
 
             // Update distance traveled and progress
             distanceTraveled = calculateDistanceTraveled(userPoint);
             updateNavigationBar();
+            const accuracy = typeof pos.coords.accuracy === 'number' ? pos.coords.accuracy : 999;
 
-            // Check if off route
-            if (checkOffRoute(userPoint)) {
-                if (!isOffRoute) {
-                    isOffRoute = true;
-                    speakInstruction("You are off route. Recalculating...", true);
+            // Establish proximity lock only when reasonably close and with acceptable accuracy
+            if (!hasEnteredRouteProximity) {
+                // More lenient initial proximity check (75m) to avoid false negatives
+                if (minDistToRoute <= 75 && accuracy <= 100) {
+                    hasEnteredRouteProximity = true;
+                    console.log('User entered route proximity');
+                    showStatus('Navigation tracking active', 'info', 2000);
                 }
-                return;
-            } else {
-                if (isOffRoute) {
-                    speakInstruction("Back on route.", true);
-                }
-                isOffRoute = false;
             }
 
-            // Check distance to next instruction
-            const distToNext = distanceToNextInstruction(userPoint, currentInstructionIndex + 1);
+            // Only trigger off-route after user has been near the route at least once
+            // AND has good GPS accuracy (< 100m)
+            if (hasEnteredRouteProximity && accuracy <= 100) {
+                const offRouteThreshold = accuracy > 50 ? 50 : 35; // Dynamic threshold
 
-            // Advance warning (50m before turn)
-            if (distToNext < 50 && distToNext > 30 && currentInstructionIndex + 1 < data.directions.length) {
-                if (!advanceWarningGiven) {
-                    const nextInstruction = data.directions[currentInstructionIndex + 1];
+                if (minDistToRoute > offRouteThreshold) {
+                    if (!isOffRoute) {
+                        isOffRoute = true;
+                        speakInstruction("You are off route. Please return to the marked path.", true);
+                        showStatus('Off route - return to path', 'warning', 3000);
+                    }
+                } else {
+                    if (isOffRoute) {
+                        isOffRoute = false;
+                        speakInstruction("Back on route.", true);
+                        showStatus('Back on route', 'success', 2000);
+                    }
+                }
+            }
+
+            // Check distance to next instruction (only if not off route)
+            if (!isOffRoute) {
+                const distToNext = distanceToNextInstruction(userPoint, currentInstructionIndex + 1);
+
+                // Advance warning (60m before turn) - increased from 50m for better preparation time
+                if (distToNext < 60 && distToNext > 35 && currentInstructionIndex + 1 < data.directions.length) {
+                    if (!advanceWarningGiven) {
+                        const nextInstruction = data.directions[currentInstructionIndex + 1];
+                        const nextText = typeof nextInstruction === 'string' ? nextInstruction : nextInstruction.text;
+                        speakInstruction(`In ${formatDistance(distToNext)}, ${nextText}`, true);
+                        advanceWarningGiven = true;
+                    }
+                }
+
+                // Move to next instruction when close enough (25m) - increased from 20m to avoid premature advancement
+                if (distToNext < 25 && currentInstructionIndex + 1 < data.directions.length) {
+                    currentInstructionIndex++;
+                    advanceWarningGiven = false;
+                    updateActiveInstruction(currentInstructionIndex);
+                    updateStepMarkerVisibility(currentInstructionIndex); // Highlight current turn marker
+                    const nextInstruction = data.directions[currentInstructionIndex];
                     const nextText = typeof nextInstruction === 'string' ? nextInstruction : nextInstruction.text;
-                    speakInstruction(`In 50 meters, ${nextText}`, true);
-                    advanceWarningGiven = true;
+                    speakInstruction(nextText, true);
                 }
-            }
-
-            // Move to next instruction when close enough (20m)
-            if (distToNext < 20 && currentInstructionIndex + 1 < data.directions.length) {
-                currentInstructionIndex++;
-                advanceWarningGiven = false;
-                updateActiveInstruction(currentInstructionIndex);
-                const nextInstruction = data.directions[currentInstructionIndex];
-                const nextText = typeof nextInstruction === 'string' ? nextInstruction : nextInstruction.text;
-                speakInstruction(nextText, true);
             }
 
             // Check if arrived at destination
@@ -2203,11 +2599,18 @@ function startGPSTracking(data) {
                 const [destLon, destLat] = coords[coords.length - 1];
                 const distToDestination = calculateDistance(userPoint, { lat: destLat, lng: destLon });
 
-                if (distToDestination < 10 && currentInstructionIndex === data.directions.length - 1) {
+                // Arrival detection with better threshold (15m instead of 10m)
+                if (distToDestination < 15 && currentInstructionIndex >= data.directions.length - 1) {
                     speakInstruction("You have arrived at your destination.", true);
+                    showStatus('Arrived at destination!', 'success', 5000);
+
+                    // Stop GPS tracking and exit navigation after brief delay
                     setTimeout(() => {
+                        if (gpsWatchId !== null) {
+                            navigator.geolocation.clearWatch(gpsWatchId);
+                            gpsWatchId = null;
+                        }
                         exitNavigationMode();
-                        showStatus('Arrived at destination!', 'success', 5000);
                     }, 3000);
                 }
             }
