@@ -310,16 +310,16 @@ class LayerToggleControl {
         dropdown.innerHTML = `
             <div style="margin-bottom: 8px; font-weight: bold; font-size: 12px; color: #333;">Map Layers</div>
             <label style="display: block; margin: 8px 0; cursor: pointer;">
-                <input type="checkbox" id="roadsLayerToggle" checked> Roads
+                <input type="checkbox" id="roadsLayerToggle"> Roads
             </label>
             <label style="display: block; margin: 8px 0; cursor: pointer;">
-                <input type="checkbox" id="buildingsLayerToggle" checked> Buildings
+                <input type="checkbox" id="buildingsLayerToggle"> Buildings
             </label>
             <label style="display: block; margin: 8px 0; cursor: pointer;">
-                <input type="checkbox" id="roadLabelsToggle" checked> Road Labels
+                <input type="checkbox" id="roadLabelsToggle"> Road Labels
             </label>
             <label style="display: block; margin: 8px 0; cursor: pointer;">
-                <input type="checkbox" id="routeLayerToggle" checked> Route
+                <input type="checkbox" id="routeLayerToggle"> Route
             </label>
         `;
 
@@ -649,14 +649,23 @@ function disable3DTerrain() {
 function addRoadsLayers() {
     if (map.getLayer(LAYER_IDS.roads)) return;
 
+    // In satellite view, use lighter/more subtle road colors
+    const isSatellite = currentStyle === 'satellite';
+    const roadColor = isSatellite ? '#ffffff' : '#000000';
+    const roadWidth = isSatellite ? 1.5 : 2;
+    const roadEmissive = isSatellite ? 0.3 : 0.5;
+
     map.addLayer({
         id: LAYER_IDS.roads,
         type: 'line',
         source: 'roads-source',
+        layout: {
+            'visibility': 'none'  // Hidden by default until user toggles on
+        },
         paint: {
-            'line-color': '#000000',
-            'line-width': 2,
-            'line-emissive-strength': 0.5  // GL JS v3: Makes lines glow appropriately in 3D lighting
+            'line-color': roadColor,
+            'line-width': roadWidth,
+            'line-emissive-strength': roadEmissive  // GL JS v3: Makes lines glow appropriately in 3D lighting
         }
     });
 
@@ -665,6 +674,7 @@ function addRoadsLayers() {
         type: 'symbol',
         source: 'roads-source',
         layout: {
+            'visibility': 'none',  // Hidden by default until user toggles on
             'text-field': ['get', 'name'],
             'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
             'text-size': 11,
@@ -689,14 +699,24 @@ function addRoadsLayers() {
 function addBuildingsLayers() {
     if (map.getLayer(LAYER_IDS.buildings)) return;
 
+    // In satellite view, use white/light color instead of red/coral
+    const isSatellite = currentStyle === 'satellite';
+    const fillColor = isSatellite ? '#ffffff' : 'coral';
+    const fillOpacity = isSatellite ? 0.3 : 0.8;
+    const lineColor = isSatellite ? '#ffffff' : 'coral';
+    const lineWidth = isSatellite ? 1 : 2;
+
     map.addLayer({
         id: LAYER_IDS.buildings,
         type: 'fill',
         source: 'buildings-source',
+        layout: {
+            'visibility': 'none'  // Hidden by default until user toggles on
+        },
         paint: {
-            'fill-color': 'coral',
-            'fill-opacity': 0.8,
-            'fill-emissive-strength': 0.6  // GL JS v3: Makes buildings visible in all lighting conditions
+            'fill-color': fillColor,
+            'fill-opacity': fillOpacity,
+            'fill-emissive-strength': isSatellite ? 0.2 : 0.6  // GL JS v3: Less emissive in satellite
         }
     });
 
@@ -704,10 +724,13 @@ function addBuildingsLayers() {
         id: LAYER_IDS.buildings + '-outline',
         type: 'line',
         source: 'buildings-source',
+        layout: {
+            'visibility': 'none'  // Hidden by default until user toggles on
+        },
         paint: {
-            'line-color': 'coral',
-            'line-width': 2,
-            'line-emissive-strength': 0.6  // GL JS v3: Outline visibility in 3D lighting
+            'line-color': lineColor,
+            'line-width': lineWidth,
+            'line-emissive-strength': isSatellite ? 0.2 : 0.6  // GL JS v3: Less visible in satellite
         }
     });
 }
@@ -754,6 +777,32 @@ function addRouteLayer() {
         layout: {
             'line-cap': 'round',
             'line-join': 'round'
+        }
+    });
+
+    // Add directional arrows to show route direction
+    map.addLayer({
+        id: LAYER_IDS.route + '-arrows',
+        type: 'symbol',
+        source: 'route-source',
+        layout: {
+            'symbol-placement': 'line',
+            'symbol-spacing': 80, // Space between arrows in pixels
+            'text-field': '▶', // Unicode arrow character
+            'text-size': 16,
+            'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+            'text-rotation-alignment': 'map',
+            'text-pitch-alignment': 'map',
+            'text-allow-overlap': true,
+            'text-ignore-placement': true,
+            'text-keep-upright': false
+        },
+        paint: {
+            'text-color': '#ffffff',
+            'text-opacity': 0.95,
+            'text-halo-color': '#000000',
+            'text-halo-width': 1,
+            'text-emissive-strength': 1.0  // GL JS v3: Arrows highly visible
         }
     });
 
@@ -841,6 +890,8 @@ const LAYER_IDS = {
 // --- Turn-by-Turn Navigation Variables ---
 let gpsWatchId = null;
 let userMarker = null;
+let userMarkerBearing = 0; // Current bearing of user marker
+let lastUserPosition = null; // Store last position to calculate bearing from movement
 let isNavigationMode = false;
 let autoRecenter = true;
 let currentInstructionIndex = 0;
@@ -1305,7 +1356,10 @@ function updateActiveInstruction(index) {
 // --- Clear Route Function ---
 function clearRoute() {
 
-    // Remove route layers (main and dashed)
+    // Remove route layers (main, dashed, and arrows)
+    if (map.getLayer(LAYER_IDS.route + '-arrows')) {
+        map.removeLayer(LAYER_IDS.route + '-arrows');
+    }
     if (map.getLayer(LAYER_IDS.route + '-dashed')) {
         map.removeLayer(LAYER_IDS.route + '-dashed');
     }
@@ -1331,6 +1385,8 @@ function clearRoute() {
     startMarker = null;
     endMarker = null;
     userMarker = null;
+    userMarkerBearing = 0;
+    lastUserPosition = null;
     stepMarkers = [];
     startPoint = null;
     endPoint = null;
@@ -1411,6 +1467,9 @@ function setupLayerToggles() {
             }
             if (map.getLayer(LAYER_IDS.route + '-dashed')) {
                 map.setLayoutProperty(LAYER_IDS.route + '-dashed', 'visibility', visibility);
+            }
+            if (map.getLayer(LAYER_IDS.route + '-arrows')) {
+                map.setLayoutProperty(LAYER_IDS.route + '-arrows', 'visibility', visibility);
             }
         });
     }
@@ -1761,7 +1820,10 @@ function calculateRoute() {
                 return;
             }
 
-            // Remove existing route layer
+            // Remove existing route layers (main, dashed, and arrows)
+            if (map.getLayer(LAYER_IDS.route + '-arrows')) {
+                map.removeLayer(LAYER_IDS.route + '-arrows');
+            }
             if (map.getLayer(LAYER_IDS.route + '-dashed')) {
                 map.removeLayer(LAYER_IDS.route + '-dashed');
             }
@@ -1816,31 +1878,9 @@ function calculateRoute() {
             // Set up navigation camera (overview then position at start)
             const routeCoordinates = data.route.geometry.coordinates;
             setupNavigationCamera(routeCoordinates).then(() => {
-                // Plot markers for each turn AFTER camera animations complete
-                // This prevents marker jittering during camera movement
-                for (let i = 0; i < data.directions.length - 1; i++) {
-                    const stepObj = data.directions[i];
-                    if (!stepObj.location) continue;
-
-                    const [lon, lat] = stepObj.location;
-
-                    // Validate coordinates before creating marker
-                    if (!isFinite(lon) || !isFinite(lat) || isNaN(lon) || isNaN(lat)) {
-                        console.warn(`Invalid coordinates for step ${i + 1}:`, stepObj.location);
-                        continue;
-                    }
-
-                    const el = document.createElement('div');
-                    el.className = 'step-label bg-danger text-white rounded-circle';
-                    el.style.cssText = 'width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; transition: opacity 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;';
-                    el.textContent = i + 1;
-
-                    const marker = new mapboxgl.Marker({ element: el })
-                        .setLngLat([lon, lat])
-                        .addTo(map);
-                    stepMarkers.push(marker);
-                }
-
+                // Markers are hidden during navigation for cleaner view
+                // Step markers creation disabled for navigation mode
+                
                 // Enter navigation mode after camera is positioned
                 enterNavigationMode();
 
@@ -2074,11 +2114,9 @@ async function setupNavigationCamera(routeCoordinates) {
         easing: (t) => t * (2 - t) // Ease-out for smooth animation
     });
 
-    // Wait for flyTo to complete, then restore marker visibility
+    // Wait for flyTo to complete
+    // Markers remain hidden during navigation for cleaner view
     await new Promise(resolve => setTimeout(resolve, 1600));
-    markersHidden.forEach(marker => {
-        marker.getElement().style.display = 'block';
-    });
 }
 
 // Speak instruction with improved debouncing and queue management
@@ -2466,14 +2504,60 @@ function startGPSTracking(data) {
                 shouldShowMarker = true;
             }
 
+            // Calculate bearing for direction arrow
+            let bearing = userMarkerBearing; // Use previous bearing as default
+            
+            // Try to get heading from GPS (if device supports it)
+            if (pos.coords.heading !== null && pos.coords.heading !== undefined && !isNaN(pos.coords.heading)) {
+                bearing = pos.coords.heading;
+            } else if (lastUserPosition) {
+                // Calculate bearing from movement if heading not available
+                const dist = calculateDistance(
+                    { lat: lastUserPosition.lat, lng: lastUserPosition.lng },
+                    { lat: displayLat, lng: displayLng }
+                );
+                // Only update bearing if moved significantly (>2m) to avoid jitter
+                if (dist > 2) {
+                    bearing = calculateBearingBetweenPoints(
+                        { lat: lastUserPosition.lat, lng: lastUserPosition.lng },
+                        { lat: displayLat, lng: displayLng }
+                    );
+                }
+            } else if (isNavigationMode && routeData) {
+                // In navigation mode, point towards next route point
+                const nextPoint = getNextRoutePoint({ lat: displayLat, lng: displayLng });
+                if (nextPoint) {
+                    bearing = calculateBearingBetweenPoints(
+                        { lat: displayLat, lng: displayLng },
+                        nextPoint
+                    );
+                }
+            }
+            
+            userMarkerBearing = bearing;
+            lastUserPosition = { lat: displayLat, lng: displayLng };
+
             // Update user marker only if close enough to route (or not in navigation mode)
             if (userMarker) userMarker.remove();
 
             if (shouldShowMarker) {
                 const el = document.createElement('div');
-                el.className = 'pulse-marker';
-                el.style.cssText = 'width: 20px; height: 20px; border-radius: 50%; background-color: #2196F3; border: 3px solid #2196F3; box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.7);';
-                userMarker = new mapboxgl.Marker({ element: el })
+                el.className = 'user-location-marker';
+                // Create arrow-shaped marker with direction
+                el.innerHTML = `
+                    <div style="position: relative; width: 40px; height: 40px;">
+                        <!-- Outer pulse ring -->
+                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 40px; height: 40px; border-radius: 50%; background-color: rgba(33, 150, 243, 0.2); animation: pulse-ring 2s infinite;"></div>
+                        <!-- Arrow container (rotates) -->
+                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(${bearing}deg); width: 24px; height: 24px;">
+                            <!-- Arrow pointer -->
+                            <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 16px solid #2196F3;"></div>
+                            <!-- Arrow base circle -->
+                            <div style="position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); width: 12px; height: 12px; border-radius: 50%; background-color: #2196F3; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>
+                        </div>
+                    </div>
+                `;
+                userMarker = new mapboxgl.Marker({ element: el, anchor: 'center' })
                     .setLngLat([displayLng, displayLat])
                     .addTo(map);
             } else {

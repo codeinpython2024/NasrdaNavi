@@ -1,0 +1,1841 @@
+/**
+ * NasrdaNavi - Enhanced UI Styles
+ * Modern, responsive, and accessible design system
+ */
+
+/* ===================================
+   CSS VARIABLES & THEME
+   =================================== */
+:root {
+    /* Colors */
+    --primary-color: #007bff;
+    --primary-dark: #0056b3;
+    --primary-light: #e7f3ff;
+    --success-color: #28a745;
+    --danger-color: #dc3545;
+    --warning-color: #ffc107;
+    --info-color: #17a2b8;
+
+    /* Grays */
+    --gray-50: #f8f9fa;
+    --gray-100: #e9ecef;
+    --gray-200: #dee2e6;
+    --gray-300: #ced4da;
+    --gray-400: #adb5bd;
+    --gray-500: #6c757d;
+    --gray-600: #495057;
+    --gray-700: #343a40;
+    --gray-800: #212529;
+    --gray-900: #1a1d20;
+
+    /* Shadows */
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
+    --shadow-2xl: 0 25px 50px rgba(0, 0, 0, 0.25);
+
+    /* Border Radius */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --radius-xl: 20px;
+    --radius-full: 9999px;
+
+    /* Transitions */
+    --transition-fast: 150ms ease;
+    --transition-normal: 300ms ease;
+    --transition-slow: 500ms ease;
+
+    /* Spacing */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 12px;
+    --space-lg: 16px;
+    --space-xl: 24px;
+    --space-2xl: 32px;
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --gray-50: #212529;
+        --gray-100: #343a40;
+        --gray-200: #495057;
+        --gray-300: #6c757d;
+    }
+}
+
+/* ===================================
+   BASE STYLES
+   =================================== */
+html,
+body {
+    height: 100%;
+    margin: 0;
+    /* Prevent text selection on mobile for better UX */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+    /* Prevent callout on iOS */
+    -webkit-touch-callout: none;
+    /* Smooth scrolling */
+    -webkit-overflow-scrolling: touch;
+    /* Better font rendering */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Re-enable text selection for input elements */
+input,
+textarea,
+.directions,
+.search-result-item {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    user-select: text;
+}
+
+/* ===================================
+   MAP CONTAINER
+   =================================== */
+#map {
+    height: 100vh;
+    width: 100%;
+    /* iOS safe area support */
+    height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    /* Prevent map from being dragged on mobile */
+    touch-action: pan-x pan-y;
+    /* Smooth transitions */
+    transition: filter var(--transition-normal);
+}
+
+/* ===================================
+   Z-INDEX HIERARCHY
+   =================================== */
+/*
+    9999: Toasts, alerts, loading overlays
+    9998: Map style/layer/terrain dropdowns (must be above directions panel)
+    3000: Status messages
+    2001: Navigation bar (active navigation)
+    2000: Search results
+    1001: Toolbar on mobile
+    1000: Toolbar on desktop, Compass, FAB, Directions Panel
+    999: Directions panel on mobile (below toolbar)
+    100: Map controls
+    1: Map base
+*/
+
+/* ===================================
+   TOOLBAR
+   =================================== */
+.map-toolbar {
+    position: absolute;
+    top: 10px;
+    left: 50px;
+    z-index: 1000;
+    background: transparent;
+    padding: 0;
+    padding-top: 32px;
+    border-radius: 0;
+    width: 400px;
+    max-width: calc(100% - 100px);
+    /* iOS safe area support */
+    top: calc(10px + env(safe-area-inset-top));
+    /* Smooth animations */
+    animation: slideInLeft var(--transition-normal);
+}
+
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Toolbar spacing */
+.map-toolbar>*+* {
+    margin-top: var(--space-md);
+}
+
+
+/* ===================================
+   SEARCH COMPONENTS
+   =================================== */
+.input-group {
+    position: relative;
+    margin-bottom: 0;
+    background: white;
+    border-radius: var(--radius-full);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
+    transition: box-shadow var(--transition-fast);
+}
+
+.input-group:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.input-group:focus-within {
+    box-shadow: 0 4px 16px rgba(0, 123, 255, 0.3);
+}
+
+.input-group .form-control {
+    border-radius: var(--radius-full) 0 0 var(--radius-full);
+    border: none;
+    padding: 14px 20px;
+    font-size: 15px;
+    transition: all var(--transition-fast);
+    background: transparent;
+}
+
+.input-group .form-control:focus {
+    border: none;
+    box-shadow: none;
+    outline: none;
+}
+
+.input-group .btn-primary {
+    border-radius: 0 var(--radius-full) var(--radius-full) 0;
+    padding: 14px 24px;
+    border: none;
+}
+
+/* Input progress indicator */
+.input-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 2px;
+    width: 0%;
+    background: linear-gradient(90deg, var(--primary-color), #00d4ff);
+    transition: width var(--transition-normal);
+    z-index: 1;
+    border-radius: 0 0 0 var(--radius-sm);
+}
+
+.input-group.searching .input-progress {
+    width: 100%;
+}
+
+/* Search Results */
+#searchResults {
+    background-color: white;
+    border: none;
+    border-radius: var(--radius-lg);
+    max-height: 300px;
+    overflow-y: auto;
+    margin-top: 8px;
+    display: none;
+    z-index: 2000;
+    width: 100%;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    /* Smooth scrolling */
+    -webkit-overflow-scrolling: touch;
+}
+
+#searchResults div {
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    border-bottom: 1px solid var(--gray-100);
+}
+
+#searchResults div:last-child {
+    border-bottom: none;
+}
+
+#searchResults div:hover {
+    background-color: var(--primary-light);
+    transform: translateX(4px);
+    border-left: 3px solid var(--primary-color);
+}
+
+#searchResults div:focus {
+    background-color: var(--gray-100);
+    outline: 2px solid var(--primary-color);
+    outline-offset: -2px;
+}
+
+/* Search Result Items */
+.search-result-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--gray-200);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.search-result-item:hover {
+    background-color: var(--primary-light);
+    transform: translateX(4px);
+    border-left: 3px solid var(--primary-color);
+}
+
+.search-result-item:active {
+    transform: scale(0.98) translateX(4px);
+}
+
+.search-result-actions {
+    display: flex;
+    gap: var(--space-xs);
+}
+
+.search-result-actions button {
+    padding: 4px 8px;
+    font-size: 11px;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+}
+
+/* Empty State */
+#searchEmptyState {
+    text-align: center;
+    padding: var(--space-2xl) var(--space-lg);
+    color: var(--gray-500);
+    background: white;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    margin-top: 8px;
+}
+
+#searchEmptyState i {
+    color: var(--gray-300);
+    margin-bottom: var(--space-md);
+}
+
+/* Search Categories */
+.search-categories {
+    display: flex;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+    position: absolute;
+    top: 4px;
+    left: 12px;
+    right: 12px;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.search-categories>* {
+    pointer-events: auto;
+}
+
+.category-chip {
+    padding: 6px 12px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--gray-300);
+    background: white;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: var(--shadow-md);
+}
+
+.category-chip:hover {
+    background: var(--gray-50);
+    border-color: var(--primary-color);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.category-chip.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.category-chip i {
+    font-size: 11px;
+}
+
+/* ===================================
+   BUTTONS
+   =================================== */
+.btn {
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    transition: all var(--transition-fast);
+    position: relative;
+    overflow: hidden;
+    border: none;
+}
+
+.btn:focus,
+.form-control:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* Primary Button */
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+    border: none;
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.4);
+    background: linear-gradient(135deg, var(--primary-dark) 0%, #003d82 100%);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+/* Ripple Effect */
+.btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.btn:active::before {
+    width: 300px;
+    height: 300px;
+}
+
+/* Outline Buttons */
+.btn-outline-danger,
+.btn-outline-info,
+.btn-outline-warning {
+    transition: all var(--transition-fast);
+}
+
+.btn-outline-danger:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+}
+
+.btn-outline-info:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(23, 162, 184, 0.3);
+}
+
+.btn-outline-warning:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
+}
+
+/* ===================================
+   DIRECTIONS PANEL
+   =================================== */
+#directionsPanel {
+    position: absolute;
+    top: 10px;
+    right: 250px;
+    z-index: 1000;
+    width: 400px;
+    max-width: calc(100% - 24px);
+    /* iOS safe area support */
+    top: calc(10px + env(safe-area-inset-top));
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    animation: slideInRight var(--transition-normal);
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Swipe Indicator */
+.swipe-indicator {
+    width: 40px;
+    height: 4px;
+    background: var(--gray-300);
+    border-radius: 2px;
+    margin: 8px auto;
+    cursor: grab;
+    transition: background var(--transition-fast);
+}
+
+.swipe-indicator:hover {
+    background: var(--gray-400);
+}
+
+.swipe-indicator:active {
+    cursor: grabbing;
+}
+
+#directionsPanel.minimized {
+    transform: translateY(calc(100% - 60px));
+}
+
+/* Card Styles */
+.card {
+    border: none;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+}
+
+.card-header {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+    border: none;
+    padding: var(--space-lg);
+    font-weight: 600;
+}
+
+.card-body {
+    padding: var(--space-lg);
+}
+
+.card-footer {
+    background: var(--gray-50);
+    border-top: 1px solid var(--gray-200);
+    padding: var(--space-md);
+}
+
+/* Route action buttons in directions panel footer */
+#routeSummary .btn {
+    font-weight: 600;
+    transition: all var(--transition-fast);
+}
+
+#routeSummary .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+#routeSummary .btn:active {
+    transform: translateY(0);
+}
+
+/* Directions List */
+.directions {
+    background-color: #fff;
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    font-family: "Segoe UI", sans-serif;
+    font-size: 14px;
+    max-height: 300px;
+    overflow-y: auto;
+    margin-top: 10px;
+    -webkit-overflow-scrolling: touch;
+}
+
+.directions .list-group-item {
+    transition: all var(--transition-fast);
+    border-radius: var(--radius-sm);
+    margin-bottom: var(--space-xs);
+}
+
+.directions .list-group-item.active {
+    background-color: var(--primary-light);
+    border-left: 3px solid var(--primary-color);
+    font-weight: 600;
+    transform: translateX(4px);
+}
+
+.directions .list-group-item:hover {
+    background-color: var(--gray-50);
+    cursor: pointer;
+}
+
+/* Step Label */
+.step-label {
+    background-color: var(--primary-color);
+    color: white;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 20px;
+    font-weight: bold;
+    width: 20px;
+    height: 20px;
+    display: inline-block;
+    margin-right: 5px;
+    box-shadow: var(--shadow-sm);
+}
+
+/* ===================================
+   DEPARTMENT LIST
+   =================================== */
+#departmentList {
+    margin-top: 8px;
+    padding: var(--space-md);
+    background: white;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    animation: fadeIn var(--transition-normal);
+    max-height: 350px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+}
+
+#departmentList h6 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--gray-700);
+    margin-bottom: var(--space-md);
+}
+
+#departmentList .list-group {
+    margin-bottom: 0;
+}
+
+#departmentList .list-group-item {
+    border-radius: var(--radius-sm);
+    margin-bottom: var(--space-xs);
+    transition: all var(--transition-fast);
+    border: 1px solid var(--gray-200);
+    cursor: pointer;
+}
+
+#departmentList .list-group-item:last-child {
+    margin-bottom: 0;
+}
+
+#departmentList .list-group-item:hover {
+    background-color: #f8f9fa;
+    transform: translateX(4px);
+    box-shadow: var(--shadow-sm);
+    border-left: 3px solid var(--primary-color);
+}
+
+#departmentList .list-group-item:active {
+    background-color: #e9ecef;
+}
+
+/* ===================================
+   ROUTE STATUS
+   =================================== */
+.route-status {
+    padding: var(--space-md);
+    margin-top: 8px;
+    border-radius: var(--radius-lg);
+    font-size: 13px;
+    font-weight: 500;
+    animation: slideDown var(--transition-normal);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.route-status.waiting-start {
+    background-color: #fff3cd;
+    color: #856404;
+    border-left: 4px solid var(--warning-color);
+}
+
+.route-status.waiting-end {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border-left: 4px solid var(--info-color);
+}
+
+/* ===================================
+   MARKERS
+   =================================== */
+.marker-start {
+    color: var(--success-color);
+}
+
+.marker-end {
+    color: var(--danger-color);
+}
+
+.pulse-marker {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7);
+    }
+
+    70% {
+        box-shadow: 0 0 0 12px rgba(37, 99, 235, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+    }
+}
+
+/* User location marker with direction arrow */
+.user-location-marker {
+    cursor: pointer;
+    transition: transform 0.3s ease-out;
+}
+
+.user-location-marker:hover {
+    transform: scale(1.1);
+}
+
+/* ===================================
+   NAVIGATION BAR
+   =================================== */
+#navBar {
+    animation: slideUp var(--transition-normal);
+    box-shadow: var(--shadow-2xl);
+    border-top: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+    }
+
+    to {
+        transform: translateY(0);
+    }
+}
+
+#currentInstruction {
+    font-size: 1.1rem;
+    line-height: 1.4;
+}
+
+#distanceToTurn {
+    opacity: 0.85;
+}
+
+/* Progress Bar */
+.progress {
+    background-color: rgba(255, 255, 255, 0.3);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.progress-bar {
+    transition: width 0.6s ease;
+    border-radius: var(--radius-full);
+}
+
+/* ===================================
+   COMPASS
+   =================================== */
+.compass {
+    position: absolute;
+    bottom: calc(80px + env(safe-area-inset-bottom));
+    right: 10px;
+    width: 50px;
+    height: 50px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 50%;
+    box-shadow: var(--shadow-lg);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    z-index: 1000;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: all var(--transition-fast);
+}
+
+.compass:hover {
+    transform: scale(1.1);
+    box-shadow: var(--shadow-xl);
+}
+
+.compass:active {
+    transform: scale(0.95);
+}
+
+/* ===================================
+   LOADING STATES
+   =================================== */
+#loadingSpinner {
+    pointer-events: none;
+}
+
+/* Enhanced Loading Overlay */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    animation: fadeIn var(--transition-normal);
+}
+
+.loading-content {
+    background: white;
+    padding: var(--space-2xl);
+    border-radius: var(--radius-lg);
+    text-align: center;
+    box-shadow: var(--shadow-2xl);
+    max-width: 300px;
+}
+
+.spinner-ring {
+    width: 60px;
+    height: 60px;
+    border: 4px solid var(--gray-200);
+    border-top: 4px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto var(--space-lg);
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.loading-text {
+    margin: 0;
+    color: var(--gray-700);
+    font-weight: 500;
+}
+
+/* Skeleton Loaders */
+.skeleton-loader {
+    padding: var(--space-md);
+    background: white;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    margin-top: 8px;
+}
+
+.skeleton-item {
+    height: 44px;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: var(--radius-sm);
+    margin-bottom: var(--space-sm);
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* ===================================
+   TOAST NOTIFICATIONS
+   =================================== */
+.toast-container {
+    z-index: 9999;
+}
+
+.toast {
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    border-left: 4px solid var(--primary-color);
+    animation: slideInRight var(--transition-normal);
+}
+
+.toast.success {
+    border-left-color: var(--success-color);
+}
+
+.toast.error {
+    border-left-color: var(--danger-color);
+}
+
+.toast.warning {
+    border-left-color: var(--warning-color);
+}
+
+.toast.info {
+    border-left-color: var(--info-color);
+}
+
+/* ===================================
+   STATUS MESSAGES
+   =================================== */
+#statusMessage {
+    max-width: 400px;
+    animation: slideDown var(--transition-normal);
+    backdrop-filter: blur(10px);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    z-index: 3000;
+    margin-top: calc(10px + env(safe-area-inset-top));
+}
+
+.error-message {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+    border-left: 4px solid var(--danger-color);
+    padding: var(--space-md);
+    border-radius: var(--radius-sm);
+    margin-top: 10px;
+    animation: shake 0.5s;
+}
+
+@keyframes shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-10px);
+    }
+
+    75% {
+        transform: translateX(10px);
+    }
+}
+
+/* ===================================
+   FLOATING ACTION BUTTON (FAB)
+   =================================== */
+.fab-container {
+    position: fixed;
+    bottom: calc(100px + env(safe-area-inset-bottom));
+    right: 20px;
+    z-index: 1000;
+}
+
+.fab-main {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    border: none;
+    color: white;
+    font-size: 24px;
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.4);
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fab-main:hover {
+    transform: scale(1.1) rotate(45deg);
+    box-shadow: 0 6px 20px rgba(0, 123, 255, 0.5);
+}
+
+.fab-main:active {
+    transform: scale(1.05) rotate(45deg);
+}
+
+.fab-menu {
+    position: absolute;
+    bottom: 70px;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    opacity: 0;
+    pointer-events: none;
+    transition: all var(--transition-normal);
+    transform: translateY(10px);
+}
+
+.fab-container:hover .fab-menu,
+.fab-main:focus+.fab-menu {
+    opacity: 1;
+    pointer-events: all;
+    transform: translateY(0);
+}
+
+.fab-action {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid var(--primary-color);
+    color: var(--primary-color);
+    box-shadow: var(--shadow-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+}
+
+.fab-action:hover {
+    background: var(--primary-color);
+    color: white;
+    transform: scale(1.1);
+    box-shadow: var(--shadow-lg);
+}
+
+.fab-action:active {
+    transform: scale(0.95);
+}
+
+/* ===================================
+   MAPBOX CONTROLS
+   =================================== */
+.mapboxgl-ctrl-group button {
+    width: 29px;
+    height: 29px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+}
+
+.mapboxgl-ctrl-group button:hover {
+    background-color: var(--gray-50);
+    transform: scale(1.05);
+}
+
+.mapboxgl-ctrl-group button:active {
+    background-color: var(--gray-100);
+    transform: scale(0.95);
+}
+
+.mapboxgl-ctrl-group button.active {
+    background-color: var(--primary-color) !important;
+    color: white !important;
+}
+
+/* Custom Control Dropdowns */
+.style-dropdown,
+.terrain-dropdown,
+.layer-dropdown {
+    position: absolute;
+    display: none;
+    background: white;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-xl);
+    z-index: 9998;
+    max-height: 400px;
+    overflow-y: auto;
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--gray-200);
+    padding: 8px;
+    min-width: 180px;
+}
+
+/* Hide checkbox inputs in layer dropdown */
+.layer-dropdown input[type="checkbox"] {
+    display: none;
+}
+
+/* Style dropdown buttons, terrain dropdown buttons, and layer dropdown labels */
+.style-dropdown button,
+.terrain-dropdown button,
+.layer-dropdown label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 12px;
+    margin: 4px 0;
+    border: 1px solid var(--gray-300);
+    background: white;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    text-align: left;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all var(--transition-fast);
+    box-shadow: var(--shadow-xs);
+}
+
+.style-dropdown button:hover,
+.terrain-dropdown button:hover,
+.layer-dropdown label:hover {
+    background-color: var(--gray-50) !important;
+    transform: translateX(4px);
+    box-shadow: var(--shadow-sm);
+}
+
+.style-dropdown button:active,
+.terrain-dropdown button:active,
+.layer-dropdown label:active {
+    transform: translateX(4px) scale(0.98);
+}
+
+/* Active state for layer toggles */
+.layer-dropdown label.active,
+.layer-dropdown input:checked+label {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)) !important;
+    color: white !important;
+    border-color: var(--primary-color);
+}
+
+.layer-dropdown label.active:hover,
+.layer-dropdown input:checked+label:hover {
+    background: linear-gradient(135deg, var(--primary-dark), #003d82) !important;
+}
+
+/* Icon styling in dropdown buttons */
+.style-dropdown button i,
+.terrain-dropdown button i,
+.layer-dropdown label i {
+    width: 16px;
+    text-align: center;
+    opacity: 0.8;
+    font-size: 14px;
+}
+
+.layer-dropdown label.active i,
+.layer-dropdown input:checked+label i {
+    opacity: 1;
+    color: white;
+}
+
+/* Enhanced Marker Styles */
+.mapboxgl-marker {
+    cursor: pointer;
+    transition: transform var(--transition-fast);
+}
+
+.mapboxgl-marker:hover {
+    transform: scale(1.15);
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+}
+
+/* Smooth Popup Animations */
+.mapboxgl-popup {
+    animation: popupFadeIn var(--transition-normal);
+}
+
+@keyframes popupFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.mapboxgl-popup-content {
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    padding: var(--space-md);
+}
+
+/* Road Labels */
+.road-label {
+    background: rgba(255, 255, 255, 0.9);
+    color: #003366;
+    font-weight: bold;
+    border: none;
+    box-shadow: var(--shadow-sm);
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+}
+
+/* ===================================
+   ANIMATIONS
+   =================================== */
+.fade-in {
+    animation: fadeIn var(--transition-normal);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes pulse-ring {
+    0% {
+        transform: translate(-50%, -50%) scale(0.5);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translate(-50%, -50%) scale(1.5);
+        opacity: 0;
+    }
+}
+
+.slide-up {
+    animation: slideUp var(--transition-normal);
+}
+
+.slide-down {
+    animation: slideDown var(--transition-normal);
+}
+
+.slide-in-left {
+    animation: slideInLeft var(--transition-normal);
+}
+
+.slide-in-right {
+    animation: slideInRight var(--transition-normal);
+}
+
+/* ===================================
+   ACCESSIBILITY
+   =================================== */
+/* Skip to main content link */
+.skip-link {
+    position: absolute;
+    top: -40px;
+    left: 0;
+    background: var(--primary-color);
+    color: white;
+    padding: var(--space-sm) var(--space-lg);
+    text-decoration: none;
+    z-index: 10000;
+    border-radius: 0 0 var(--radius-sm) 0;
+    font-weight: 600;
+    transition: top var(--transition-fast);
+}
+
+.skip-link:focus {
+    top: 0;
+    outline: 3px solid white;
+}
+
+/* Enhanced focus states */
+*:focus-visible {
+    outline: 3px solid var(--primary-color);
+    outline-offset: 3px;
+    border-radius: var(--radius-sm);
+}
+
+/* Remove tap highlight on mobile */
+button,
+.btn,
+a,
+.search-result-item,
+.list-group-item {
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Active state feedback */
+.btn:active,
+.search-result-item:active,
+.list-group-item:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
+}
+
+/* Screen reader only */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* ===================================
+   RESPONSIVE BREAKPOINTS
+   =================================== */
+
+/* Tablets and below */
+@media (max-width: 768px) {
+    .map-toolbar {
+        width: calc(100% - 20px);
+        left: 10px;
+        right: 10px;
+        padding: 0;
+        padding-top: 32px;
+        font-size: 14px;
+        top: calc(10px + env(safe-area-inset-top));
+        max-height: 60vh;
+        overflow-y: auto;
+        z-index: 1001;
+        max-width: calc(100% - 20px);
+    }
+
+    .search-categories {
+        top: 6px;
+        left: 10px;
+        right: 10px;
+    }
+
+    .input-group .form-control {
+        font-size: 16px;
+        /* Prevents iOS zoom on focus */
+        padding: 12px 18px;
+    }
+
+    .input-group .btn-primary {
+        padding: 12px 20px;
+    }
+
+    #directionsPanel {
+        width: calc(100% - 1.5rem) !important;
+        left: 0.75rem !important;
+        right: 0.75rem !important;
+        top: auto !important;
+        bottom: calc(10px + env(safe-area-inset-bottom)) !important;
+        max-height: 35vh;
+        z-index: 999;
+    }
+
+    #directionsPanel .directions {
+        max-height: 200px;
+        font-size: 13px;
+    }
+
+    /* Adjust Mapbox attribution on mobile */
+    .mapboxgl-ctrl-attrib {
+        font-size: 10px;
+    }
+
+    /* Improve button sizes for touch */
+    .btn-sm {
+        padding: 8px 12px;
+        font-size: 14px;
+        min-height: 44px;
+    }
+
+    #searchBtn,
+    #clearBtn,
+    #reverseBtn,
+    #cancelBtn {
+        min-height: 44px;
+        font-size: 14px;
+    }
+
+
+    /* Improve search results on mobile */
+    #searchResults {
+        font-size: 14px;
+        max-height: 150px;
+    }
+
+    #searchResults div {
+        padding: 12px 8px;
+        min-height: 44px;
+    }
+
+    /* Navigation bar improvements */
+    #navBar {
+        padding: 16px 12px;
+        padding-bottom: calc(16px + env(safe-area-inset-bottom)) !important;
+        z-index: 2001;
+    }
+
+    /* Hide directions panel when navigation is active */
+    #navBar:not([style*="display: none"])~#directionsPanel {
+        display: none !important;
+    }
+
+    #currentInstruction {
+        font-size: 1rem !important;
+    }
+
+    #distanceToTurn {
+        font-size: 0.9rem !important;
+    }
+
+    #recenterBtn,
+    #exitNavBtn {
+        min-height: 44px;
+        min-width: 44px;
+        padding: 10px;
+    }
+
+    /* Department list on mobile */
+    #departmentList {
+        font-size: 13px;
+        max-height: 250px;
+        overflow-y: auto;
+        margin-top: 8px;
+    }
+
+    #departmentList .list-group-item {
+        padding: 10px 8px;
+        font-size: 13px;
+    }
+
+    #departmentList h6 {
+        font-size: 13px;
+        margin-bottom: 8px;
+        position: sticky;
+        top: 0;
+        background: white;
+        z-index: 1;
+        padding: 8px 0;
+    }
+
+    /* Route status */
+    .route-status {
+        font-size: 13px;
+        padding: 10px;
+    }
+
+    /* Compass positioning for mobile */
+    .compass {
+        bottom: calc(60px + env(safe-area-inset-bottom));
+        right: 10px;
+        width: 48px;
+        height: 48px;
+        font-size: 22px;
+        z-index: 997;
+    }
+
+    /* When directions panel is visible, move compass up */
+    #directionsPanel:not(.d-none)~.compass {
+        bottom: auto;
+        top: calc(60vh + 10px);
+    }
+
+    /* Status message on mobile */
+    #statusMessage {
+        max-width: 90%;
+        font-size: 13px;
+        padding: 10px;
+    }
+
+    /* Card header buttons */
+    .card-header .btn-sm {
+        min-height: 36px;
+        min-width: 36px;
+    }
+
+    /* FAB adjustments for mobile */
+    .fab-container {
+        bottom: calc(50px + env(safe-area-inset-bottom));
+        right: 15px;
+        z-index: 998;
+    }
+
+    .fab-main {
+        width: 52px;
+        height: 52px;
+        box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+    }
+
+    .fab-action {
+        width: 44px;
+        height: 44px;
+    }
+
+    /* Hide FAB when directions panel is visible to avoid overlap */
+    #directionsPanel:not(.d-none)~.fab-container {
+        display: none;
+    }
+
+    /* Move Mapbox controls down below search bar on mobile */
+    .mapboxgl-ctrl-top-left {
+        top: calc(140px + env(safe-area-inset-top)) !important;
+        left: 10px !important;
+    }
+
+    .mapboxgl-ctrl-top-right {
+        top: calc(140px + env(safe-area-inset-top)) !important;
+        right: 10px !important;
+    }
+
+    .mapboxgl-ctrl-bottom-left {
+        bottom: calc(10px + env(safe-area-inset-bottom));
+        left: 10px !important;
+    }
+
+    .mapboxgl-ctrl-bottom-right {
+        bottom: calc(10px + env(safe-area-inset-bottom));
+        right: 10px !important;
+    }
+
+    /* Keep search bar at the top */
+    .map-toolbar {
+        top: calc(10px + env(safe-area-inset-top)) !important;
+    }
+
+}
+
+/* Desktop: dropdowns appear to the left of controls */
+@media (min-width: 769px) {
+
+    .style-dropdown,
+    .terrain-dropdown,
+    .layer-dropdown {
+        top: 0;
+        right: 40px;
+        left: auto;
+    }
+}
+
+/* Mobile: dropdowns positioned better */
+@media (max-width: 768px) {
+
+    .style-dropdown,
+    .terrain-dropdown,
+    .layer-dropdown {
+        top: 0;
+        right: 40px;
+        left: auto;
+        max-width: 250px;
+    }
+
+    /* Ensure dropdowns don't go off-screen */
+    .mapboxgl-ctrl-top-right .mapboxgl-ctrl,
+    .mapboxgl-ctrl-top-left .mapboxgl-ctrl {
+        margin: 5px;
+    }
+}
+
+/* Extra small screens - simplify controls */
+@media (max-width: 480px) {
+
+    /* Move Mapbox controls down below search bar */
+    .mapboxgl-ctrl-top-left {
+        top: calc(140px + env(safe-area-inset-top)) !important;
+        left: 8px !important;
+    }
+
+    .mapboxgl-ctrl-top-right {
+        top: calc(140px + env(safe-area-inset-top)) !important;
+        right: 8px !important;
+    }
+
+    .mapboxgl-ctrl-bottom-left {
+        left: 8px !important;
+    }
+
+    .mapboxgl-ctrl-bottom-right {
+        right: 8px !important;
+    }
+
+    .map-toolbar {
+        width: calc(100% - 16px);
+        left: 8px;
+        right: 8px;
+        padding: 0;
+        padding-top: 32px;
+        max-height: 50vh;
+        max-width: calc(100% - 16px);
+        top: calc(10px + env(safe-area-inset-top)) !important;
+    }
+
+    .search-categories {
+        top: 6px;
+        left: 8px;
+        right: 8px;
+    }
+
+    .input-group .form-control {
+        font-size: 16px;
+        padding: 12px 16px;
+    }
+
+    .input-group .btn-primary {
+        padding: 12px 18px;
+    }
+
+    .style-dropdown,
+    .terrain-dropdown,
+    .layer-dropdown {
+        right: 40px;
+        max-width: 200px;
+        font-size: 13px;
+    }
+
+    .mapboxgl-ctrl-group button {
+        width: 40px;
+        height: 40px;
+        font-size: 16px;
+    }
+
+    /* Larger touch targets */
+    #searchBtn,
+    #clearBtn,
+    #reverseBtn,
+    #cancelBtn {
+        min-height: 48px;
+        font-size: 15px;
+    }
+
+    /* Simplify directions panel */
+    #directionsPanel {
+        max-height: 30vh;
+        margin-bottom: 0;
+    }
+
+    #directionsPanel .card-header {
+        font-size: 14px;
+        padding: 10px 12px;
+    }
+
+    #directionsPanel .directions {
+        max-height: 120px;
+        font-size: 12px;
+    }
+
+    /* Navigation bar on small screens */
+    #navBar {
+        padding: 12px 10px;
+        padding-bottom: calc(12px + env(safe-area-inset-bottom)) !important;
+    }
+
+    #currentInstruction {
+        font-size: 0.95rem !important;
+    }
+
+    /* Reduce button group gap */
+    .d-flex.gap-2 {
+        gap: 0.5rem !important;
+    }
+
+    /* Search results */
+    #searchResults {
+        max-height: 100px;
+    }
+
+    /* Department list - make collapsible on very small screens */
+    #departmentList {
+        max-height: 180px;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    #departmentList h6 {
+        font-size: 12px;
+        position: sticky;
+        top: 0;
+        background: white;
+        z-index: 1;
+        padding: 6px 0;
+        margin-bottom: 6px;
+    }
+
+    #departmentList .list-group-item {
+        font-size: 12px;
+        padding: 8px 6px;
+    }
+
+    /* Category chips on small screens */
+    .category-chip {
+        font-size: 11px;
+        padding: 5px 10px;
+    }
+
+    /* Status message positioning */
+    #statusMessage {
+        top: calc(50px + env(safe-area-inset-top)) !important;
+        max-width: 85%;
+        font-size: 12px;
+    }
+
+    /* Toast notifications on small screens */
+    .toast-container {
+        padding: 8px !important;
+    }
+
+    .toast {
+        font-size: 13px;
+    }
+
+    /* FAB positioning for very small screens */
+    .fab-container {
+        bottom: calc(40px + env(safe-area-inset-bottom));
+        right: 10px;
+    }
+
+    .fab-main {
+        width: 48px;
+        height: 48px;
+        font-size: 20px;
+    }
+
+}
+
+/* Landscape mode on mobile devices */
+@media (max-width: 768px) and (orientation: landscape) {
+
+    /* Move Mapbox controls down below search bar on landscape */
+    .mapboxgl-ctrl-top-left {
+        top: calc(140px + env(safe-area-inset-top)) !important;
+        left: 10px !important;
+    }
+
+    .mapboxgl-ctrl-top-right {
+        top: calc(140px + env(safe-area-inset-top)) !important;
+        right: 10px !important;
+    }
+
+    .mapboxgl-ctrl-bottom-left {
+        left: 10px !important;
+    }
+
+    .mapboxgl-ctrl-bottom-right {
+        right: 10px !important;
+    }
+
+    .map-toolbar {
+        max-width: 350px;
+        max-height: 75vh;
+        overflow-y: auto;
+        padding: 0;
+        padding-top: 32px;
+        top: calc(10px + env(safe-area-inset-top)) !important;
+        left: 10px;
+    }
+
+    .search-categories {
+        top: 6px;
+        left: 10px;
+        right: auto;
+        max-width: calc(100% - 20px);
+    }
+
+    #directionsPanel {
+        max-height: 65vh;
+        max-width: 300px;
+        right: 10px !important;
+        left: auto !important;
+        bottom: calc(10px + env(safe-area-inset-bottom)) !important;
+    }
+
+    #navBar {
+        padding: 8px 12px;
+        padding-bottom: calc(8px + env(safe-area-inset-bottom)) !important;
+    }
+
+    #currentInstruction {
+        font-size: 0.9rem !important;
+    }
+
+    #distanceToTurn {
+        font-size: 0.8rem !important;
+    }
+
+    /* Adjust compass for landscape */
+    .compass {
+        bottom: calc(60px + env(safe-area-inset-bottom));
+        width: 40px;
+        height: 40px;
+        font-size: 18px;
+    }
+
+    /* Move FAB to avoid overlap with directions panel */
+    .fab-container {
+        bottom: calc(45px + env(safe-area-inset-bottom));
+        right: auto;
+        left: 10px;
+    }
+
+}
+
+/* High DPI screens - improve clarity */
+@media (-webkit-min-device-pixel-ratio: 2),
+(min-resolution: 192dpi) {
+
+    .mapboxgl-ctrl-group button,
+    body {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+}
+
+/* ===================================
+   PRINT STYLES
+   =================================== */
+@media print {
+
+    .map-toolbar,
+    #directionsPanel .card-header button,
+    .fab-container,
+    #navBar,
+    .compass {
+        display: none !important;
+    }
+
+    #directionsPanel {
+        position: relative !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    body {
+        background: white;
+    }
+}
+
+/* ===================================
+   UTILITY CLASSES
+   =================================== */
+.text-gradient {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.glass-effect {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.shadow-glow {
+    box-shadow: 0 0 20px rgba(0, 123, 255, 0.3);
+}
+
+.hover-lift {
+    transition: transform var(--transition-fast);
+}
+
+.hover-lift:hover {
+    transform: translateY(-4px);
+}
