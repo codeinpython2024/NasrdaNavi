@@ -1564,11 +1564,25 @@ function setLocationFromSearch(match, type) {
         startPoint = { lat, lng: lon };
         const el = document.createElement('div');
         el.className = 'marker-start';
-        el.innerHTML = '<div style="background-color: #28a745; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold;">S</div>';
-        startMarker = new mapboxgl.Marker({ element: el })
+        el.innerHTML = '<div style="background-color: #28a745; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: move;">S</div>';
+        startMarker = new mapboxgl.Marker({ element: el, draggable: true })
             .setLngLat([lon, lat])
             .setPopup(new mapboxgl.Popup().setText('Start'))
             .addTo(map);
+        
+        // Add drag end listener to update start point and recalculate route
+        startMarker.on('dragend', () => {
+            const lngLat = startMarker.getLngLat();
+            const clickedPoint = { lat: lngLat.lat, lng: lngLat.lng };
+            startPoint = snapToNearestRoad(clickedPoint);
+            startMarker.setLngLat([startPoint.lng, startPoint.lat]);
+            
+            if (endPoint) {
+                calculateRoute();
+            }
+            showStatus('Start point updated', 'info', 2000);
+        });
+        
         startMarker.togglePopup();
         clickCount = 1;
         showStatus('Start point set from search', 'success');
@@ -1577,11 +1591,25 @@ function setLocationFromSearch(match, type) {
         endPoint = { lat, lng: lon };
         const el = document.createElement('div');
         el.className = 'marker-end';
-        el.innerHTML = '<div style="background-color: #dc3545; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold;">E</div>';
-        endMarker = new mapboxgl.Marker({ element: el })
+        el.innerHTML = '<div style="background-color: #dc3545; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: move;">E</div>';
+        endMarker = new mapboxgl.Marker({ element: el, draggable: true })
             .setLngLat([lon, lat])
             .setPopup(new mapboxgl.Popup().setText('End'))
             .addTo(map);
+        
+        // Add drag end listener to update end point and recalculate route
+        endMarker.on('dragend', () => {
+            const lngLat = endMarker.getLngLat();
+            const clickedPoint = { lat: lngLat.lat, lng: lngLat.lng };
+            endPoint = snapToNearestRoad(clickedPoint);
+            endMarker.setLngLat([endPoint.lng, endPoint.lat]);
+            
+            if (startPoint) {
+                calculateRoute();
+            }
+            showStatus('End point updated', 'info', 2000);
+        });
+        
         endMarker.togglePopup();
 
         if (startPoint) {
@@ -2014,11 +2042,26 @@ map.on('click', (e) => {
         if (startMarker) startMarker.remove();
         const el = document.createElement('div');
         el.className = 'marker-start';
-        el.innerHTML = '<div style="background-color: #28a745; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold;">S</div>';
-        startMarker = new mapboxgl.Marker({ element: el })
+        el.innerHTML = '<div style="background-color: #28a745; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: move;">S</div>';
+        startMarker = new mapboxgl.Marker({ element: el, draggable: true })
             .setLngLat([startPoint.lng, startPoint.lat])
             .setPopup(new mapboxgl.Popup().setText('Start'))
             .addTo(map);
+        
+        // Add drag end listener to update start point and recalculate route
+        startMarker.on('dragend', () => {
+            const lngLat = startMarker.getLngLat();
+            const clickedPoint = { lat: lngLat.lat, lng: lngLat.lng };
+            startPoint = snapToNearestRoad(clickedPoint);
+            startMarker.setLngLat([startPoint.lng, startPoint.lat]);
+            
+            if (endPoint) {
+                // Recalculate route if end point exists
+                calculateRoute();
+            }
+            showStatus('Start point updated', 'info', 2000);
+        });
+        
         startMarker.togglePopup();
         clickCount = 1;
         updateRouteStatus();
@@ -2033,11 +2076,26 @@ map.on('click', (e) => {
         if (endMarker) endMarker.remove();
         const el = document.createElement('div');
         el.className = 'marker-end';
-        el.innerHTML = '<div style="background-color: #dc3545; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold;">E</div>';
-        endMarker = new mapboxgl.Marker({ element: el })
+        el.innerHTML = '<div style="background-color: #dc3545; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: move;">E</div>';
+        endMarker = new mapboxgl.Marker({ element: el, draggable: true })
             .setLngLat([endPoint.lng, endPoint.lat])
             .setPopup(new mapboxgl.Popup().setText('End'))
             .addTo(map);
+        
+        // Add drag end listener to update end point and recalculate route
+        endMarker.on('dragend', () => {
+            const lngLat = endMarker.getLngLat();
+            const clickedPoint = { lat: lngLat.lat, lng: lngLat.lng };
+            endPoint = snapToNearestRoad(clickedPoint);
+            endMarker.setLngLat([endPoint.lng, endPoint.lat]);
+            
+            if (startPoint) {
+                // Recalculate route if start point exists
+                calculateRoute();
+            }
+            showStatus('End point updated', 'info', 2000);
+        });
+        
         endMarker.togglePopup();
 
         calculateRoute();
@@ -2161,6 +2219,13 @@ function enterNavigationMode() {
 
     if (navBar) navBar.style.display = 'block';
     if (compassEl) compassEl.style.display = 'flex';
+    
+    // Hide directions panel on mobile during active navigation to avoid overlap
+    const directionsPanel = document.getElementById('directionsPanel');
+    if (directionsPanel && window.innerWidth <= 768) {
+        directionsPanel.style.display = 'none';
+    }
+    
     updateNavigationBar();
 
     // Start compass updates if device supports orientation
@@ -2176,6 +2241,16 @@ function exitNavigationMode() {
 
     if (navBar) navBar.style.display = 'none';
     if (compassEl) compassEl.style.display = 'none';
+    
+    // Show directions panel again on mobile when exiting navigation
+    const directionsPanel = document.getElementById('directionsPanel');
+    if (directionsPanel && window.innerWidth <= 768) {
+        // Only show if there's a route (check if directionsBody has content)
+        const directionsBody = document.querySelector('#directionsPanel .directions');
+        if (directionsBody && directionsBody.innerHTML.trim().length > 0) {
+            directionsPanel.style.display = 'block';
+        }
+    }
 
     // Stop compass updates
     if (window.DeviceOrientationEvent) {

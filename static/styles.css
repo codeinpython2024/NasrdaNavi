@@ -683,6 +683,25 @@ textarea,
     animation: pulse 2s infinite;
 }
 
+/* Draggable marker styles */
+.marker-start>div,
+.marker-end>div {
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.marker-start>div:hover,
+.marker-end>div:hover {
+    transform: scale(1.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.marker-start>div:active,
+.marker-end>div:active {
+    transform: scale(1.25);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+    opacity: 0.9;
+}
 @keyframes pulse {
     0% {
         box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7);
@@ -1372,11 +1391,13 @@ a,
         padding: 16px 12px;
         padding-bottom: calc(16px + env(safe-area-inset-bottom)) !important;
         z-index: 2001;
+        bottom: 0 !important;
     }
-
-    /* Hide directions panel when navigation is active */
-    #navBar:not([style*="display: none"])~#directionsPanel {
-        display: none !important;
+    
+                /* Ensure directions panel doesn't overlap with other bottom elements */
+                #directionsPanel {
+                    margin-bottom: 0 !important;
+                    /* JavaScript will handle hiding this during active navigation on mobile */
     }
 
     #currentInstruction {
