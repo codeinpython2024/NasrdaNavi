@@ -105,8 +105,8 @@ textarea,
     width: 100%;
     /* iOS safe area support */
     height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-    /* Prevent map from being dragged on mobile */
-    touch-action: pan-x pan-y;
+    /* Enable all map gestures including pinch-to-zoom */
+        touch-action: manipulation;
     /* Smooth transitions */
     transition: filter var(--transition-normal);
 }
@@ -1004,13 +1004,24 @@ textarea,
     transform: translateY(10px);
 }
 
+/* Show menu on hover OR when open via click */
 .fab-container:hover .fab-menu,
-.fab-main:focus+.fab-menu {
+.fab-main:focus+.fab-menu,
+.fab-container.menu-open .fab-menu {
     opacity: 1;
     pointer-events: all;
     transform: translateY(0);
 }
 
+/* Rotate main button icon when menu is open */
+.fab-container.menu-open .fab-main {
+    transform: rotate(45deg);
+    background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
+}
+
+.fab-container.menu-open .fab-main:hover {
+    transform: rotate(45deg) scale(1.1);
+}
 .fab-action {
     width: 48px;
     height: 48px;
@@ -1025,17 +1036,48 @@ textarea,
     align-items: center;
     justify-content: center;
     font-size: 18px;
+    opacity: 0;
+        transform: scale(0.8) translateY(10px);
+    }
+    
+    /* Staggered animation for menu items when opening */
+    .fab-container.menu-open .fab-action:nth-child(1),
+    .fab-container:hover .fab-action:nth-child(1) {
+        animation: fabActionAppear 0.3s ease forwards;
+        animation-delay: 0.05s;
+    }
+    
+    .fab-container.menu-open .fab-action:nth-child(2),
+    .fab-container:hover .fab-action:nth-child(2) {
+        animation: fabActionAppear 0.3s ease forwards;
+        animation-delay: 0.1s;
+    }
+    
+    .fab-container.menu-open .fab-action:nth-child(3),
+    .fab-container:hover .fab-action:nth-child(3) {
+        animation: fabActionAppear 0.3s ease forwards;
+        animation-delay: 0.15s;
+    }
+    
+    @keyframes fabActionAppear {
+        to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
 }
 
-.fab-action:hover {
+/* Only apply hover when menu is open/visible */
+.fab-container.menu-open .fab-action:hover,
+.fab-container:hover .fab-action:hover {
     background: var(--primary-color);
     color: white;
-    transform: scale(1.1);
+    transform: scale(1.15) translateY(0) !important;
     box-shadow: var(--shadow-lg);
 }
 
-.fab-action:active {
-    transform: scale(0.95);
+.fab-container.menu-open .fab-action:active,
+.fab-container:hover .fab-action:active {
+    transform: scale(0.95) translateY(0) !important;
 }
 
 /* ===================================

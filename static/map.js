@@ -68,15 +68,30 @@ const CAMPUS_BOUNDS = [
 
 const INITIAL_TILT_PITCH = 80;
 
+// Detect mobile viewport for enhanced zoom
+let isMobileView = window.innerWidth <= 768;
+const INITIAL_ZOOM = isMobileView ? 17.5 : 16;
+
 const map = new mapboxgl.Map({
     container: 'map',
     style: 'mapbox://styles/mapbox/standard', // Standard style with theme configuration
     center: CAMPUS_CENTER, // [lng, lat] - Campus center
-    zoom: 16, // Higher zoom to see campus details
+    zoom: INITIAL_ZOOM, // Higher zoom on mobile for better detail visibility
+    minZoom: 14, // Allow zooming out to see wider campus area
+    maxZoom: 22, // Allow zooming in for detailed view
     pitch: INITIAL_TILT_PITCH, // Start with tilted view
     bearing: 20, // Initial bearing (0-360 degrees)
     antialias: true, // Enable antialiasing for smoother rendering
     maxBounds: CAMPUS_BOUNDS, // Restrict panning to campus area for better performance
+    // Enable all gesture interactions for smooth zooming
+    touchZoomRotate: true,
+    touchPitch: true,
+    dragRotate: true,
+    dragPan: true,
+    scrollZoom: true,
+    boxZoom: true,
+    doubleClickZoom: true,
+    keyboard: true,
     config: {
         theme: 'monochrome' // Set monochrome theme
     }
@@ -85,10 +100,28 @@ const map = new mapboxgl.Map({
 // Store initial camera state to prevent style from resetting it
 const INITIAL_CAMERA = {
     center: CAMPUS_CENTER,
-    zoom: 16,
+    zoom: INITIAL_ZOOM,
     pitch: INITIAL_TILT_PITCH,
     bearing: 20
 };
+
+// --- Map Error Handling ---
+// Handle map errors gracefully
+map.on('error', function(e) {
+    // Suppress analytics/telemetry errors that don't affect functionality
+    if (e.error && e.error.message && e.error.message.includes('events.mapbox.com')) {
+        // Silently ignore Mapbox telemetry errors (often blocked by ad blockers)
+        return;
+    }
+    
+    // Log other errors for debugging
+    console.warn('Map error:', e);
+});
+
+// Handle style errors
+map.on('styleerror', function(e) {
+    console.warn('Style error (non-critical):', e);
+});
 
 // No animation needed - map starts at the desired tilt
 
@@ -446,6 +479,9 @@ function switchMapStyle(styleName) {
 
     // Re-add custom layers after style loads
     map.once('style.load', () => {
+        // Hide water bodies immediately after style loads
+        hideWaterLayers();
+        
         // Re-add sources and layers
         if (currentSources['roads-source']) {
             map.addSource('roads-source', currentSources['roads-source']);
@@ -493,99 +529,125 @@ function toggle3DTerrain() {
 
 // Enable 3D terrain with enhanced visual effects
 function enable3DTerrain() {
-    // Add terrain source with high-resolution DEM
-    if (!map.getSource('mapbox-dem')) {
-        map.addSource('mapbox-dem', {
-            type: 'raster-dem',
-            url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
-            tileSize: 512,
-            maxzoom: 14
+    try {
+        // Add terrain source with high-resolution DEM
+        if (!map.getSource('mapbox-dem')) {
+            map.addSource('mapbox-dem', {
+                type: 'raster-dem',
+                url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
+                tileSize: 512,
+                maxzoom: 14
+            });
+        }
+
+        // Set terrain with realistic exaggeration for campus-scale terrain
+        map.setTerrain({
+            source: 'mapbox-dem',
+            exaggeration: 1.2  // Realistic campus terrain (campuses have minimal elevation changes)
         });
+    } catch (error) {
+        console.warn('Error adding terrain source:', error);
     }
 
-    // Set terrain with realistic exaggeration for campus-scale terrain
-    map.setTerrain({
-        source: 'mapbox-dem',
-        exaggeration: 1.2  // Realistic campus terrain (campuses have minimal elevation changes)
-    });
-
     // Add enhanced sky layer with dynamic atmosphere
-    if (!map.getLayer('sky')) {
-        map.addLayer({
-            id: 'sky',
-            type: 'sky',
-            paint: {
-                'sky-type': 'atmosphere',
-                'sky-atmosphere-sun': [0.0, 90.0],  // Sun position for better lighting
-                'sky-atmosphere-sun-intensity': 20,  // Increased intensity
-                'sky-atmosphere-halo-color': 'rgba(135, 206, 235, 0.8)',  // Sky blue halo
-                'sky-atmosphere-color': 'rgba(135, 206, 250, 0.5)',  // Light sky blue
-                'sky-gradient-center': [0, 0],
-                'sky-gradient-radius': 90,
-                'sky-opacity': [
-                    'interpolate',
-                    ['exponential', 0.1],
-                    ['zoom'],
-                    5, 0.3,
-                    10, 0.7,
-                    15, 1
-                ]
-            }
-        });
+    try {
+        if (!map.getLayer('sky')) {
+            map.addLayer({
+                id: 'sky',
+                type: 'sky',
+                paint: {
+                    'sky-type': 'atmosphere',
+                    'sky-atmosphere-sun': [0.0, 90.0],  // Sun position for better lighting
+                    'sky-atmosphere-sun-intensity': 20,  // Increased intensity
+                    'sky-atmosphere-halo-color': 'rgba(135, 206, 235, 0.8)',  // Sky blue halo
+                    'sky-atmosphere-color': 'rgba(135, 206, 250, 0.5)',  // Light sky blue
+                    'sky-gradient-center': [0, 0],
+                    'sky-gradient-radius': 90,
+                    'sky-opacity': [
+                        'interpolate',
+                        ['exponential', 0.1],
+                        ['zoom'],
+                        5, 0.3,
+                        10, 0.7,
+                        15, 1
+                    ]
+                }
+            });
+        }
+    } catch (error) {
+        console.warn('Error adding sky layer:', error);
     }
 
     // Add hillshade layer for enhanced terrain visualization
-    if (!map.getLayer('hillshade')) {
-        map.addLayer({
-            id: 'hillshade',
-            type: 'hillshade',
-            source: 'mapbox-dem',
-            layout: {},
-            paint: {
-                'hillshade-exaggeration': 0.5,  // Subtle for campus terrain
-                'hillshade-shadow-color': '#473B24',
-                'hillshade-highlight-color': '#FFFFFF',
-                'hillshade-accent-color': '#F0E68C',
-                'hillshade-illumination-direction': 315,  // Northwest lighting
-                'hillshade-illumination-anchor': 'viewport'
+    try {
+        if (!map.getLayer('hillshade')) {
+            // Find a suitable layer to place hillshade before (prefer labels)
+            let beforeLayer = null;
+            const labelLayers = ['waterway-label', 'natural-point-label', 'poi-label', 'transit-label', 'place-label'];
+            for (const layerId of labelLayers) {
+                if (map.getLayer(layerId)) {
+                    beforeLayer = layerId;
+                    break;
+                }
             }
-        }, 'waterway-label');  // Place below labels
+            
+            map.addLayer({
+                id: 'hillshade',
+                type: 'hillshade',
+                source: 'mapbox-dem',
+                layout: {},
+                paint: {
+                    'hillshade-exaggeration': 0.5,  // Subtle for campus terrain
+                    'hillshade-shadow-color': '#473B24',
+                    'hillshade-highlight-color': '#FFFFFF',
+                    'hillshade-accent-color': '#F0E68C',
+                    'hillshade-illumination-direction': 315,  // Northwest lighting
+                    'hillshade-illumination-anchor': 'viewport'
+                }
+            }, beforeLayer);  // Place below labels if found, otherwise add to top
+        }
+    } catch (error) {
+        console.warn('Error adding hillshade layer:', error);
     }
 
     // Add contour lines for topographic effect (if available)
-    if (!map.getLayer('contours')) {
-        map.addLayer({
-            id: 'contours',
-            type: 'line',
-            source: {
-                type: 'vector',
-                url: 'mapbox://mapbox.mapbox-terrain-v2'
-            },
-            'source-layer': 'contour',
-            layout: {
-                'line-join': 'round',
-                'line-cap': 'round'
-            },
-            paint: {
-                'line-color': '#877b59',
-                'line-width': [
-                    'interpolate',
-                    ['exponential', 1.5],
-                    ['zoom'],
-                    14, 0.5,
-                    18, 1.5
-                ],
-                'line-opacity': [
-                    'interpolate',
-                    ['linear'],
-                    ['zoom'],
-                    14, 0.3,
-                    16, 0.6,
-                    18, 0.8
-                ]
-            },
-            minzoom: 16  // Campus-level detail visibility
-        });
+    try {
+        if (!map.getLayer('contours')) {
+            map.addLayer({
+                id: 'contours',
+                type: 'line',
+                source: {
+                    type: 'vector',
+                    url: 'mapbox://mapbox.mapbox-terrain-v2'
+                },
+                'source-layer': 'contour',
+                layout: {
+                    'line-join': 'round',
+                    'line-cap': 'round'
+                },
+                paint: {
+                    'line-color': '#877b59',
+                    'line-width': [
+                        'interpolate',
+                        ['exponential', 1.5],
+                        ['zoom'],
+                        14, 0.5,
+                        18, 1.5
+                    ],
+                    'line-opacity': [
+                        'interpolate',
+                        ['linear'],
+                        ['zoom'],
+                        14, 0.3,
+                        16, 0.6,
+                        18, 0.8
+                    ]
+                },
+                minzoom: 16  // Campus-level detail visibility
+            });
+        }
+    } catch (error) {
+        console.warn('Error adding contour lines:', error);
     }
 
     // Maintain current pitch (don't override initial pitch setting)
@@ -845,6 +907,9 @@ function animateRouteLine() {
 // Wait for map to load before adding layers
 map.on('load', () => {
     loadGeoJSONLayers();
+    
+    // Hide water bodies since campus has no water features
+    hideWaterLayers();
 
     // Enable 3D terrain by default
     if (terrain3DEnabled) {
@@ -863,6 +928,42 @@ map.on('load', () => {
     setTimeout(() => {
         setupLayerToggles();
     }, 500);
+});
+
+// Function to hide all water-related layers
+function hideWaterLayers() {
+    // List of common water layer IDs in Mapbox styles
+    const waterLayerIds = [
+        'water',
+        'waterway',
+        'water-line',
+        'water-line-label',
+        'waterway-label',
+        'water-shadow',
+        'water-point-label',
+        'marine-label-sm-ln',
+        'marine-label-sm-pt',
+        'marine-label-md-ln',
+        'marine-label-md-pt',
+        'marine-label-lg-ln',
+        'marine-label-lg-pt'
+    ];
+    
+    waterLayerIds.forEach(layerId => {
+        if (map.getLayer(layerId)) {
+            try {
+                map.setLayoutProperty(layerId, 'visibility', 'none');
+            } catch (error) {
+                // Silently handle if layer can't be modified
+                console.debug(`Could not hide layer ${layerId}:`, error);
+            }
+        }
+    });
+}
+
+// Also hide water layers when map finishes rendering (catches async layers)
+map.once('idle', () => {
+    hideWaterLayers();
 });
 
 // --- Initialize variables ---
@@ -2802,3 +2903,65 @@ map.on('dragstart', function () {
         autoRecenter = false;
     }
 });
+
+// Handle viewport resize to adjust zoom on mobile/desktop transitions
+let resizeTimer;
+window.addEventListener('resize', function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function() {
+        const wasMobile = isMobileView;
+        const isNowMobile = window.innerWidth <= 768;
+        
+        // Only adjust if transitioning between mobile and desktop
+        if (wasMobile !== isNowMobile && !isNavigationMode) {
+            const currentZoom = map.getZoom();
+            const targetZoom = isNowMobile ? 17.5 : 16;
+            
+            // Only adjust if close to the default zoom level
+            if (Math.abs(currentZoom - (wasMobile ? 17.5 : 16)) < 1) {
+                map.easeTo({ zoom: targetZoom, duration: 300 });
+            }
+            
+            // Update mobile view state
+            isMobileView = isNowMobile;
+        }
+        
+        // Ensure map resizes properly
+        map.resize();
+    }, 250);
+});
+
+// --- Expose Objects for FAB and External Integration ---
+// Export map and controls to window for use by ui-helpers.js and other components
+window.map = map;
+window.geolocate = geolocate;
+
+// Export functions to get current route state
+window.getStartPoint = function() {
+    return startPoint;
+};
+
+window.getEndPoint = function() {
+    return endPoint;
+};
+
+window.getCurrentRoute = function() {
+    return routeData;
+};
+
+window.hasActiveRoute = function() {
+    return startPoint !== null && endPoint !== null && routeData !== null;
+};
+
+window.isInNavigationMode = function() {
+    return isNavigationMode;
+};
+
+// Export route control functions for FAB integration
+window.clearCurrentRoute = function() {
+    clearRoute();
+};
+
+window.recenterMap = function() {
+    recenterOnUser();
+};

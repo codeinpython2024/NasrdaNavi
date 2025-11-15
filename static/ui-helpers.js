@@ -274,26 +274,107 @@ const SearchResultsManager = {
 const FABMenu = {
     container: null,
     isVisible: false,
+    isMenuOpen: false,
+    saveBtn: null,
+    mainBtn: null,
+    menu: null,
 
     init() {
         this.container = document.getElementById('fabContainer');
         if (!this.container) return;
 
+        this.mainBtn = this.container.querySelector('.fab-main');
+        this.menu = this.container.querySelector('.fab-menu');
+
+        // Setup main button toggle
+        if (this.mainBtn) {
+            this.mainBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.toggleMenu();
+            });
+        }
+
         // Setup button actions
         const myLocationBtn = document.getElementById('fabMyLocation');
         const shareBtn = document.getElementById('fabShare');
-        const saveBtn = document.getElementById('fabSave');
+        this.saveBtn = document.getElementById('fabSave');
 
         if (myLocationBtn) {
-            myLocationBtn.addEventListener('click', () => this.onMyLocation());
+            myLocationBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.onMyLocation();
+                this.closeMenu();
+            });
         }
 
         if (shareBtn) {
-            shareBtn.addEventListener('click', () => this.onShare());
+            shareBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.onShare();
+                this.closeMenu();
+            });
         }
 
-        if (saveBtn) {
-            saveBtn.addEventListener('click', () => this.onSave());
+        if (this.saveBtn) {
+            this.saveBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.onSave();
+                this.closeMenu();
+            });
+            // Add badge to save button showing count
+            this.updateSaveButtonBadge();
+        }
+
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (this.isMenuOpen && !this.container.contains(e.target)) {
+                this.closeMenu();
+            }
+        });
+
+        // Close menu with Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.isMenuOpen) {
+                this.closeMenu();
+                if (this.mainBtn) {
+                    this.mainBtn.focus(); // Return focus to main button
+                }
+            }
+        });
+
+        // Auto-hide FAB during navigation mode
+        this.setupVisibilityWatcher();
+    },
+
+    toggleMenu() {
+        if (this.isMenuOpen) {
+            this.closeMenu();
+        } else {
+            this.openMenu();
+        }
+    },
+
+    openMenu() {
+        if (!this.container || !this.menu) return;
+        
+        this.container.classList.add('menu-open');
+        this.isMenuOpen = true;
+        
+        // Update ARIA
+        if (this.mainBtn) {
+            this.mainBtn.setAttribute('aria-expanded', 'true');
+        }
+    },
+
+    closeMenu() {
+        if (!this.container || !this.menu) return;
+        
+        this.container.classList.remove('menu-open');
+        this.isMenuOpen = false;
+        
+        // Update ARIA
+        if (this.mainBtn) {
+            this.mainBtn.setAttribute('aria-expanded', 'false');
         }
     },
 
@@ -306,63 +387,172 @@ const FABMenu = {
 
     hide() {
         if (this.container) {
+            this.closeMenu(); // Close menu when hiding FAB
             this.container.style.display = 'none';
             this.isVisible = false;
         }
     },
 
+    setupVisibilityWatcher() {
+        // Check visibility based on navigation mode
+        setInterval(() => {
+            const isNavMode = window.isInNavigationMode?.();
+            if (isNavMode && this.isVisible) {
+                this.hide();
+            } else if (!isNavMode && !this.isVisible && window.map) {
+                this.show();
+            }
+        }, 1000);
+    },
+
+    updateSaveButtonBadge() {
+        if (!this.saveBtn) return;
+        
+        try {
+            const savedRoutes = JSON.parse(localStorage.getItem('savedRoutes') || '[]');
+            const count = savedRoutes.length;
+            
+            if (count > 0) {
+                // Add or update badge
+                let badge = this.saveBtn.querySelector('.badge');
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'badge';
+                    badge.style.cssText = `
+                        position: absolute;
+                        top: -5px;
+                        right: -5px;
+                        background: #dc3545;
+                        color: white;
+                        border-radius: 10px;
+                        padding: 2px 6px;
+                        font-size: 10px;
+                        font-weight: bold;
+                        min-width: 18px;
+                        text-align: center;
+                    `;
+                    this.saveBtn.style.position = 'relative';
+                    this.saveBtn.appendChild(badge);
+                }
+                badge.textContent = count > 9 ? '9+' : count;
+            }
+        } catch (error) {
+            console.warn('Could not update save button badge:', error);
+        }
+    },
+
     onMyLocation() {
         // Trigger geolocation - integrate with map.js
-        if (window.geolocateControl) {
-            window.geolocateControl.trigger();
+        if (window.geolocate) {
+            try {
+                window.geolocate.trigger();
+                ToastNotification.info('Getting your location...');
+            } catch (error) {
+                console.warn('Geolocation trigger failed:', error);
+                ToastNotification.warning('Please use the location button on the map');
+            }
+        } else if (window.recenterMap) {
+            // Fallback: recenter on current location if available
+            window.recenterMap();
+            ToastNotification.info('Centering on your location...');
+        } else {
+            ToastNotification.warning('Geolocation not available');
         }
-        ToastNotification.info('Getting your location...');
     },
 
     onShare() {
-        // Share current location or route
-        if (navigator.share && window.map) {
+        if (!window.map) {
+            ToastNotification.warning('Map not ready yet');
+            return;
+        }
+
+        // Check if we have an active route to share
+        const hasRoute = window.hasActiveRoute?.();
+        const startPoint = window.getStartPoint?.();
+        const endPoint = window.getEndPoint?.();
+        
+        let shareText, shareUrl;
+        
+        if (hasRoute && startPoint && endPoint) {
+            // Share route
+            shareText = `Check out this route on NasrdaNavi`;
+            shareUrl = `${window.location.origin}${window.location.pathname}?start=${startPoint.lat.toFixed(6)},${startPoint.lng.toFixed(6)}&end=${endPoint.lat.toFixed(6)},${endPoint.lng.toFixed(6)}`;
+        } else {
+            // Share current location
             const center = window.map.getCenter();
-            const url = `${window.location.origin}${window.location.pathname}?lat=${center.lat.toFixed(6)}&lng=${center.lng.toFixed(6)}`;
-            
+            shareText = 'Check out this location on NasrdaNavi';
+            shareUrl = `${window.location.origin}${window.location.pathname}?lat=${center.lat.toFixed(6)}&lng=${center.lng.toFixed(6)}`;
+        }
+        
+        // Try native share API first
+        if (navigator.share) {
             navigator.share({
-                title: 'NasrdaNavi Location',
-                text: 'Check out this location',
-                url: url
+                title: 'NasrdaNavi',
+                text: shareText,
+                url: shareUrl
             }).then(() => {
-                ToastNotification.success('Location shared successfully!');
+                ToastNotification.success(hasRoute ? 'Route shared successfully!' : 'Location shared successfully!');
             }).catch((error) => {
                 if (error.name !== 'AbortError') {
                     // Fallback: copy to clipboard
-                    this.copyToClipboard(url);
+                    this.copyToClipboard(shareUrl);
                 }
             });
         } else {
             // Fallback: copy URL to clipboard
-            const center = window.map?.getCenter();
-            if (center) {
-                const url = `${window.location.origin}${window.location.pathname}?lat=${center.lat.toFixed(6)}&lng=${center.lng.toFixed(6)}`;
-                this.copyToClipboard(url);
-            }
+            this.copyToClipboard(shareUrl);
         }
     },
 
     onSave() {
         // Save current route to local storage
-        if (window.currentRoute) {
-            const route = {
-                start: window.startPoint,
-                end: window.endPoint,
-                timestamp: Date.now()
-            };
-            
-            const savedRoutes = JSON.parse(localStorage.getItem('savedRoutes') || '[]');
-            savedRoutes.push(route);
-            localStorage.setItem('savedRoutes', JSON.stringify(savedRoutes));
-            
-            ToastNotification.success('Route saved successfully!');
+        const hasRoute = window.hasActiveRoute?.();
+        const route = window.getCurrentRoute?.();
+        const start = window.getStartPoint?.();
+        const end = window.getEndPoint?.();
+        
+        if (hasRoute && route && start && end) {
+            try {
+                // Create route object with all necessary information
+                const savedRoute = {
+                    start: {
+                        lat: start.lat,
+                        lng: start.lng
+                    },
+                    end: {
+                        lat: end.lat,
+                        lng: end.lng
+                    },
+                    distance: route.distance || 0,
+                    timestamp: Date.now(),
+                    date: new Date().toISOString()
+                };
+                
+                // Get existing routes from localStorage
+                const savedRoutes = JSON.parse(localStorage.getItem('savedRoutes') || '[]');
+                
+                // Add new route at the beginning (most recent first)
+                savedRoutes.unshift(savedRoute);
+                
+                // Limit to last 10 routes
+                const limitedRoutes = savedRoutes.slice(0, 10);
+                
+                // Save back to localStorage
+                localStorage.setItem('savedRoutes', JSON.stringify(limitedRoutes));
+                
+                ToastNotification.success(`Route saved! (${limitedRoutes.length}/10 saved routes)`);
+                
+                // Update badge to reflect new count
+                this.updateSaveButtonBadge();
+                
+                // Log for debugging
+                console.log('Route saved:', savedRoute);
+            } catch (error) {
+                console.error('Error saving route:', error);
+                ToastNotification.error('Failed to save route');
+            }
         } else {
-            ToastNotification.warning('No active route to save');
+            ToastNotification.warning('No active route to save. Please create a route first.');
         }
     },
 
@@ -473,10 +663,20 @@ function initUIHelpers() {
     FABMenu.init();
     DirectionsPanelManager.init();
 
-    // Show FAB menu after a delay
+    // Show FAB menu only when map is ready
+    const checkMapReady = setInterval(() => {
+        if (window.map) {
+            clearInterval(checkMapReady);
+            setTimeout(() => {
+                FABMenu.show();
+            }, 500);
+        }
+    }, 100);
+    
+    // Timeout after 10 seconds if map doesn't load
     setTimeout(() => {
-        FABMenu.show();
-    }, 1000);
+        clearInterval(checkMapReady);
+    }, 10000);
 }
 
 // Auto-initialize when DOM is ready
