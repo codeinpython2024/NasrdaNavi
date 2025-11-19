@@ -11,7 +11,7 @@
 This document outlines the complete architectural refactoring plan for NasrdaNavi, transforming it from a monolithic structure into a professional, maintainable, and scalable application.
 
 **Current State:** Monolithic (main.py: 178 lines, map.js: 2,646 lines)  
-**Target State:** Modular architecture with 50+ organized files  
+**Target State:** Modular architecture with Vite-powered frontend and structured backend  
 **Expected Timeline:** 2-3 weeks  
 **Risk Level:** Medium (requires careful migration)
 
@@ -227,6 +227,7 @@ mkdir -p app/{api/v1,services,models,data,utils}
 touch app/__init__.py
 touch app/config.py
 touch app/exceptions.py
+touch app/utils/vite.py  # NEW: Vite integration helper
 touch app/api/__init__.py
 touch app/api/errors.py
 touch app/api/v1/{__init__.py,routes.py,health.py}
@@ -234,6 +235,7 @@ touch app/services/{__init__.py,routing_service.py,navigation_service.py}
 touch app/models/{__init__.py,route.py,location.py}
 touch app/data/{__init__.py,geojson_loader.py,graph_builder.py}
 touch app/utils/{__init__.py,validators.py,geo_utils.py,logger.py}
+touch pyproject.toml     # NEW: Python dependency management
 ```
 
 #### Step 1.2: Extract Components from main.py
@@ -353,11 +355,12 @@ if __name__ == "__main__":
 **New structure:**
 
 ```
-static/css/
-├── main.css        # Base styles, typography, utilities
-├── map.css         # Map-specific styles (markers, popups)
+frontend/css/
+├── variables.css   # NEW: Design tokens (colors, spacing)
+├── main.css        # Base styles using variables
+├── map.css         # Map-specific styles
 ├── mobile.css      # Mobile responsive styles
-└── components.css  # UI components (panels, buttons)
+└── components.css  # UI components
 ```
 
 **Split by sections:**
@@ -370,13 +373,28 @@ static/css/
 #### Step 2.2: Create JavaScript Module Structure
 
 ```bash
-mkdir -p static/js/modules/{map,navigation,ui,utils}
-touch static/js/main.js
-touch static/js/config.js
-touch static/js/modules/map/{map-core,map-controls,map-layers,map-styles,map-terrain}.js
-touch static/js/modules/navigation/{gps-tracker,route-manager,directions,speech}.js
-touch static/js/modules/ui/{search,panels,markers,status}.js
-touch static/js/modules/utils/{api-client,geo-helpers,constants}.js
+# 1. Scaffold the frontend using Vite CLI
+npm create vite@latest frontend -- --template vanilla
+# (Select 'y' to proceed if asked)
+
+# 2. Move configuration files to root (to match our architecture)
+mv frontend/package.json .
+mv frontend/vite.config.js .
+mv frontend/.gitignore .gitignore_frontend # Merge this later if needed
+
+# 3. Install dependencies
+npm install
+
+# 4. Clean up default boilerplate
+rm frontend/index.html      # We use Flask templates instead
+rm frontend/main.js         # We'll create our own structure
+rm -rf frontend/public      # We use static/data for assets
+
+# 5. Create our modular structure
+mkdir -p frontend/{css,js/modules/{map,navigation,ui,utils}}
+touch frontend/css/variables.css
+touch frontend/js/main.js
+touch frontend/js/config.js
 ```
 
 #### Step 2.3: Break Down map.js (2,646 lines)
@@ -561,11 +579,9 @@ main.js
 3. Add module imports:
 
 ```html
-<link rel="stylesheet" href="/static/css/main.css" />
-<link rel="stylesheet" href="/static/css/map.css" />
-<link rel="stylesheet" href="/static/css/mobile.css" />
-
-<script type="module" src="/static/js/main.js"></script>
+<!-- Uses Vite helper to switch between Dev server and Dist files -->
+<script type="module" src="{{ vite_asset('js/main.js') }}"></script>
+<link rel="stylesheet" href="{{ vite_asset('css/main.css') }}" />
 ```
 
 **Benefits:**
@@ -793,24 +809,14 @@ pylint==3.0.2
 mkdir -p docs/{api,architecture,guides,decisions}
 ```
 
-#### Step 5.2: Move Existing Documentation
-
-```bash
-# Current scattered docs:
-mv IMPLEMENTATION_PLAN.md docs/guides/
-mv NAVIGATION_SYSTEM_REVIEW.md docs/architecture/
-mv PRODUCT_REQUIREMENTS_DOCUMENT.md docs/
-mv DEPLOYMENT.md docs/guides/
-mv MOBILE_OPTIMIZATIONS.md docs/guides/
-```
 
 #### Step 5.3: Create New Documentation
 
-**docs/api/endpoints.md:**
+**Swagger UI (Auto-generated):**
 
-- API endpoint documentation
-- Request/response examples
-- Error codes
+- Interactive API documentation available at /docs
+- Auto-generated from code annotations
+- Always in sync with code
 
 **docs/architecture/backend.md:**
 
@@ -949,86 +955,59 @@ NasrdaNavi/
 │   │   └── graph_builder.py     # NetworkX graph building
 │   └── utils/                   # Utilities
 │       ├── __init__.py
+│       ├── vite.py              # NEW: Vite integration helper
 │       ├── validators.py        # Input validation
 │       ├── geo_utils.py         # Geo calculations
 │       └── logger.py            # Logging setup
-├── static/                      # Static assets
-│   ├── css/                     # Separated CSS
-│   │   ├── main.css            # Base styles
-│   │   ├── map.css             # Map styles
-│   │   ├── mobile.css          # Mobile responsive
-│   │   └── components.css      # UI components
-│   ├── js/                      # Modular JavaScript
-│   │   ├── main.js              # App initialization
+├── frontend/                    # NEW: Frontend Source Code
+│   ├── css/                     # CSS Source
+│   │   ├── variables.css        # Design tokens
+│   │   ├── main.css             # Base styles
+│   │   ├── map.css              # Map styles
+│   │   ├── mobile.css           # Mobile responsive
+│   │   └── components.css       # UI components
+│   ├── js/                      # JS Source
+│   │   ├── main.js              # App entry point
 │   │   ├── config.js            # Frontend config
-│   │   └── modules/
+│   │   └── modules/             # JS Modules
 │   │       ├── map/
-│   │       │   ├── map-core.js      # Map initialization (~80 lines)
-│   │       │   ├── map-controls.js  # Custom controls (~120 lines)
-│   │       │   ├── map-layers.js    # Layer management (~60 lines)
-│   │       │   ├── map-styles.js    # Style switching (~40 lines)
-│   │       │   └── map-terrain.js   # 3D terrain (~20 lines)
 │   │       ├── navigation/
-│   │       │   ├── gps-tracker.js   # GPS tracking (~180 lines)
-│   │       │   ├── route-manager.js # Route management (~120 lines)
-│   │       │   ├── directions.js    # Turn-by-turn (~100 lines)
-│   │       │   └── speech.js        # Voice guidance (~50 lines)
 │   │       ├── ui/
-│   │       │   ├── search.js        # Search functionality (~150 lines)
-│   │       │   ├── panels.js        # UI panels (~100 lines)
-│   │       │   ├── markers.js       # Map markers (~80 lines)
-│   │       │   └── status.js        # Status messages (~50 lines)
 │   │       └── utils/
-│   │           ├── api-client.js    # Backend API calls (~60 lines)
-│   │           ├── geo-helpers.js   # Geo calculations (~80 lines)
-│   │           └── constants.js     # Constants (~40 lines)
-│   └── data/                    # GeoJSON data
+├── static/                      # Public Assets & Build Output
+│   ├── dist/                    # NEW: Vite Build Output (gitignored)
+│   │   ├── assets/              # Minified JS/CSS
+│   │   └── manifest.json        # Asset map
+│   └── data/                    # Raw Data
 │       ├── roads.geojson
 │       └── buildings.geojson
 ├── templates/
-│   ├── base.html                # Base template
-│   └── index.html               # Main page (cleaned, ~150 lines)
+│   ├── base.html                # Base template (with Vite helper)
+│   └── index.html               # Main page
 ├── tests/                       # Test suite
 │   ├── __init__.py
-│   ├── conftest.py             # Pytest configuration
+│   ├── conftest.py
 │   ├── unit/
-│   │   ├── test_routing_service.py
-│   │   ├── test_navigation_service.py
-│   │   ├── test_validators.py
-│   │   └── test_geo_utils.py
 │   ├── integration/
-│   │   └── test_api_routes.py
 │   └── fixtures/
-│       └── test_data.py
 ├── docs/                        # Documentation
-│   ├── api/
-│   │   └── endpoints.md
 │   ├── architecture/
-│   │   ├── overview.md
-│   │   ├── backend.md
-│   │   ├── frontend.md
-│   │   └── NAVIGATION_SYSTEM_REVIEW.md
 │   ├── guides/
-│   │   ├── development.md
-│   │   ├── deployment.md
-│   │   ├── IMPLEMENTATION_PLAN.md
-│   │   └── MOBILE_OPTIMIZATIONS.md
 │   ├── decisions/
-│   │   └── adr-001-modular-architecture.md
 │   └── PRODUCT_REQUIREMENTS_DOCUMENT.md
-├── logs/                        # Log files (gitignored)
+├── logs/                        # Log files
 ├── scripts/                     # Utility scripts
-│   ├── setup.sh
-│   ├── test.sh
-│   └── deploy.sh
 ├── .env.example                 # Environment template
 ├── .gitignore                   # Proper gitignore
-├── .pre-commit-config.yaml     # Pre-commit hooks
+├── .pre-commit-config.yaml      # Pre-commit hooks
 ├── Dockerfile                   # Docker configuration
 ├── docker-compose.yml           # Docker compose
-├── main.py                      # Application entry point (~20 lines)
-├── requirements.txt             # Production dependencies
-├── requirements-dev.txt         # Development dependencies
+├── main.py                      # Application entry point
+├── pyproject.toml               # NEW: Python dependencies
+├── poetry.lock                  # NEW: Locked python dependencies
+├── package.json                 # NEW: Frontend dependencies
+├── vite.config.js               # NEW: Vite configuration
+├── jsconfig.json                # NEW: JS Type checking
 ├── pytest.ini                   # Test configuration
 ├── runtime.txt
 ├── render.yaml
