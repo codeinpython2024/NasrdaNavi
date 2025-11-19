@@ -21,196 +21,122 @@
     <!-- Mapbox GL JS CSS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet">
 
+    <!-- NASRDA Navigation Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600&display=swap"
+        rel="stylesheet">
+
     <!-- Custom Styles -->
     <link rel="stylesheet" href="/static/styles.css">
-    
-    <!-- Error Suppression for Browser Extensions and Third-party Scripts -->
+
+    <!-- Error Prevention for Browser Extensions -->
     <script>
-        // Most aggressive error suppression - must run first!
+        // Create mock elements that browser extensions might be looking for
+        // This prevents "Cannot read properties of null" errors
         (function() {
             'use strict';
             
-            // 1. Override all console methods to filter out non-critical errors
-            const originalError = console.error;
-            const originalWarn = console.warn;
-            const originalLog = console.log;
-            
-            function shouldSuppress(message) {
-                return message.includes('events.mapbox.com') || 
-                    message.includes('ERR_BLOCKED_BY_CLIENT') ||
-                    message.includes('net::ERR_BLOCKED_BY_CLIENT') ||
-                    message.includes('share-modal') ||
-                    message.includes('Cannot read properties of null') ||
-                    message.includes('Failed to load resource') ||
-                    message.includes('POST https://events.mapbox.com');
-            }
-            
-            console.error = function(...args) {
-                const message = args.join(' ');
-                if (shouldSuppress(message)) return;
-                originalError.apply(console, args);
-            };
-            
-            console.warn = function(...args) {
-                const message = args.join(' ');
-                if (shouldSuppress(message)) return;
-                originalWarn.apply(console, args);
-            };
-            
-            console.log = function(...args) {
-                const message = args.join(' ');
-                if (shouldSuppress(message)) return;
-                originalLog.apply(console, args);
-            };
-            
-            // 2. Wrap setTimeout to catch extension errors
-            const originalSetTimeout = window.setTimeout;
-            window.setTimeout = function(callback, delay, ...args) {
-                if (typeof callback === 'function') {
-                    const wrapped = function() {
-                        try {
-                            return callback.apply(this, arguments);
-                        } catch (error) {
-                            // Suppress extension errors
-                            if (error.stack && (
-                                error.stack.includes('share-modal') ||
-                                error.stack.includes('extension') ||
-                                error.message.includes('Cannot read properties of null')
-                            )) {
-                                return; // Silently ignore extension errors
-                            }
-                            throw error; // Re-throw other errors
-                        }
-                    };
-                    return originalSetTimeout.call(this, wrapped, delay, ...args);
-                }
-                return originalSetTimeout.call(this, callback, delay, ...args);
-            };
+            window.addEventListener('DOMContentLoaded', function() {
+                // Common share modal IDs that extensions look for
+                const mockIds = [
+                    'share-modal',
+                    'share-button', 
+                    'share-dialog',
+                    'social-share',
+                    'share-overlay'
+                ];
+                
+                mockIds.forEach(function(id) {
+                    if (!document.getElementById(id)) {
+                        const mockElement = document.createElement('div');
+                        mockElement.id = id;
+                        mockElement.style.display = 'none';
+                        mockElement.setAttribute('aria-hidden', 'true');
+                        document.body.appendChild(mockElement);
+                    }
+                });
+            });
         })();
-        
-        // 3. Global error handler with capture phase
-        window.addEventListener('error', function(e) {
-            // Suppress errors from browser extensions
-            if (e.filename && (
-                e.filename.includes('share-modal') || 
-                e.filename.includes('extension') ||
-                e.filename.includes('chrome-extension') ||
-                e.filename.includes('moz-extension') ||
-                e.filename === ''
-            )) {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-                return true;
-            }
-
-            // Suppress specific error messages
-            if (e.message && (
-                e.message.includes('events.mapbox.com') ||
-                e.message.includes('ERR_BLOCKED_BY_CLIENT') ||
-                e.message.includes('addEventListener') ||
-                e.message.includes('Cannot read properties of null')
-            )) {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-                return true;
-            }
-        }, true);
-        
-        // 4. Suppress unhandled promise rejections
-        window.addEventListener('unhandledrejection', function(e) {
-            if (e.reason) {
-                const message = e.reason.message || e.reason.toString();
-                if (message.includes('events.mapbox.com') ||
-                    message.includes('Failed to fetch') ||
-                    message.includes('ERR_BLOCKED_BY_CLIENT') ||
-                    message.includes('NetworkError')) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.stopImmediatePropagation();
-                    return true;
-                }
-            }
-        });
-        
-        // 5. Create mock elements that browser extensions might be looking for
-        // This prevents "Cannot read properties of null" errors
-        window.addEventListener('DOMContentLoaded', function() {
-            // Common share modal IDs that extensions look for
-            const mockIds = [
-                'share-modal',
-                'share-button', 
-                'share-dialog',
-                'social-share',
-                'share-overlay'
-            ];
-            
-            mockIds.forEach(function(id) {
-                if (!document.getElementById(id)) {
-                    const mockElement = document.createElement('div');
-                    mockElement.id = id;
-                    mockElement.style.display = 'none';
-                    mockElement.setAttribute('aria-hidden', 'true');
-                    // Add mock addEventListener to prevent null errors
-                    document.body.appendChild(mockElement);
-                }
-            });
-        });
-        
-        // 6. Intercept fetch requests to suppress telemetry completely
-        const originalFetch = window.fetch;
-        window.fetch = function(...args) {
-            const url = args[0];
-            if (typeof url === 'string' && url.includes('events.mapbox.com')) {
-                // Return a fake successful response immediately
-                return Promise.resolve(new Response('{}', { 
-                    status: 204, 
-                    statusText: 'No Content',
-                    headers: new Headers({
-                        'Content-Type': 'application/json'
-                    })
-                }));
-            }
-            return originalFetch.apply(this, args).catch(function(error) {
-                // Suppress network errors in console
-                if (error.message && (
-                    error.message.includes('Failed to fetch') ||
-                    error.message.includes('NetworkError')
-                )) {
-                    // Return empty successful response
-                    return new Response('{}', { status: 204 });
-                }
-                throw error;
-            });
-        };
-        
-        // Intercept XMLHttpRequest for older telemetry requests
-        const originalXHROpen = XMLHttpRequest.prototype.open;
-        const originalXHRSend = XMLHttpRequest.prototype.send;
-        
-        XMLHttpRequest.prototype.open = function(method, url, ...rest) {
-            this._url = url;
-            if (typeof url === 'string' && url.includes('events.mapbox.com')) {
-                this._skipMapboxTelemetry = true;
-            }
-            return originalXHROpen.call(this, method, url, ...rest);
-        };
-        
-        XMLHttpRequest.prototype.send = function(...args) {
-            if (this._skipMapboxTelemetry) {
-                // Silently succeed without actually sending
-                setTimeout(() => {
-                    if (this.onload) this.onload({ target: { status: 204, response: '{}' } });
-                }, 0);
-                return;
-            }
-            return originalXHRSend.apply(this, args);
-        };
     </script>
+    
 </head>
 
 <body>
+    <!-- Cinematic NASRDA splash screen -->
+    <div id="appSplash" class="splash-overlay" aria-hidden="true">
+        <div class="splash-orbit"></div>
+        <div class="splash-orbit splash-orbit--inner"></div>
+        <div class="splash-content">
+            <div class="splash-logo-lockup">
+                <div class="splash-logo-badge">
+                    <div class="splash-logo-core">NASRDA</div>
+                </div>
+                <div class="splash-logo-text">
+                    <span class="splash-kicker">NASRDA Navigation</span>
+                    <h1 class="splash-title">NasrdaNavi</h1>
+                    <p class="splash-subtitle">
+                        Stellar campus routing powered by Nigeria’s National Space Research and Development Agency.
+                    </p>
+                </div>
+            </div>
+            <div class="splash-meta-row">
+                <span class="splash-pill">Initializing map canvas</span>
+                <span class="splash-pill splash-pill--secondary">Space-grade routing engine</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Immediate splash screen hide script (runs before other scripts) -->
+    <script>
+        // Ensure splash screen completes all animations before hiding
+        (function() {
+            const splash = document.getElementById('appSplash');
+            if (!splash) return;
+            
+            // Minimum time to show splash: 6 seconds (allows all animations to complete)
+            // Last animation (second pill) finishes around 5400ms, so 6000ms ensures completion
+            const MIN_SPLASH_DURATION = 6000;
+            const splashStartTime = Date.now();
+            window.splashStartTime = splashStartTime; // Store globally for map.js
+            
+            function hideSplashWhenReady() {
+                const elapsed = Date.now() - splashStartTime;
+                const remaining = Math.max(0, MIN_SPLASH_DURATION - elapsed);
+                
+                setTimeout(function() {
+                    if (splash && !splash.classList.contains('is-hidden')) {
+                        splash.classList.add('is-hidden');
+                        // Mark body as splash complete to trigger UI animations
+                        document.body.classList.add('splash-complete');
+                        // Hide completely after fade-out animation
+                        setTimeout(function() {
+                            if (splash.classList.contains('is-hidden')) {
+                                splash.classList.add('animation-complete');
+                                splash.style.display = 'none';
+                            }
+                        }, 1000); // Match splash-fade-out animation duration
+                    }
+                }, remaining);
+            }
+            
+            // Wait for map to be ready AND minimum duration to pass
+            const checkMapAndDuration = setInterval(function() {
+                if (window.map && window.map.loaded) {
+                    clearInterval(checkMapAndDuration);
+                    hideSplashWhenReady();
+                }
+            }, 100);
+            
+            // Fallback: hide after minimum duration even if map isn't ready
+            setTimeout(function() {
+                clearInterval(checkMapAndDuration);
+                hideSplashWhenReady();
+            }, MIN_SPLASH_DURATION + 2000); // Extra 2 second buffer (8 seconds total max)
+        })();
+    </script>
+
     <!-- Skip to main content for accessibility -->
     <a href="#map" class="skip-link">Skip to map</a>
 
@@ -437,14 +363,14 @@
         }
     </script>
 
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
     <!-- UI Helper Functions -->
     <script src="/static/ui-helpers.js"></script>
 
     <!-- Local JavaScript -->
     <script src="/static/map.js"></script>
-
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 
 </html>

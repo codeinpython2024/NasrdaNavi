@@ -72,6 +72,13 @@ const INITIAL_TILT_PITCH = 80;
 let isMobileView = window.innerWidth <= 768;
 const INITIAL_ZOOM = isMobileView ? 17.5 : 16;
 
+// Ensure map container exists before initializing
+const mapContainer = document.getElementById('map');
+if (!mapContainer) {
+    console.error('Map container #map not found!');
+}
+
+// Initialize map
 const map = new mapboxgl.Map({
     container: 'map',
     style: 'mapbox://styles/mapbox/standard', // Standard style with theme configuration
@@ -96,6 +103,16 @@ const map = new mapboxgl.Map({
         theme: 'monochrome' // Set monochrome theme
     }
 });
+
+// Ensure map container is visible after initialization
+if (mapContainer) {
+    mapContainer.style.display = 'block';
+    mapContainer.style.visibility = 'visible';
+    mapContainer.style.opacity = '1';
+}
+
+// Expose map globally for helpers
+window.map = map;
 
 // Store initial camera state to prevent style from resetting it
 const INITIAL_CAMERA = {
@@ -904,8 +921,39 @@ function animateRouteLine() {
     requestAnimationFrame(animateRouteLine);
 }
 
+// Handle splash screen removal once map is ready
+// Ensures all splash animations complete before hiding (minimum 6 seconds)
+function hideSplashScreen() {
+    const splash = document.getElementById('appSplash');
+    if (!splash) return;
+    if (splash.classList.contains('is-hidden')) return;
+    
+    // Minimum duration to ensure all animations complete
+    // Last animation finishes around 5400ms, so 6000ms ensures completion
+    const MIN_SPLASH_DURATION = 6000;
+    const pageLoadTime = window.splashStartTime || Date.now();
+    const elapsed = Date.now() - pageLoadTime;
+    const remaining = Math.max(0, MIN_SPLASH_DURATION - elapsed);
+    
+    setTimeout(() => {
+        if (splash && !splash.classList.contains('is-hidden')) {
+            splash.classList.add('is-hidden');
+            // Mark body as splash complete to trigger UI animations
+            document.body.classList.add('splash-complete');
+            // Force display none after transition animation completes
+            setTimeout(() => {
+                if (splash.classList.contains('is-hidden')) {
+                    splash.classList.add('animation-complete');
+                    splash.style.display = 'none';
+                }
+            }, 1000); // Match splash-fade-out animation duration
+        }
+    }, remaining);
+}
+
 // Wait for map to load before adding layers
 map.on('load', () => {
+    hideSplashScreen();
     loadGeoJSONLayers();
     
     // Hide water bodies since campus has no water features
@@ -2963,5 +3011,5 @@ window.clearCurrentRoute = function() {
 };
 
 window.recenterMap = function() {
-    recenterOnUser();
+    recenterMap();
 };

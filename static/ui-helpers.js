@@ -663,6 +663,53 @@ function initUIHelpers() {
     FABMenu.init();
     DirectionsPanelManager.init();
 
+    // Splash screen: ensure animations complete before hiding
+    const splashEl = document.getElementById('appSplash');
+    if (splashEl) {
+        let splashHidden = false;
+        const MIN_SPLASH_DURATION = 6000; // 6 seconds - allows all animations to complete
+        const splashStartTime = window.splashStartTime || Date.now();
+        
+        function hideSplash() {
+            if (!splashHidden && splashEl && !splashEl.classList.contains('is-hidden')) {
+                const elapsed = Date.now() - splashStartTime;
+                const remaining = Math.max(0, MIN_SPLASH_DURATION - elapsed);
+                
+                setTimeout(() => {
+                    if (!splashHidden && splashEl && !splashEl.classList.contains('is-hidden')) {
+                        splashEl.classList.add('is-hidden');
+                        // Mark body as splash complete to trigger UI animations
+                        document.body.classList.add('splash-complete');
+                        splashHidden = true;
+                        // Hide completely after fade-out animation
+                        setTimeout(() => {
+                            if (splashEl.classList.contains('is-hidden')) {
+                                splashEl.classList.add('animation-complete');
+                                splashEl.style.display = 'none';
+                            }
+                        }, 1000); // Match splash-fade-out animation duration
+                    }
+                }, remaining);
+            }
+        }
+        
+        // Wait for map to be ready AND ensure minimum duration has passed
+        const splashCheck = setInterval(() => {
+            if (window.map && window.map.loaded) {
+                clearInterval(splashCheck);
+                hideSplash(); // This will respect the minimum duration
+            }
+        }, 100);
+
+        // Fallback: hide after minimum duration + buffer
+        setTimeout(() => {
+            clearInterval(splashCheck);
+            if (!splashHidden) {
+                hideSplash();
+            }
+        }, MIN_SPLASH_DURATION + 2000); // 8 seconds total as absolute maximum
+    }
+
     // Show FAB menu only when map is ready
     const checkMapReady = setInterval(() => {
         if (window.map) {
