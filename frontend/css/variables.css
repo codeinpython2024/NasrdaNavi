@@ -1,0 +1,10 @@
+:root {
+    --primary: #007bff;
+    --danger: #dc3545;
+    --success: #28a745;
+    --white: #fff;
+    --shadow: rgba(0, 0, 0, 0.25);
+    --toolbar-bg: rgba(255, 255, 255, 0.95);
+    --road-label-bg: rgba(255, 255, 255, 0.7);
+    --road-label-color: #003366;
+}

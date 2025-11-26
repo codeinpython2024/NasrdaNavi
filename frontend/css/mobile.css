@@ -1,0 +1,12 @@
+@media (max-width: 576px) {
+    .map-toolbar {
+        width: calc(100% - 20px);
+        top: 10px;
+    }
+    
+    #directionsPanel {
+        width: calc(100% - 20px) !important;
+        left: 10px;
+        right: 10px;
+    }
+}
