@@ -48,14 +48,11 @@ class SplashAnimator {
         // Brand
         this.timeline.fromTo(brand, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.8 }, 0.8);
 
-        // Loader
-        this.timeline.fromTo(loader, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.5 }, 1.1);
-
-        // Progress bar
-        this.timeline.to(progress, { width: '100%', duration: 2, ease: 'power1.inOut' }, 1.3);
-
-        // Tagline
-        this.timeline.fromTo(tagline, { opacity: 0 }, { opacity: 1, duration: 0.5 }, 1.4);
+        // Footer with logo
+        const footer = document.querySelector('.splash-footer');
+        if (footer) {
+            this.timeline.fromTo(footer, { opacity: 0 }, { opacity: 1, duration: 0.5 }, 1.2);
+        }
 
         return this.timeline;
     }
