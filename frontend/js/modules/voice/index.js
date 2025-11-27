@@ -8,21 +8,45 @@ class VoiceAssistant {
         this.enabled = true;
         this.directions = [];
         this.currentStep = 0;
+        this.initialized = false;
         this.initVoice();
     }
 
     initVoice() {
-        const setVoice = () => {
-            const voices = this.synth.getVoices();
-            this.voice = voices.find(v => v.lang.startsWith('en') && v.name.includes('Female')) ||
-                         voices.find(v => v.lang.startsWith('en')) ||
-                         voices[0];
-        };
-
         if (this.synth.getVoices().length) {
-            setVoice();
+            this.setVoice();
         } else {
-            this.synth.onvoiceschanged = setVoice;
+            this.synth.onvoiceschanged = () => this.setVoice();
+        }
+
+        // Workaround for Chrome - needs user gesture, but we can prime it
+        document.addEventListener('click', () => {
+            if (!this.initialized) {
+                this.prime();
+            }
+        }, { once: true });
+    }
+
+    setVoice() {
+        const voices = this.synth.getVoices();
+        this.voice = voices.find(v => v.lang.startsWith('en') && v.name.includes('Female')) ||
+                     voices.find(v => v.lang.startsWith('en')) ||
+                     voices[0];
+        this.initialized = true;
+    }
+
+    prime() {
+        // Resume audio context if paused
+        if (this.synth.paused) {
+            this.synth.resume();
+        }
+        
+        // Try to load voices again if not initialized
+        if (!this.initialized) {
+            const voices = this.synth.getVoices();
+            if (voices.length) {
+                this.setVoice();
+            }
         }
     }
 
@@ -37,15 +61,16 @@ class VoiceAssistant {
     }
 
     speak(text, priority = false) {
-        if (!this.enabled) return;
+        if (!this.enabled || !text) return;
 
+        // Cancel any ongoing speech for priority
         if (priority) {
-            this.stop();
-            this.queue = [text];
-        } else {
-            this.queue.push(text);
+            this.synth.cancel();
+            this.queue = [];
+            this.isSpeaking = false;
         }
 
+        this.queue.push(text);
         this.processQueue();
     }
 
@@ -60,47 +85,45 @@ class VoiceAssistant {
         this.stop();
         this.setDirections(directions);
 
-        // Only announce route found and first direction
         const total = directions[directions.length - 1]?.text.match(/(\d+) meters/)?.[1] || '';
         this.speak(`Route found! ${total} meters total.`, true);
         
-        // Speak first direction after brief pause
         setTimeout(() => {
             if (this.directions.length > 0) {
                 this.speak(this.directions[0].text);
             }
-        }, 500);
+        }, 2000);
     }
 
-    // Call this when user reaches next waypoint
     speakNextDirection() {
         if (!this.enabled) return;
-        
         this.currentStep++;
         if (this.currentStep < this.directions.length) {
             this.speak(this.directions[this.currentStep].text, true);
         }
     }
 
-    // Call this to repeat current direction
     repeatCurrentDirection() {
         if (!this.enabled || !this.directions.length) return;
-        
         const step = this.directions[this.currentStep];
-        if (step) {
-            this.speak(step.text, true);
-        }
+        if (step) this.speak(step.text, true);
     }
 
     processQueue() {
         if (this.isSpeaking || !this.queue.length) return;
 
+        // Chrome bug workaround - resume if paused
+        if (this.synth.paused) {
+            this.synth.resume();
+        }
+
         const text = this.queue.shift();
         const utterance = new SpeechSynthesisUtterance(text);
 
         if (this.voice) utterance.voice = this.voice;
-        utterance.rate = 0.95;
-        utterance.pitch = 1.05;
+        utterance.rate = 1.05;
+        utterance.pitch = 1.1;
+        utterance.volume = 1.0;
 
         utterance.onstart = () => {
             this.isSpeaking = true;
@@ -110,16 +133,23 @@ class VoiceAssistant {
         utterance.onend = () => {
             this.isSpeaking = false;
             this.animateMascot(false);
-            this.processQueue();
+            // Small delay before next utterance
+            setTimeout(() => this.processQueue(), 300);
         };
 
-        utterance.onerror = () => {
+        utterance.onerror = (e) => {
+            console.warn('Speech error:', e.error);
             this.isSpeaking = false;
             this.animateMascot(false);
-            this.processQueue();
+            setTimeout(() => this.processQueue(), 300);
         };
 
-        this.synth.speak(utterance);
+        try {
+            this.synth.speak(utterance);
+        } catch (e) {
+            console.warn('Speech failed:', e);
+            this.isSpeaking = false;
+        }
     }
 
     animateMascot(speaking) {
@@ -135,15 +165,15 @@ class VoiceAssistant {
     }
 
     greet() {
-        this.speak("Hello! I'm Navi, your navigation assistant. Click on the map to set your start and end points.", true);
+        this.speak("Hello! I'm Navi, your navigation assistant.", true);
     }
 
     announceStart() {
-        this.speak("Start point set. Now click on your destination.", true);
+        this.speak("Start point set. Now click your destination.", true);
     }
 
     announceCalculating() {
-        this.speak("Calculating your route...", true);
+        this.speak("Calculating route.", true);
     }
 
     announceError(msg) {
@@ -153,7 +183,7 @@ class VoiceAssistant {
     announceCleared() {
         this.directions = [];
         this.currentStep = 0;
-        this.speak("Route cleared. Ready for a new journey!", true);
+        this.speak("Route cleared.", true);
     }
 }
 

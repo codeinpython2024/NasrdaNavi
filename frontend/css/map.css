@@ -11,3 +11,97 @@
 .mapboxgl-ctrl-attrib a {
     color: var(--text-subtle) !important;
 }
+
+/* Hide default controls */
+.mapboxgl-ctrl-group {
+    display: none !important;
+}
+
+/* Custom Map Controls */
+.map-controls {
+    position: absolute;
+    top: 50%;
+    right: var(--space-lg);
+    transform: translateY(-50%);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    background: var(--bg-panel);
+    backdrop-filter: blur(12px);
+    padding: var(--space-sm);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-subtle);
+    box-shadow: var(--shadow-subtle);
+}
+
+.map-control-btn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-card);
+    border: 1px solid var(--border-control);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.map-control-btn:hover {
+    background: var(--surface-card-elevated);
+    color: var(--text-primary);
+    border-color: var(--accent-primary);
+}
+
+.map-control-btn:active {
+    background: var(--accent-primary);
+    color: var(--text-primary);
+    transform: scale(0.95);
+}
+
+.map-control-btn svg {
+    transition: transform 0.3s ease;
+}
+
+.map-control-divider {
+    height: 1px;
+    background: var(--border-subtle);
+    margin: var(--space-xs) 0;
+}
+
+.map-control-btn.active {
+    background: var(--accent-primary);
+    color: var(--text-primary);
+    border-color: var(--accent-primary);
+}
+
+/* Locate button special state */
+#btnLocate.locating {
+    animation: pulse-locate 1s ease-in-out infinite;
+}
+
+@keyframes pulse-locate {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 140, 0, 0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(255, 140, 0, 0); }
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+    .map-controls {
+        top: var(--space-lg);
+        right: var(--space-md);
+        transform: none;
+    }
+
+    .map-control-btn {
+        width: 32px;
+        height: 32px;
+    }
+
+    .map-control-btn svg {
+        width: 16px;
+        height: 16px;
+    }
+}

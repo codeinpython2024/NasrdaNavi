@@ -2,53 +2,30 @@ import { mapManager } from './modules/map/index.js';
 import { navigationManager } from './modules/navigation/index.js';
 import { uiManager } from './modules/ui/index.js';
 import { voiceAssistant } from './modules/voice/index.js';
-
-function hideSplash() {
-    const splash = document.getElementById('splash');
-    if (splash) {
-        splash.classList.add('hidden');
-        setTimeout(() => splash.remove(), 600);
-    }
-}
-
-function setupVoiceMascot() {
-    const mascot = document.getElementById('voiceMascot');
-    const avatar = document.getElementById('voiceMascotAvatar');
-    const status = document.getElementById('voiceMascotStatus');
-    const bubble = document.getElementById('voiceBubble');
-
-    if (!mascot || !avatar) return;
-
-    voiceAssistant.setMascotElement(avatar);
-
-    // Toggle voice on click
-    avatar.addEventListener('click', () => {
-        const enabled = voiceAssistant.toggle();
-        status.textContent = enabled ? 'Voice On' : 'Muted';
-        status.classList.toggle('muted', !enabled);
-
-        // Show bubble feedback
-        bubble.textContent = enabled ? "I'm listening! Ready to guide you." : "Voice muted. Click me to unmute.";
-        bubble.classList.add('visible');
-        setTimeout(() => bubble.classList.remove('visible'), 3000);
-    });
-}
+import { mascotAnimator } from './modules/mascot/index.js';
+import { splashAnimator } from './modules/splash/index.js';
 
 async function init() {
+    // Start splash animations
+    splashAnimator.animate();
+
     const token = document.getElementById('mapbox-token')?.value;
     if (!token) {
         console.error('Mapbox token not found');
-        hideSplash();
         return;
     }
 
+    // Initialize mascot animator
+    mascotAnimator.init();
+
+    // Initialize map
     mapManager.init('map', token);
 
+    // Load layers and features
     const { roads, buildings } = await mapManager.loadLayers();
     uiManager.setFeatures(roads, buildings);
 
     navigationManager.onDirectionsUpdate = (dirs) => uiManager.updateDirections(dirs);
-
     mapManager.onClick(e => navigationManager.handleMapClick(e));
 
     // Search
@@ -82,16 +59,31 @@ async function init() {
         });
     }
 
-    // Setup voice mascot
-    setupVoiceMascot();
+    // Show start button after loading
+    splashAnimator.showStartButton();
 
-    hideSplash();
+    // Handle start button click
+    const startBtn = document.getElementById('splashStartBtn');
+    if (startBtn) {
+        startBtn.addEventListener('click', async () => {
+            // Disable button
+            startBtn.disabled = true;
+            startBtn.style.pointerEvents = 'none';
 
-    // Greet user after a short delay
-    setTimeout(() => voiceAssistant.greet(), 1000);
+            // Kill splash animations and transition
+            splashAnimator.kill();
+            await mascotAnimator.transitionFromSplash();
+
+            // Introduce Navi
+            setTimeout(() => {
+                mascotAnimator.introduce();
+                mascotAnimator.startIdleAnimation();
+            }, 600);
+        });
+    }
 }
 
 init().catch(err => {
     console.error('Init error:', err);
-    hideSplash();
+    document.getElementById('splash')?.remove();
 });

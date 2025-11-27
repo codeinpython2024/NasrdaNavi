@@ -1,6 +1,7 @@
 import { CONFIG } from '../../config.js';
 import { mapManager } from '../map/index.js';
 import { voiceAssistant } from '../voice/index.js';
+import { mascotAnimator } from '../mascot/index.js';
 
 class NavigationManager {
     constructor() {
@@ -14,6 +15,9 @@ class NavigationManager {
     }
 
     handleMapClick(e) {
+        // Stop introduction if still playing
+        mascotAnimator.stopIntroduction();
+
         if (this.clickCount === 0) {
             this.setStart(e.latlng);
             this.clickCount = 1;
@@ -65,6 +69,8 @@ class NavigationManager {
     }
 
     displayRoute(data) {
+        // Keep start/end markers visible
+        
         // Remove existing route layers
         if (mapManager.map.getLayer('route-glow')) {
             mapManager.map.removeLayer('route-glow');
@@ -117,18 +123,6 @@ class NavigationManager {
             bearing: bearing,
             duration: 2000
         });
-
-        // Add step markers (except last)
-        for (let i = 0; i < data.directions.length - 1; i++) {
-            const [lon, lat] = data.directions[i].location;
-            const el = document.createElement('div');
-            el.className = 'step-marker';
-            el.innerHTML = `<b>${i + 1}</b>`;
-            const marker = new mapboxgl.Marker({ element: el })
-                .setLngLat([lon, lat])
-                .addTo(mapManager.map);
-            this.stepMarkers.push(marker);
-        }
 
         if (this.onDirectionsUpdate) {
             this.onDirectionsUpdate(data.directions);
