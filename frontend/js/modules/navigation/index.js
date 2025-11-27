@@ -1,5 +1,6 @@
 import { CONFIG } from '../../config.js';
 import { mapManager } from '../map/index.js';
+import { voiceAssistant } from '../voice/index.js';
 
 class NavigationManager {
     constructor() {
@@ -16,8 +17,10 @@ class NavigationManager {
         if (this.clickCount === 0) {
             this.setStart(e.latlng);
             this.clickCount = 1;
+            voiceAssistant.announceStart();
         } else {
             this.setEnd(e.latlng);
+            voiceAssistant.announceCalculating();
             this.calculateRoute();
         }
     }
@@ -25,7 +28,7 @@ class NavigationManager {
     setStart(latlng) {
         this.startPoint = latlng;
         if (this.startMarker) this.startMarker.remove();
-        this.startMarker = new mapboxgl.Marker({ color: '#22c55e' })
+        this.startMarker = new mapboxgl.Marker({ color: CONFIG.colors.markerStart })
             .setLngLat([latlng.lng, latlng.lat])
             .setPopup(new mapboxgl.Popup().setText('Start'))
             .addTo(mapManager.map)
@@ -35,7 +38,7 @@ class NavigationManager {
     setEnd(latlng) {
         this.endPoint = latlng;
         if (this.endMarker) this.endMarker.remove();
-        this.endMarker = new mapboxgl.Marker({ color: '#ef4444' })
+        this.endMarker = new mapboxgl.Marker({ color: CONFIG.colors.markerEnd })
             .setLngLat([latlng.lng, latlng.lat])
             .setPopup(new mapboxgl.Popup().setText('End'))
             .addTo(mapManager.map)
@@ -50,19 +53,22 @@ class NavigationManager {
             const data = await res.json();
 
             if (data.error) {
-                alert('Error: ' + data.error);
+                voiceAssistant.announceError(data.error);
                 return;
             }
 
             this.displayRoute(data);
             this.clickCount = 0;
         } catch (err) {
-            alert('Routing error: ' + err);
+            voiceAssistant.announceError('Could not calculate route. Please try again.');
         }
     }
 
     displayRoute(data) {
-        // Remove existing route layer
+        // Remove existing route layers
+        if (mapManager.map.getLayer('route-glow')) {
+            mapManager.map.removeLayer('route-glow');
+        }
         if (mapManager.map.getLayer('route-line')) {
             mapManager.map.removeLayer('route-line');
             mapManager.map.removeSource('route');
@@ -72,19 +78,45 @@ class NavigationManager {
         this.stepMarkers.forEach(m => m.remove());
         this.stepMarkers = [];
 
-        // Add route layer
+        // Add route source
         mapManager.map.addSource('route', { type: 'geojson', data: data.route });
+
+        // Add glow layer
+        mapManager.map.addLayer({
+            id: 'route-glow',
+            type: 'line',
+            source: 'route',
+            paint: {
+                'line-color': CONFIG.colors.routeGlow,
+                'line-width': 12,
+                'line-blur': 4
+            }
+        });
+
+        // Add main route layer
         mapManager.map.addLayer({
             id: 'route-line',
             type: 'line',
             source: 'route',
-            paint: { 'line-color': CONFIG.colors.route, 'line-width': 4 }
+            paint: {
+                'line-color': CONFIG.colors.route,
+                'line-width': 4
+            }
         });
 
-        // Fit to route
+        // Fly to start point with camera facing route direction
         const coords = data.route.geometry.coordinates;
-        const bounds = coords.reduce((b, c) => b.extend(c), new mapboxgl.LngLatBounds(coords[0], coords[0]));
-        mapManager.fitBounds(bounds);
+        const start = coords[0];
+        const next = coords[Math.min(5, coords.length - 1)];
+        const bearing = Math.atan2(next[0] - start[0], next[1] - start[1]) * (180 / Math.PI);
+        
+        mapManager.map.flyTo({
+            center: start,
+            zoom: 18,
+            pitch: 60,
+            bearing: bearing,
+            duration: 2000
+        });
 
         // Add step markers (except last)
         for (let i = 0; i < data.directions.length - 1; i++) {
@@ -102,13 +134,14 @@ class NavigationManager {
             this.onDirectionsUpdate(data.directions);
         }
 
-        // Voice navigation
-        data.directions.forEach(step => {
-            window.speechSynthesis.speak(new SpeechSynthesisUtterance(step.text));
-        });
+        // Voice navigation with enhanced assistant
+        voiceAssistant.speakDirections(data.directions);
     }
 
     clear() {
+        if (mapManager.map.getLayer('route-glow')) {
+            mapManager.map.removeLayer('route-glow');
+        }
         if (mapManager.map.getLayer('route-line')) {
             mapManager.map.removeLayer('route-line');
             mapManager.map.removeSource('route');
@@ -124,7 +157,7 @@ class NavigationManager {
         this.endPoint = null;
         this.clickCount = 0;
 
-        window.speechSynthesis.cancel();
+        voiceAssistant.announceCleared();
 
         if (this.onDirectionsUpdate) {
             this.onDirectionsUpdate(null);
