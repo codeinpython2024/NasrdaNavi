@@ -3,13 +3,7 @@ import { mapManager } from '../map/index.js';
 class UIManager {
     constructor() {
         this.localFeatures = [];
-        this.directionsCollapse = null;
         this.highlightMarker = null;
-    }
-
-    init() {
-        const collapseEl = document.getElementById('directionsBody');
-        this.directionsCollapse = new bootstrap.Collapse(collapseEl, { toggle: false });
     }
 
     setFeatures(roads, buildings) {
@@ -47,7 +41,6 @@ class UIManager {
 
         matches.forEach(match => {
             const item = document.createElement('div');
-            item.className = 'p-1 border-bottom';
             item.textContent = `${match.name} (${match.type})`;
             item.onclick = () => this.selectFeature(match, resultsDiv, searchBox);
             resultsDiv.appendChild(item);
@@ -58,7 +51,6 @@ class UIManager {
     selectFeature(match, resultsDiv, searchBox) {
         const geom = match.geometry;
 
-        // Remove previous highlight
         if (this.highlightMarker) this.highlightMarker.remove();
         if (mapManager.map.getLayer('highlight-line')) {
             mapManager.map.removeLayer('highlight-line');
@@ -74,16 +66,14 @@ class UIManager {
                 .addTo(mapManager.map)
                 .togglePopup();
         } else {
-            // Add highlight layer
             mapManager.map.addSource('highlight', { type: 'geojson', data: { type: 'Feature', geometry: geom } });
             mapManager.map.addLayer({
                 id: 'highlight-line',
                 type: 'line',
                 source: 'highlight',
-                paint: { 'line-color': '#ef4444', 'line-width': 4 }
+                paint: { 'line-color': '#008751', 'line-width': 4 }
             });
 
-            // Fit bounds
             const bounds = new mapboxgl.LngLatBounds();
             const addCoords = coords => {
                 if (typeof coords[0] === 'number') bounds.extend(coords);
@@ -92,7 +82,6 @@ class UIManager {
             addCoords(geom.coordinates);
             mapManager.fitBounds(bounds);
 
-            // Remove after 6s
             setTimeout(() => {
                 if (mapManager.map.getLayer('highlight-line')) {
                     mapManager.map.removeLayer('highlight-line');
@@ -115,7 +104,7 @@ class UIManager {
             departmentsUl.innerHTML = '';
             match.departments.forEach(dep => {
                 const li = document.createElement('li');
-                li.className = 'list-group-item list-group-item-action';
+                li.className = 'list-group-item';
                 li.textContent = dep;
                 departmentsUl.appendChild(li);
             });
@@ -127,12 +116,13 @@ class UIManager {
     }
 
     updateDirections(directions) {
-        const container = document.querySelector('#directionsPanel .directions');
+        const container = document.getElementById('directionsBody');
+        if (!container) return;
+
         container.innerHTML = '';
 
         if (!directions || directions.length === 0) {
-            container.innerHTML = '<p class="text-muted mb-0">Select start and end points on the map.</p>';
-            this.directionsCollapse.hide();
+            container.innerHTML = '<p class="text-muted">Click on the map to set start and end points.</p>';
             return;
         }
 
@@ -140,12 +130,11 @@ class UIManager {
         ul.className = 'list-group list-group-flush';
         directions.forEach((step, i) => {
             const li = document.createElement('li');
-            li.className = 'list-group-item p-1';
+            li.className = 'list-group-item';
             li.innerHTML = `<strong>${i + 1}.</strong> ${step.text}`;
             ul.appendChild(li);
         });
         container.appendChild(ul);
-        this.directionsCollapse.show();
     }
 }
 
