@@ -346,6 +346,16 @@ class MapManager {
             });
         }
     }
+
+    resetView() {
+        this.map.easeTo({
+            center: CONFIG.map.defaultCenter,
+            zoom: 17,
+            pitch: 60,
+            bearing: 30,
+            duration: 800
+        });
+    }
 }
 
 export const mapManager = new MapManager();

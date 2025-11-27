@@ -149,11 +149,8 @@ class MascotAnimator {
         this.introComplete = false;
 
         const steps = [
-            { text: "Hey there! I'm Navi, your campus navigation buddy!", delay: 0 },
-            { text: "I can help you find buildings, roads, and departments.", delay: 3500 },
-            { text: "Use the search bar to find any location.", delay: 7000 },
-            { text: "Click on the map to set your route with turn by turn directions.", delay: 10500 },
-            { text: "Click on me to toggle voice. Let's explore!", delay: 14500 }
+            { text: "Hi! I'm Navi, your campus guide!", delay: 0 },
+            { text: "Click the map to set your route. Let's explore!", delay: 3000 }
         ];
 
         steps.forEach((step, i) => {

@@ -9,6 +9,36 @@ class VoiceAssistant {
         this.directions = [];
         this.currentStep = 0;
         this.initialized = false;
+        
+        // African language codes in order of preference
+        this.africanLangCodes = [
+            'en-NG',  // Nigerian English
+            'en-GH',  // Ghanaian English  
+            'en-KE',  // Kenyan English
+            'en-ZA',  // South African English
+            'en-TZ',  // Tanzanian English
+            'en-ZW',  // Zimbabwean English
+            'yo-NG',  // Yoruba (Nigeria)
+            'ha-NG',  // Hausa (Nigeria)
+            'ig-NG',  // Igbo (Nigeria)
+            'sw',     // Swahili
+            'sw-KE',  // Swahili (Kenya)
+            'sw-TZ',  // Swahili (Tanzania)
+            'zu-ZA',  // Zulu (South Africa)
+            'xh-ZA',  // Xhosa (South Africa)
+            'af-ZA',  // Afrikaans (South Africa)
+        ];
+        
+        // African voice name patterns (some systems use names instead of proper lang codes)
+        this.africanVoicePatterns = [
+            /nigeri/i, /lagos/i, /abuja/i,
+            /ghana/i, /accra/i,
+            /kenya/i, /nairobi/i,
+            /africa/i, /zulu/i, /xhosa/i,
+            /swahili/i, /yoruba/i, /hausa/i, /igbo/i,
+            /tunde/i, /ade/i, /chidi/i, /ngozi/i, /amara/i, // Common Nigerian names
+        ];
+        
         this.initVoice();
     }
 
@@ -29,9 +59,41 @@ class VoiceAssistant {
 
     setVoice() {
         const voices = this.synth.getVoices();
-        this.voice = voices.find(v => v.lang.startsWith('en') && v.name.includes('Female')) ||
+        
+        // Debug: Log available voices to console (helpful for development)
+        console.log('🎙️ Available voices:', voices.map(v => `${v.name} (${v.lang})`));
+        
+        // 1. First try exact African language code matches
+        for (const langCode of this.africanLangCodes) {
+            const match = voices.find(v => v.lang === langCode);
+            if (match) {
+                this.voice = match;
+                console.log(`🇳🇬 Selected African voice: ${match.name} (${match.lang})`);
+                this.initialized = true;
+                return;
+            }
+        }
+        
+        // 2. Try matching voice names with African patterns
+        for (const pattern of this.africanVoicePatterns) {
+            const match = voices.find(v => pattern.test(v.name));
+            if (match) {
+                this.voice = match;
+                console.log(`🌍 Selected voice by name pattern: ${match.name} (${match.lang})`);
+                this.initialized = true;
+                return;
+            }
+        }
+        
+        // 3. Fallback to any English voice (prefer en-GB over en-US for closer accent)
+        this.voice = voices.find(v => v.lang === 'en-GB') ||
+                     voices.find(v => v.lang.startsWith('en-')) ||
                      voices.find(v => v.lang.startsWith('en')) ||
                      voices[0];
+        
+        if (this.voice) {
+            console.log(`📢 Using fallback voice: ${this.voice.name} (${this.voice.lang})`);
+        }
         this.initialized = true;
     }
 
@@ -85,8 +147,24 @@ class VoiceAssistant {
         this.stop();
         this.setDirections(directions);
 
-        const distanceText = totalDistanceMeters ? `${Math.round(totalDistanceMeters)} meters` : 'distance unknown';
-        this.speak(`Route found! ${distanceText} total.`, true);
+        // Format distance nicely
+        let distanceText;
+        if (!totalDistanceMeters) {
+            distanceText = 'distance unknown';
+        } else if (totalDistanceMeters >= 1000) {
+            const km = (totalDistanceMeters / 1000).toFixed(1);
+            distanceText = `${km} kilometers`;
+        } else {
+            distanceText = `${Math.round(totalDistanceMeters)} meters`;
+        }
+        
+        const phrases = [
+            `Route found! ${distanceText} total. Let's go!`,
+            `Got it! The journey is ${distanceText}. Follow me!`,
+            `Route ready! ${distanceText} to your destination.`,
+        ];
+        const phrase = phrases[Math.floor(Math.random() * phrases.length)];
+        this.speak(phrase, true);
         
         setTimeout(() => {
             if (this.directions.length > 0) {
@@ -165,25 +243,65 @@ class VoiceAssistant {
     }
 
     greet() {
-        this.speak("Hello! I'm Navi, your navigation assistant.", true);
+        const greetings = [
+            "Hello! I'm Navi, your navigation assistant. Welcome!",
+            "Hey there! Navi here, ready to guide you. How far?",
+            "Welcome! I'm Navi, let's navigate together!",
+        ];
+        const greeting = greetings[Math.floor(Math.random() * greetings.length)];
+        this.speak(greeting, true);
     }
 
     announceStart() {
-        this.speak("Start point set. Now click your destination.", true);
+        const phrases = [
+            "Start point set! Now tap where you want to go.",
+            "Starting point locked. Click your destination now.",
+            "Nice one! Now select your destination.",
+        ];
+        const phrase = phrases[Math.floor(Math.random() * phrases.length)];
+        this.speak(phrase, true);
     }
 
     announceCalculating() {
-        this.speak("Calculating route.", true);
+        const phrases = [
+            "Calculating your route, one moment.",
+            "Finding the best route for you.",
+            "Let me find the way for you.",
+        ];
+        const phrase = phrases[Math.floor(Math.random() * phrases.length)];
+        this.speak(phrase, true);
     }
 
     announceError(msg) {
-        this.speak(`Sorry, ${msg}`, true);
+        const phrases = [
+            `Sorry o, ${msg}`,
+            `Ah, there's a problem: ${msg}`,
+            `Sorry, ${msg}`,
+        ];
+        const phrase = phrases[Math.floor(Math.random() * phrases.length)];
+        this.speak(phrase, true);
     }
 
     announceCleared() {
         this.directions = [];
         this.currentStep = 0;
-        this.speak("Route cleared.", true);
+        const phrases = [
+            "Route cleared! Ready for a new journey.",
+            "All cleared. Where to next?",
+            "Route cleared, let's start fresh.",
+        ];
+        const phrase = phrases[Math.floor(Math.random() * phrases.length)];
+        this.speak(phrase, true);
+    }
+    
+    announceArrival() {
+        const phrases = [
+            "You have arrived at your destination. Well done!",
+            "You don reach! This is your destination.",
+            "Destination reached! Safe travels.",
+        ];
+        const phrase = phrases[Math.floor(Math.random() * phrases.length)];
+        this.speak(phrase, true);
     }
 }
 

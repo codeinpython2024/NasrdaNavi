@@ -141,6 +141,12 @@
     width: 50px;
     height: 50px;
     object-fit: contain;
+    animation: logo-spin 10s linear infinite;
+}
+
+@keyframes logo-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 /* Tagline */

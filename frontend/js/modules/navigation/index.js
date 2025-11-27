@@ -176,6 +176,7 @@ class NavigationManager {
         this.clickCount = 0;
 
         voiceAssistant.announceCleared();
+        mapManager.resetView();
 
         if (this.onDirectionsUpdate) {
             this.onDirectionsUpdate(null);
