@@ -8,6 +8,7 @@ class NavigationManager {
         this.startMarker = null;
         this.endMarker = null;
         this.stepMarkers = [];
+        this.mascotMarker = null;
         this.startPoint = null;
         this.endPoint = null;
         this.clickCount = 0;
@@ -128,8 +129,29 @@ class NavigationManager {
             this.onDirectionsUpdate(data.directions);
         }
 
+        // Add mascot marker at start of route
+        this.addMascotMarker(coords[0]);
+
         // Voice navigation with enhanced assistant
-        voiceAssistant.speakDirections(data.directions);
+        voiceAssistant.speakDirections(data.directions, data.total_distance_m);
+    }
+
+    addMascotMarker(lngLat) {
+        if (this.mascotMarker) this.mascotMarker.remove();
+
+        const el = document.createElement('div');
+        el.className = 'route-mascot-marker';
+        el.innerHTML = '<img src="/static/Vector.png" alt="Navi"/>';
+
+        this.mascotMarker = new mapboxgl.Marker({ element: el })
+            .setLngLat(lngLat)
+            .addTo(mapManager.map);
+
+        // Animate entrance
+        gsap.fromTo(el, 
+            { scale: 0, opacity: 0 },
+            { scale: 1, opacity: 1, duration: 0.5, ease: 'back.out(1.7)' }
+        );
     }
 
     clear() {
@@ -142,10 +164,12 @@ class NavigationManager {
         }
         if (this.startMarker) this.startMarker.remove();
         if (this.endMarker) this.endMarker.remove();
+        if (this.mascotMarker) this.mascotMarker.remove();
         this.stepMarkers.forEach(m => m.remove());
 
         this.startMarker = null;
         this.endMarker = null;
+        this.mascotMarker = null;
         this.stepMarkers = [];
         this.startPoint = null;
         this.endPoint = null;
