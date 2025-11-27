@@ -1,0 +1,549 @@
+{
+  "meta": {
+    "name": "NASRDA Navigation Design System",
+    "version": "1.0.0",
+    "description": "High-level creative direction and design tokens inspired by the NASRDA (National Space Research and Development Agency) brand identity for use across the NasrdaNavi app.",
+    "designIntent": "Evocative, cinematic navigation UI that combines space exploration themes with premium digital cartography, reflecting NASRDA's mission of space research and development."
+  },
+  "foundations": {
+    "colorPalette": {
+      "description": "Deep space blue base inspired by NASRDA logo with vibrant orange/yellow rocket flame accents, Nigerian green, and gold highlights. Dark cosmic background with bright accent markers.",
+      "tokens": {
+        "background": {
+          "canvasDark": "#0A1628",
+          "canvasDarkAlt": "#0F1B2E",
+          "mapSepia": "#1A2332",
+          "mapContour": "#253040",
+          "panelOverlay": "rgba(10, 22, 40, 0.85)",
+          "panelSolid": "#151F2E",
+          "spaceBlue": "#0D1B2A",
+          "spaceBlueDeep": "#050A12"
+        },
+        "surface": {
+          "card": "#1E2838",
+          "cardElevated": "#253040",
+          "chip": "#1F2A3A",
+          "badge": "#FFD700"
+        },
+        "accent": {
+          "accentPrimary": "#FF8C00",
+          "accentPrimarySoft": "rgba(255, 140, 0, 0.25)",
+          "accentPrimaryGlow": "rgba(255, 140, 0, 0.6)",
+          "accentSecondary": "#008751",
+          "accentSecondarySoft": "rgba(0, 135, 81, 0.28)",
+          "rocketFlame": "#FFA500",
+          "rocketFlameGlow": "rgba(255, 165, 0, 0.5)",
+          "nigerianGreen": "#008751",
+          "gold": "#FFD700",
+          "goldSoft": "rgba(255, 215, 0, 0.2)"
+        },
+        "text": {
+          "onDarkPrimary": "#FFFFFF",
+          "onDarkMuted": "#E8F0F8",
+          "onDarkSubtle": "#B8C8D8",
+          "onDarkDisabled": "#6B7A8A",
+          "onLight": "#0A1628"
+        },
+        "status": {
+          "success": "#008751",
+          "warning": "#FFD700",
+          "danger": "#E15B4F",
+          "info": "#4A9EFF"
+        },
+        "borders": {
+          "subtle": "rgba(255, 255, 255, 0.08)",
+          "strong": "rgba(0, 0, 0, 0.7)",
+          "accent": "rgba(255, 140, 0, 0.9)",
+          "spaceBlue": "rgba(13, 27, 42, 0.9)"
+        },
+        "overlays": {
+          "scrimDark": "radial-gradient(circle at top, rgba(5,10,18,0.75), #050A12)",
+          "scrimSide": "linear-gradient(90deg, #050A12 0%, rgba(5,10,18,0.0) 40%)",
+          "spaceGradient": "radial-gradient(ellipse at center, rgba(13,27,42,0.6) 0%, rgba(5,10,18,0.95) 100%)"
+        }
+      }
+    },
+    "typography": {
+      "description": "Contrast between elegant serif for headings and clean geometric sans-serif for UI chrome. Large, spaced headings; small, compact body and labels.",
+      "fontFamilies": {
+        "serifDisplay": {
+          "cssStack": "\"Playfair Display\", \"Cormorant Garamond\", \"Georgia\", serif",
+          "usage": "Major headings, category titles, large section labels."
+        },
+        "sansBody": {
+          "cssStack": "\"Inter\", \"SF Pro Text\", -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
+          "usage": "Body copy, navigation items, metrics, controls, cards."
+        },
+        "monoNumeric": {
+          "cssStack": "\"JetBrains Mono\", \"SF Mono\", Menlo, monospace",
+          "usage": "Distances, coordinates, numeric labels if needed."
+        }
+      },
+      "scale": {
+        "rootSizePx": 16,
+        "tokens": {
+          "displayXL": {
+            "fontSize": 48,
+            "lineHeight": 1.04,
+            "letterSpacingEm": 0.02,
+            "fontWeight": 500,
+            "fontFamily": "serifDisplay"
+          },
+          "displayL": {
+            "fontSize": 40,
+            "lineHeight": 1.08,
+            "letterSpacingEm": 0.02,
+            "fontWeight": 500,
+            "fontFamily": "serifDisplay"
+          },
+          "headingM": {
+            "fontSize": 24,
+            "lineHeight": 1.1,
+            "letterSpacingEm": 0.03,
+            "fontWeight": 500,
+            "fontFamily": "serifDisplay"
+          },
+          "headingS": {
+            "fontSize": 18,
+            "lineHeight": 1.2,
+            "letterSpacingEm": 0.06,
+            "fontWeight": 500,
+            "fontFamily": "sansBody"
+          },
+          "bodyM": {
+            "fontSize": 14,
+            "lineHeight": 1.5,
+            "letterSpacingEm": 0.01,
+            "fontWeight": 400,
+            "fontFamily": "sansBody"
+          },
+          "bodyS": {
+            "fontSize": 12,
+            "lineHeight": 1.5,
+            "letterSpacingEm": 0.02,
+            "fontWeight": 400,
+            "fontFamily": "sansBody"
+          },
+          "label": {
+            "fontSize": 11,
+            "lineHeight": 1.4,
+            "letterSpacingEm": 0.16,
+            "fontWeight": 600,
+            "fontFamily": "sansBody",
+            "textTransform": "uppercase"
+          },
+          "pillLabel": {
+            "fontSize": 10,
+            "lineHeight": 1.2,
+            "letterSpacingEm": 0.18,
+            "fontWeight": 700,
+            "fontFamily": "sansBody",
+            "textTransform": "uppercase"
+          }
+        }
+      }
+    },
+    "spacing": {
+      "description": "Tight micro-spacing for dense map controls; generous negative space surrounding major headings and primary map content.",
+      "scalePx": {
+        "xxs": 2,
+        "xs": 4,
+        "sm": 8,
+        "md": 12,
+        "lg": 16,
+        "xl": 24,
+        "xxl": 32,
+        "pageGutter": 40,
+        "sidebarWidth": 320,
+        "cardPadding": 20,
+        "controlStackGap": 10
+      }
+    },
+    "radii": {
+      "description": "Mostly sharp with subtle rounding on interactive surfaces and map markers.",
+      "tokensPx": {
+        "none": 0,
+        "xs": 4,
+        "sm": 6,
+        "md": 10,
+        "lg": 18,
+        "pill": 999
+      }
+    },
+    "shadows": {
+      "description": "Soft, feathered glows that pull panels above a dark map without looking skeuomorphic.",
+      "tokens": {
+        "subtle": "0 8px 24px rgba(0, 0, 0, 0.6)",
+        "strong": "0 18px 45px rgba(0, 0, 0, 0.85)",
+        "markerGlow": "0 0 20px rgba(255, 140, 0, 0.95)",
+        "accentSoft": "0 0 14px rgba(255, 140, 0, 0.6)",
+        "rocketFlameGlow": "0 0 24px rgba(255, 165, 0, 0.7)",
+        "spaceGlow": "0 0 30px rgba(74, 158, 255, 0.4)"
+      }
+    },
+    "borders": {
+      "description": "Subtle hairlines and inner strokes to separate panels from the map.",
+      "tokens": {
+        "card": "1px solid rgba(255, 255, 255, 0.04)",
+        "control": "1px solid rgba(255, 255, 255, 0.10)",
+        "mapMarker": "2px solid #0A1628",
+        "accent": "1px solid rgba(255, 140, 0, 0.85)",
+        "spaceBlue": "1px solid rgba(13, 27, 42, 0.9)"
+      }
+    }
+  },
+  "layout": {
+    "description": "Full-bleed map canvas with a strong left sidebar column, a minimal top navigation strip, and a right-side vertical control cluster. Everything floats above a textured, space-blue toned map evoking cosmic navigation.",
+    "page": {
+      "background": "spaceBlue",
+      "scrims": ["scrimDark", "scrimSide", "spaceGradient"],
+      "maxWidth": "100vw",
+      "maxHeight": "100vh"
+    },
+    "regions": {
+      "topNav": {
+        "position": "fixed",
+        "placement": "top",
+        "heightPx": 72,
+        "paddingX": 72,
+        "paddingY": 20,
+        "alignment": "centeredItemsWithSpaceBetweenBrandAndNav",
+        "blur": "backdrop-blur(12px)",
+        "background": "transparent",
+        "notes": "Nav items are small caps serif or sans, spaced out with wide tracking. Links are white with a subtle glow on hover; underline or dot indicator is understated."
+      },
+      "leftSidebar": {
+        "position": "fixed",
+        "placement": "left",
+        "widthPx": 320,
+        "padding": {
+          "top": 96,
+          "right": 32,
+          "bottom": 64,
+          "left": 64
+        },
+        "background": "transparent gradient over map",
+        "scrollBehavior": "static, no visible scrollbars",
+        "notes": "Acts as the navigation mode switcher and section title area. Uses vertical writing or rotated labels for section categories (Buildings, Roads, POIs, etc.)."
+      },
+      "mapCanvas": {
+        "position": "absolute",
+        "inset": "0 0 0 0",
+        "zIndex": 0,
+        "notes": "Map imagery is always visible; UI elements float above. Use additive blend modes where possible to keep map details visible under overlays."
+      },
+      "rightControls": {
+        "position": "fixed",
+        "placement": "right-center",
+        "offsetFromEdgePx": 32,
+        "stackGapPx": 12,
+        "notes": "Vertical stack with circular location button and rectangular zoom buttons. Keep the stack compact to maintain visual hierarchy with the main cards."
+      },
+      "bottomInfoRail": {
+        "position": "fixed",
+        "placement": "bottom",
+        "paddingX": 64,
+        "paddingY": 18,
+        "background": "panelOverlay",
+        "notes": "Contains weather/time on left, POI carousel along center, and a primary info card anchored to bottom-right."
+      }
+    },
+    "alignmentPrinciples": [
+      "Anchor major structures (sidebar, bottom rail, right control stack) to the viewport edges, not to each other.",
+      "Line up center points of markers and route lines with the corresponding card or list item where possible.",
+      "Use consistent vertical gaps between stacked elements (8–12px for micro controls, 24–32px for major sections).",
+      "Keep typography mostly left-aligned; only numeric or metric data may be right-aligned for emphasis."
+    ]
+  },
+  "components": {
+    "brandBar": {
+      "description": "Top-left brand lockup containing NASRDA circular logo and agency name.",
+      "structure": [
+        "Circular NASRDA logo with space blue background, rocket, stars, diamond, and Nigerian Coat of Arms",
+        "Agency name in stacked format: 'NASRDA' bold serif above 'National Space Research and Development Agency' small caps sans, or full name in single line"
+      ],
+      "style": {
+        "spacing": { "iconToTextPx": 12 },
+        "typography": {
+          "primary": "headingS",
+          "secondary": "label"
+        },
+        "color": {
+          "logoBackground": "spaceBlue",
+          "textPrimary": "onDarkPrimary",
+          "textSecondary": "onDarkSubtle",
+          "logoAccent": "accentPrimary"
+        },
+        "logoSize": {
+          "widthPx": 56,
+          "heightPx": 56
+        }
+      }
+    },
+    "topNavigation": {
+      "description": "Minimal top navigation with evenly spaced section links.",
+      "items": {
+        "typography": "headingS",
+        "spacingPx": 40,
+        "stateStyles": {
+          "default": { "color": "onDarkMuted", "opacity": 0.9 },
+          "hover": {
+            "color": "onDarkPrimary",
+            "underline": false,
+            "glow": "accentSoft"
+          },
+          "active": {
+            "color": "onDarkPrimary",
+            "indicator": "small accentPrimary dot below label"
+          }
+        }
+      }
+    },
+    "sidebarSectionSwitcher": {
+      "description": "Left column with vertical category labels such as ATMs, Bus Stops, Cafés etc.",
+      "layout": {
+        "orientation": "vertical",
+        "itemSpacingPx": 12,
+        "selectedAlignment": "alignedUnder main section title"
+      },
+      "typography": {
+        "sectionTitle": "displayL",
+        "item": "bodyS"
+      },
+      "states": {
+        "default": { "color": "onDarkSubtle" },
+        "hover": { "color": "onDarkPrimary" },
+        "active": { "color": "accentPrimary" }
+      }
+    },
+    "mapRoutePath": {
+      "description": "Highlighted route line connecting POI markers on the map.",
+      "style": {
+        "color": "accentPrimary",
+        "widthPx": 4,
+        "cornerRadiusPx": 10,
+        "capStyle": "round",
+        "shadow": "accentSoft"
+      },
+      "behavior": {
+        "hover": "Optionally increase glow opacity and width by +1px.",
+        "animation": "Subtle pulsing glow along the path when route is actively being followed."
+      }
+    },
+    "mapMarkerPrimary": {
+      "description": "Primary circular marker used at endpoints and selected POIs.",
+      "shape": "circle with small pointer nub or subtle shadow to indicate elevation",
+      "style": {
+        "radiusPx": 24,
+        "fill": "accentPrimary",
+        "border": "mapMarker",
+        "shadow": "markerGlow",
+        "innerDot": {
+          "enabled": true,
+          "sizeRatio": 0.45,
+          "color": "onDarkPrimary"
+        }
+      },
+      "states": {
+        "default": { "scale": 1.0, "opacity": 1.0 },
+        "hover": { "scale": 1.05, "shadow": "strong" },
+        "selected": {
+          "scale": 1.08,
+          "borderColor": "accent",
+          "pulseRing": true
+        }
+      }
+    },
+    "mapMarkerSecondary": {
+      "description": "Secondary small markers for other POIs in the same category.",
+      "shape": "smaller circle or shield marker",
+      "style": {
+        "radiusPx": 16,
+        "fill": "accentSecondary",
+        "border": "1px solid #0A1628",
+        "labelBadge": {
+          "background": "accentSecondary",
+          "color": "onDarkPrimary",
+          "shape": "rounded pill",
+          "typography": "pillLabel"
+        }
+      }
+    },
+    "mapControlsVertical": {
+      "description": "Right-side vertical cluster with location button and zoom controls.",
+      "items": [
+        "Circular location/focus button",
+        "Spacer / vertical dots indicator",
+        "Plus/Minus zoom rectangle buttons"
+      ],
+      "style": {
+        "buttonSizePx": 42,
+        "cornerRadius": {
+          "circle": "pill",
+          "rect": "sm"
+        },
+        "background": "card",
+        "border": "control",
+        "iconColor": "onDarkPrimary",
+        "iconSizePx": 18,
+        "shadow": "subtle"
+      },
+      "states": {
+        "default": { "opacity": 0.95 },
+        "hover": { "background": "cardElevated", "opacity": 1.0 },
+        "active": {
+          "background": "accentPrimary",
+          "iconColor": "onDarkPrimary"
+        }
+      }
+    },
+    "poiCarouselChip": {
+      "description": "Small circular chips along the bottom rail representing nearby cafés.",
+      "layout": {
+        "shape": "circle",
+        "sizePx": 56,
+        "paddingPx": 4,
+        "stack": "icon photography or category glyph inside with numeric badge"
+      },
+      "style": {
+        "background": "card",
+        "border": "card",
+        "shadow": "subtle",
+        "badge": {
+          "background": "accentSecondary",
+          "color": "onDarkPrimary",
+          "position": "bottom-center",
+          "typography": "pillLabel"
+        }
+      }
+    },
+    "poiPrimaryDetailCard": {
+      "description": "Large right-bottom card showing photo, name, address and contact details for the selected POI.",
+      "layout": {
+        "widthPx": 420,
+        "paddingPx": 22,
+        "borderRadius": "lg",
+        "elevation": "strong",
+        "sections": [
+          "Media thumbnail on left or top-left",
+          "POI name + category",
+          "Address + distance row",
+          "Phone and secondary info row",
+          "Primary call-to-action button"
+        ]
+      },
+      "style": {
+        "background": "panelSolid",
+        "border": "card",
+        "shadow": "strong",
+        "typography": {
+          "title": "headingM",
+          "subtitle": "bodyS",
+          "meta": "label",
+          "body": "bodyM"
+        },
+        "color": {
+          "title": "onDarkPrimary",
+          "subtitle": "onDarkSubtle",
+          "meta": "onDarkSubtle"
+        },
+        "media": {
+          "cornerRadius": "sm",
+          "aspectRatio": "4:3",
+          "overlayGradient": "linear-gradient(to right, rgba(0,0,0,0.5), transparent)"
+        }
+      }
+    },
+    "primaryButton": {
+      "description": "Dominant CTA button used for actions like 'Get More Information'.",
+      "style": {
+        "paddingX": 28,
+        "paddingY": 12,
+        "borderRadius": "pill",
+        "background": "accentPrimary",
+        "textColor": "onDarkPrimary",
+        "typography": "label",
+        "shadow": "accentSoft"
+      },
+      "states": {
+        "hover": {
+          "background": "#FF9337",
+          "shadow": "strong"
+        },
+        "active": {
+          "background": "#E2731B",
+          "shadow": "subtle"
+        },
+        "disabled": {
+          "background": "rgba(245, 132, 38, 0.4)",
+          "textColor": "onDarkDisabled"
+        }
+      }
+    },
+    "weatherWidget": {
+      "description": "Compact weather and time display in bottom-left.",
+      "layout": {
+        "orientation": "horizontal",
+        "iconPlacement": "left",
+        "spacingPx": 10
+      },
+      "style": {
+        "temperatureTypography": "headingM",
+        "metaTypography": "bodyS",
+        "color": {
+          "primary": "onDarkPrimary",
+          "secondary": "onDarkSubtle"
+        },
+        "iconStyle": "flat minimal, single-color glyph"
+      }
+    },
+    "scrollDotsVertical": {
+      "description": "Slim vertical sequence of small dots on the right representing scroll position or sections.",
+      "style": {
+        "dotSizePx": 6,
+        "spacingPx": 10,
+        "defaultColor": "onDarkDisabled",
+        "activeColor": "accentPrimary",
+        "background": "transparent"
+      }
+    }
+  },
+  "designLanguage": {
+    "keywords": [
+      "cinematic",
+      "cartographic",
+      "space exploration",
+      "cosmic navigation",
+      "premium dashboard",
+      "dark space theme",
+      "restrained",
+      "minimalist chrome, rich cosmic background",
+      "Nigerian space agency",
+      "stellar cartography"
+    ],
+    "principles": [
+      "Map first: the cartographic layer is always visible and should never be completely covered by flat, opaque panels.",
+      "Contrast via color temperature: use warm orange/yellow rocket flame accents and Nigerian green against deep space blue backgrounds and cool whites for text, creating a cosmic navigation aesthetic.",
+      "Density with clarity: support many UI elements simultaneously, but keep them grouped and aligned so cognitive load remains low.",
+      "Minimal chrome: borders and panel edges are subtle; rely on light, shadow, and gradients to define hierarchy.",
+      "Typography as identity: large, elegant serif headings differentiate the experience from generic map apps.",
+      "Focus through glow: use soft glows (rocket flame orange, space blue) and accent strokes to indicate primary routes and active markers, evoking the luminosity of stars and rocket propulsion.",
+      "Edge anchoring: major UI elements are locked to viewport edges, giving the central map room to breathe.",
+      "Avoid clutter: avoid unnecessary lines, icons, or decorations; every visible mark should communicate state or context."
+    ],
+    "do": [
+      "Use accentPrimary (rocket flame orange) for routes, key markers, and the most important action only, evoking the propulsion theme from the NASRDA logo.",
+      "Keep backgrounds dark space blue and textured; preserve subtle map details under overlays, creating a cosmic navigation experience.",
+      "Maintain consistent spacing increments from the spacing scale for all margins, gaps, and padding.",
+      "Use uppercased small labels for categories and meta information.",
+      "Introduce subtle motion (fades, slight slides, low-amplitude pulsing glows) rather than large, bouncy animations."
+    ],
+    "dont": [
+      "Do not introduce bright saturated colors outside the defined accent palette.",
+      "Do not use heavy drop shadows with hard edges; shadows should be soft and atmospheric.",
+      "Do not center large blocks of body text; reserve centering for singular metrics or icons.",
+      "Do not round all corners heavily; rounding should be reserved for markers, chips, and buttons.",
+      "Do not flatten the UI fully; some depth is required to float panels above the map."
+    ]
+  }
+}

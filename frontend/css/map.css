@@ -1,3 +1,13 @@
-.leaflet-container {
-    font-family: "Segoe UI", sans-serif;
+.mapboxgl-canvas {
+    outline: none;
+}
+
+.mapboxgl-ctrl-attrib {
+    background: rgba(10, 22, 40, 0.7) !important;
+    color: var(--text-disabled) !important;
+    font-size: 10px;
+}
+
+.mapboxgl-ctrl-attrib a {
+    color: var(--text-subtle) !important;
 }

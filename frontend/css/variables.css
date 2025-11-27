@@ -1,10 +1,68 @@
 :root {
-    --primary: #007bff;
-    --danger: #dc3545;
-    --success: #28a745;
-    --white: #fff;
-    --shadow: rgba(0, 0, 0, 0.25);
-    --toolbar-bg: rgba(255, 255, 255, 0.95);
-    --road-label-bg: rgba(255, 255, 255, 0.7);
-    --road-label-color: #003366;
+    /* Background */
+    --bg-canvas: #0A1628;
+    --bg-canvas-alt: #0F1B2E;
+    --bg-panel: rgba(10, 22, 40, 0.85);
+    --bg-panel-solid: #151F2E;
+    --bg-space-blue: #0D1B2A;
+    --bg-space-deep: #050A12;
+
+    /* Surface */
+    --surface-card: #1E2838;
+    --surface-card-elevated: #253040;
+    --surface-chip: #1F2A3A;
+
+    /* Accent */
+    --accent-primary: #FF8C00;
+    --accent-primary-soft: rgba(255, 140, 0, 0.25);
+    --accent-primary-glow: rgba(255, 140, 0, 0.6);
+    --accent-secondary: #008751;
+    --accent-secondary-soft: rgba(0, 135, 81, 0.28);
+    --rocket-flame: #FFA500;
+    --gold: #FFD700;
+    --gold-soft: rgba(255, 215, 0, 0.2);
+
+    /* Text */
+    --text-primary: #FFFFFF;
+    --text-muted: #E8F0F8;
+    --text-subtle: #B8C8D8;
+    --text-disabled: #6B7A8A;
+
+    /* Status */
+    --status-success: #008751;
+    --status-warning: #FFD700;
+    --status-danger: #E15B4F;
+    --status-info: #4A9EFF;
+
+    /* Borders */
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --border-control: rgba(255, 255, 255, 0.10);
+    --border-accent: rgba(255, 140, 0, 0.9);
+
+    /* Shadows */
+    --shadow-subtle: 0 8px 24px rgba(0, 0, 0, 0.6);
+    --shadow-strong: 0 18px 45px rgba(0, 0, 0, 0.85);
+    --shadow-marker-glow: 0 0 20px rgba(255, 140, 0, 0.95);
+    --shadow-accent-soft: 0 0 14px rgba(255, 140, 0, 0.6);
+
+    /* Spacing */
+    --space-xxs: 2px;
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 12px;
+    --space-lg: 16px;
+    --space-xl: 24px;
+    --space-xxl: 32px;
+
+    /* Radii */
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 18px;
+    --radius-pill: 999px;
+
+    /* Typography */
+    --font-serif: "Playfair Display", "Georgia", serif;
+    --font-sans: "Inter", "SF Pro Text", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", "SF Mono", Menlo, monospace;
 }
