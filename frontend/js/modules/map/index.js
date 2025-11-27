@@ -19,7 +19,7 @@ class MapManager {
                 }
             }
         });
-        this.map.addControl(new mapboxgl.NavigationControl());
+        this.map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
         return this;
     }
 
@@ -40,13 +40,20 @@ class MapManager {
             id: 'buildings-fill',
             type: 'fill',
             source: 'buildings',
-            paint: { 'fill-color': CONFIG.colors.building, 'fill-opacity': 0.8 }
+            paint: {
+                'fill-color': CONFIG.colors.building,
+                'fill-opacity': 0.7
+            }
         });
         this.map.addLayer({
             id: 'buildings-outline',
             type: 'line',
             source: 'buildings',
-            paint: { 'line-color': CONFIG.colors.building, 'line-width': 1 }
+            paint: {
+                'line-color': CONFIG.colors.buildingOutline,
+                'line-width': 1.5,
+                'line-opacity': 0.9
+            }
         });
 
         // Add roads layer
@@ -55,7 +62,11 @@ class MapManager {
             id: 'roads-line',
             type: 'line',
             source: 'roads',
-            paint: { 'line-color': CONFIG.colors.road, 'line-width': 2 }
+            paint: {
+                'line-color': CONFIG.colors.road,
+                'line-width': 2,
+                'line-opacity': 0.8
+            }
         });
 
         // Add road labels
@@ -66,9 +77,14 @@ class MapManager {
             layout: {
                 'symbol-placement': 'line',
                 'text-field': ['get', 'name'],
-                'text-size': 12
+                'text-size': 11,
+                'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular']
             },
-            paint: { 'text-color': '#003366', 'text-halo-color': '#fff', 'text-halo-width': 1 }
+            paint: {
+                'text-color': '#E8F0F8',
+                'text-halo-color': '#0A1628',
+                'text-halo-width': 1.5
+            }
         });
 
         // Fit bounds to data
