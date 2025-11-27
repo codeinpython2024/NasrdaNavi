@@ -79,14 +79,14 @@ class VoiceAssistant {
         this.currentStep = 0;
     }
 
-    speakDirections(directions) {
+    speakDirections(directions, totalDistanceMeters) {
         if (!this.enabled || !directions?.length) return;
 
         this.stop();
         this.setDirections(directions);
 
-        const total = directions[directions.length - 1]?.text.match(/(\d+) meters/)?.[1] || '';
-        this.speak(`Route found! ${total} meters total.`, true);
+        const distanceText = totalDistanceMeters ? `${Math.round(totalDistanceMeters)} meters` : 'distance unknown';
+        this.speak(`Route found! ${distanceText} total.`, true);
         
         setTimeout(() => {
             if (this.directions.length > 0) {
