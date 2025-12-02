@@ -149,7 +149,7 @@ class MascotAnimator {
         this.introComplete = false;
 
         const steps = [
-            { text: "Hi! I'm Navi, your campus guide!", delay: 0 },
+            { text: "Hi! I'm Nasrda Navi, your campus guide!", delay: 0 },
             { text: "Click the map to set your route. Let's explore!", delay: 3000 }
         ];
 

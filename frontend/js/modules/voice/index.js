@@ -85,11 +85,8 @@ class VoiceAssistant {
             }
         }
         
-        // 3. Fallback to any English voice (prefer en-GB over en-US for closer accent)
-        this.voice = voices.find(v => v.lang === 'en-GB') ||
-                     voices.find(v => v.lang.startsWith('en-')) ||
-                     voices.find(v => v.lang.startsWith('en')) ||
-                     voices[0];
+        // 3. Fallback to default system voice
+        this.voice = voices[0];
         
         if (this.voice) {
             console.log(`📢 Using fallback voice: ${this.voice.name} (${this.voice.lang})`);
@@ -244,9 +241,9 @@ class VoiceAssistant {
 
     greet() {
         const greetings = [
-            "Hello! I'm Navi, your navigation assistant. Welcome!",
-            "Hey there! Navi here, ready to guide you. How far?",
-            "Welcome! I'm Navi, let's navigate together!",
+            "Hello! I'm Nasrda Navi, your navigation assistant. Welcome!",
+            "Hey there! Nasrda Navi here, ready to guide you. How far?",
+            "Welcome! I'm Nasrda Navi, let's navigate together!",
         ];
         const greeting = greetings[Math.floor(Math.random() * greetings.length)];
         this.speak(greeting, true);
