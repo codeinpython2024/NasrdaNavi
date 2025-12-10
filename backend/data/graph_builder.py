@@ -49,8 +49,152 @@ class GraphBuilder:
                     p1, p2 = coords[i], coords[i + 1]
                     # Use Haversine for accurate distance (coords are lon, lat)
                     length_m = haversine_distance(p1[0], p1[1], p2[0], p2[1])
-                    self.graph.add_edge(p1, p2, weight=length_m, road_name=road_name)
+                    self.graph.add_edge(p1, p2, weight=length_m, road_name=road_name, path_type="road")
                     self.nodes.extend([p1, p2])
+
+        unique_nodes = list(set(self.nodes))
+        self.tree = cKDTree(unique_nodes)
+        self.nodes = unique_nodes
+        return self
+
+    def build_from_footpaths(self, footpaths_gdf):
+        """Build graph from footpaths GeoDataFrame."""
+        for _, row in footpaths_gdf.iterrows():
+            geometry = row.geometry
+            if geometry is None:
+                continue
+
+            # Handle different property names for footpath name
+            path_name = row.get("WNAME", row.get("Name", row.get("name", "Footpath")))
+            if path_name and path_name.strip():
+                path_name = path_name.strip()
+            else:
+                path_name = "Footpath"
+                
+            for line in self._line_geometries(geometry):
+                coords = list(line.coords)
+                for i in range(len(coords) - 1):
+                    p1, p2 = coords[i], coords[i + 1]
+                    length_m = haversine_distance(p1[0], p1[1], p2[0], p2[1])
+                    self.graph.add_edge(p1, p2, weight=length_m, road_name=path_name, path_type="footpath")
+                    self.nodes.extend([p1, p2])
+
+        unique_nodes = list(set(self.nodes))
+        self.tree = cKDTree(unique_nodes)
+        self.nodes = unique_nodes
+        return self
+
+    def build_combined(self, roads_gdf, footpaths_gdf, connection_threshold=50.0):
+        """Build graph from both roads and footpaths for walking mode.
+        
+        Args:
+            roads_gdf: GeoDataFrame of roads
+            footpaths_gdf: GeoDataFrame of footpaths
+            connection_threshold: Maximum distance in meters to connect nearby nodes
+        """
+        # Add roads first
+        road_nodes = []
+        for _, row in roads_gdf.iterrows():
+            geometry = row.geometry
+            if geometry is None:
+                continue
+
+            road_name = row.get("name", "Unnamed Road")
+            for line in self._line_geometries(geometry):
+                coords = list(line.coords)
+                for i in range(len(coords) - 1):
+                    p1, p2 = coords[i], coords[i + 1]
+                    length_m = haversine_distance(p1[0], p1[1], p2[0], p2[1])
+                    self.graph.add_edge(p1, p2, weight=length_m, road_name=road_name, path_type="road")
+                    self.nodes.extend([p1, p2])
+                    road_nodes.extend([p1, p2])
+
+        # Add footpaths
+        footpath_nodes = []
+        for _, row in footpaths_gdf.iterrows():
+            geometry = row.geometry
+            if geometry is None:
+                continue
+
+            # Handle different property names for footpath name
+            path_name = row.get("WNAME", row.get("Name", row.get("name", "Footpath")))
+            if path_name and path_name.strip():
+                path_name = path_name.strip()
+            else:
+                path_name = "Footpath"
+                
+            for line in self._line_geometries(geometry):
+                coords = list(line.coords)
+                for i in range(len(coords) - 1):
+                    p1, p2 = coords[i], coords[i + 1]
+                    length_m = haversine_distance(p1[0], p1[1], p2[0], p2[1])
+                    self.graph.add_edge(p1, p2, weight=length_m, road_name=path_name, path_type="footpath")
+                    self.nodes.extend([p1, p2])
+                    footpath_nodes.extend([p1, p2])
+
+        unique_road_nodes = list(set(road_nodes))
+        unique_footpath_nodes = list(set(footpath_nodes))
+        
+        # Convert threshold from meters to approximate degrees for KD-tree radius query
+        # At equator: 1 degree ≈ 111km, so threshold_meters / 111000
+        # At ~9° latitude (Nigeria): 1 degree ≈ 109km for longitude
+        threshold_deg = connection_threshold / 109000
+        
+        # Connect footpaths to nearby roads
+        if unique_road_nodes and unique_footpath_nodes:
+            road_tree = cKDTree(unique_road_nodes)
+            
+            for fp_node in unique_footpath_nodes:
+                # Find all road nodes within threshold (radius query)
+                nearby_indices = road_tree.query_ball_point(fp_node, threshold_deg)
+                
+                for idx in nearby_indices:
+                    road_node = unique_road_nodes[idx]
+                    dist_m = haversine_distance(fp_node[0], fp_node[1], 
+                                               road_node[0], road_node[1])
+                    
+                    if dist_m <= connection_threshold and not self.graph.has_edge(fp_node, road_node):
+                        self.graph.add_edge(fp_node, road_node, weight=dist_m, 
+                                          road_name="Connection", path_type="connection")
+        
+        # Connect nearby footpath nodes to each other (to bridge small gaps)
+        if len(unique_footpath_nodes) > 1:
+            footpath_tree = cKDTree(unique_footpath_nodes)
+            
+            for i, fp_node in enumerate(unique_footpath_nodes):
+                # Find nearby footpath nodes (excluding self)
+                nearby_indices = footpath_tree.query_ball_point(fp_node, threshold_deg)
+                
+                for idx in nearby_indices:
+                    if idx == i:
+                        continue
+                    other_node = unique_footpath_nodes[idx]
+                    dist_m = haversine_distance(fp_node[0], fp_node[1],
+                                               other_node[0], other_node[1])
+                    
+                    # Use a smaller threshold for footpath-footpath connections (30m)
+                    if dist_m <= 30.0 and not self.graph.has_edge(fp_node, other_node):
+                        self.graph.add_edge(fp_node, other_node, weight=dist_m,
+                                          road_name="Connection", path_type="connection")
+        
+        # Also connect road nodes that are close but not connected (to fix road network gaps)
+        if len(unique_road_nodes) > 1:
+            all_road_tree = cKDTree(unique_road_nodes)
+            
+            for i, road_node in enumerate(unique_road_nodes):
+                nearby_indices = all_road_tree.query_ball_point(road_node, threshold_deg)
+                
+                for idx in nearby_indices:
+                    if idx == i:
+                        continue
+                    other_node = unique_road_nodes[idx]
+                    dist_m = haversine_distance(road_node[0], road_node[1],
+                                               other_node[0], other_node[1])
+                    
+                    # Use smaller threshold for road-road connections (20m)
+                    if dist_m <= 20.0 and not self.graph.has_edge(road_node, other_node):
+                        self.graph.add_edge(road_node, other_node, weight=dist_m,
+                                          road_name="Connection", path_type="connection")
 
         unique_nodes = list(set(self.nodes))
         self.tree = cKDTree(unique_nodes)
