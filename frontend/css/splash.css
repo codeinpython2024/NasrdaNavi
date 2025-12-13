@@ -43,7 +43,7 @@
     object-fit: cover;
     position: relative;
     z-index: 1;
-    border: 3px solid rgba(255, 140, 0, 0.5);
+    /* border: 3px solid rgba(255, 140, 0, 0.5); Removed to avoid box/ring appearance */
     box-shadow: 
         0 0 40px rgba(74, 158, 255, 0.4),
         0 0 80px rgba(255, 140, 0, 0.2);

@@ -48,6 +48,7 @@ function escapeJsString(str) {
 class MapManager {
   constructor() {
     this.map = null
+    this.containerId = null
     this.currentStyleIndex = 0
     this.layerData = {
       roads: null,
@@ -68,10 +69,14 @@ class MapManager {
     this.popup = null
     this.hoveredSportArenaId = null
     this.hoveredBuildingId = null
+    // Flags to prevent duplicate event listener registration
+    this.sportArenaInteractionsSetup = false
+    this.buildingInteractionsSetup = false
   }
 
   init(elementId, accessToken) {
     mapboxgl.accessToken = accessToken
+    this.containerId = elementId
     // Start with zoomed-out, flat view for intro animation
     this.map = new mapboxgl.Map({
       container: elementId,
@@ -200,13 +205,12 @@ class MapManager {
             </button>
         `
 
-    document.getElementById("map").appendChild(controlsContainer)
+    document.getElementById(this.containerId).appendChild(controlsContainer)
 
     // Bind events after map loads
     this.map.on("load", () => {
       this.bindControlEvents()
-      // Set 3D button active since map starts with pitch
-      document.getElementById("btnPitch")?.classList.add("active")
+      // Map starts flat (pitch: 0), so 3D button should not be active initially
     })
   }
 
@@ -680,7 +684,9 @@ class MapManager {
   }
 
   setupSportArenaInteractions() {
-    // Popup will be created on click with appropriate styling
+    // Only register event handlers once to prevent accumulation
+    if (this.sportArenaInteractionsSetup) return
+    this.sportArenaInteractionsSetup = true
 
     // Get sport icon based on type
     const getSportIcon = (sportType) => {
@@ -811,6 +817,10 @@ class MapManager {
   }
 
   setupBuildingInteractions() {
+    // Only register event handlers once to prevent accumulation
+    if (this.buildingInteractionsSetup) return
+    this.buildingInteractionsSetup = true
+
     // Hover effect - change cursor and highlight
     this.map.on("mouseenter", "buildings-fill", (e) => {
       this.map.getCanvas().style.cursor = "pointer"

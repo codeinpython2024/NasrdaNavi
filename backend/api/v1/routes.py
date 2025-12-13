@@ -1,3 +1,5 @@
+import threading
+
 from flask import Blueprint, jsonify, request, current_app
 from backend.exceptions import ValidationError
 
@@ -34,12 +36,25 @@ def apply_rate_limit(limit_string="30 per minute"):
     
     Rate limiting is checked at request time within the Flask app context.
     The decorated function is cached to avoid re-wrapping on every request.
+    
+    Thread Safety:
+        Uses a lock to prevent race conditions when multiple threads
+        concurrently attempt to create the cached wrapped function.
+    
+    Flask-Limiter Compatibility:
+        This approach dynamically wraps the function at first request time
+        rather than at import time. This works correctly with Flask-Limiter
+        because limiter.limit() returns a decorator that checks rate limits
+        when the wrapped function is invoked, not when the decorator is applied.
+        The wrapped function is cached and reused for all subsequent requests,
+        ensuring consistent rate limit tracking per endpoint.
     """
     from functools import wraps
     
     def decorator(func):
         # Cache for the rate-limited version of the function
         _rate_limited_func = {}
+        _rate_limit_lock = threading.Lock()
         
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -47,8 +62,10 @@ def apply_rate_limit(limit_string="30 per minute"):
             limiter = current_app.config.get('LIMITER')
             if limiter:
                 # Cache the decorated version to avoid re-wrapping on every request
-                if 'func' not in _rate_limited_func:
-                    _rate_limited_func['func'] = limiter.limit(limit_string)(func)
+                # Use lock to prevent race condition on first request
+                with _rate_limit_lock:
+                    if 'func' not in _rate_limited_func:
+                        _rate_limited_func['func'] = limiter.limit(limit_string)(func)
                 return _rate_limited_func['func'](*args, **kwargs)
             return func(*args, **kwargs)
         return wrapper

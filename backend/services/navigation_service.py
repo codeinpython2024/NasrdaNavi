@@ -43,6 +43,9 @@ class NavigationService:
                     })
                     current_road = next_road
                     segment_distance = 0.0
+                elif next_road != current_road:
+                    # Road changed while continuing straight - update current_road
+                    current_road = next_road
 
         instructions.append({
             "text": f"Continue on {current_road} for {int(segment_distance)} meters and arrive at your destination.",

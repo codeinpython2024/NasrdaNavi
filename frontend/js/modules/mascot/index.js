@@ -42,7 +42,7 @@ class MascotAnimator {
             const splash = document.getElementById('splash');
             if (!splash || !this.splashMascot || !this.voiceMascot) {
                 if (splash) splash.remove();
-                gsap.set(this.voiceMascot, { opacity: 1 });
+                if (this.voiceMascot) gsap.set(this.voiceMascot, { opacity: 1 })
                 resolve();
                 return;
             }
