@@ -26,6 +26,23 @@ class GraphBuilder:
         self.nodes = []
         self.tree = None
 
+    def _meters_per_degree_lon(self, nodes):
+        """Calculate meters per degree longitude based on average latitude of nodes.
+        
+        At the equator, 1 degree longitude ≈ 111.32 km.
+        At latitude φ, 1 degree longitude ≈ 111.32 * cos(φ) km.
+        
+        Args:
+            nodes: List of (lon, lat) tuples
+            
+        Returns:
+            Meters per degree of longitude for the average latitude
+        """
+        if not nodes:
+            return 111320  # Default to equator value
+        avg_lat = sum(node[1] for node in nodes) / len(nodes)
+        return 111320 * math.cos(math.radians(avg_lat))
+
     def _line_geometries(self, geometry):
         """Yield LineString geometries from LineString or MultiLineString inputs."""
         if isinstance(geometry, LineString):
@@ -135,10 +152,11 @@ class GraphBuilder:
         unique_road_nodes = list(set(road_nodes))
         unique_footpath_nodes = list(set(footpath_nodes))
         
-        # Convert threshold from meters to approximate degrees for KD-tree radius query
-        # At equator: 1 degree ≈ 111km, so threshold_meters / 111000
-        # At ~9° latitude (Nigeria): 1 degree ≈ 109km for longitude
-        threshold_deg = connection_threshold / 109000
+        # Convert threshold from meters to degrees for KD-tree radius query
+        # Calculate dynamically based on actual latitude of the data for portability
+        all_collected_nodes = road_nodes + footpath_nodes
+        meters_per_deg_lon = self._meters_per_degree_lon(all_collected_nodes)
+        threshold_deg = connection_threshold / meters_per_deg_lon
         
         # Connect footpaths to nearby roads
         if unique_road_nodes and unique_footpath_nodes:
@@ -160,7 +178,7 @@ class GraphBuilder:
         # Connect nearby footpath nodes to each other (to bridge small gaps)
         # Increased threshold to 40m to improve connectivity
         footpath_connection_threshold = 40.0
-        footpath_threshold_deg = footpath_connection_threshold / 109000
+        footpath_threshold_deg = footpath_connection_threshold / meters_per_deg_lon
         
         if len(unique_footpath_nodes) > 1:
             footpath_tree = cKDTree(unique_footpath_nodes)
@@ -184,7 +202,7 @@ class GraphBuilder:
         # Also connect road nodes that are close but not connected (to fix road network gaps)
         # Increased threshold to 25m to help bridge road gaps
         road_connection_threshold = 25.0
-        road_threshold_deg = road_connection_threshold / 109000
+        road_threshold_deg = road_connection_threshold / meters_per_deg_lon
         
         if len(unique_road_nodes) > 1:
             all_road_tree = cKDTree(unique_road_nodes)

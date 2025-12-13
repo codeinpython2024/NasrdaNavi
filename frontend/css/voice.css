@@ -50,7 +50,8 @@
     pointer-events: none;
 }
 
-.voice-mascot-avatar.speaking + .voice-mascot-ring {
+/* Activate ring pulse via .active class (decoupled from DOM order) */
+.voice-mascot-ring.active {
     animation: pulse-ring 1s ease-out infinite;
 }
 
@@ -95,7 +96,8 @@
     box-shadow: var(--shadow-subtle);
     opacity: 0;
     pointer-events: none;
-    white-space: nowrap;
+    word-wrap: break-word;
+        overflow-wrap: break-word;
 }
 
 .voice-bubble::after {
@@ -128,6 +130,9 @@
         height: 48px;
     }
 
+                                                                .voice-mascot-status {
+                                                                    display: none;
+                                                                }
     .voice-bubble {
         display: none;
     }

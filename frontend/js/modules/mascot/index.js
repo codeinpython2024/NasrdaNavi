@@ -6,7 +6,9 @@ class MascotAnimator {
         this.voiceMascot = null;
         this.avatar = null;
         this.bubble = null;
-        this.isIdle = true;
+        this.isIdle = false
+        this._idleTimeout = null
+        this._idleTween = null
     }
 
     init() {
@@ -25,8 +27,10 @@ class MascotAnimator {
         this.avatar.addEventListener('click', () => {
             const enabled = voiceAssistant.toggle();
             const status = document.getElementById('voiceMascotStatus');
-            status.textContent = enabled ? 'Voice On' : 'Muted';
-            status.classList.toggle('muted', !enabled);
+            if (status) {
+              status.textContent = enabled ? "Voice On" : "Muted"
+              status.classList.toggle("muted", !enabled)
+            }
             
             this.showBubble(enabled ? "I'm listening!" : "Voice muted");
             this.playClickAnimation();
@@ -145,25 +149,34 @@ class MascotAnimator {
     }
 
     introduce() {
-        this.introTimers = [];
-        this.introComplete = false;
+      // Clear any existing timers to prevent duplicate sequences
+      if (this.introTimers && this.introTimers.length > 0) {
+        this.introTimers.forEach((timer) => clearTimeout(timer))
+        this.introTimers = []
+      }
+      this.introComplete = false
 
-        const steps = [
-            { text: "Hi! I'm Nasrda Navi, your campus guide!", delay: 0 },
-            { text: "Click the map to set your route. Let's explore!", delay: 3000 }
-        ];
+      this.introTimers = []
 
-        steps.forEach((step, i) => {
-            const timer = setTimeout(() => {
-                if (!this.introComplete) {
-                    voiceAssistant.speak(step.text, step.delay === 0);
-                }
-                if (i === steps.length - 1) {
-                    this.introComplete = true;
-                }
-            }, step.delay);
-            this.introTimers.push(timer);
-        });
+      const steps = [
+        { text: "Hi! I'm Nasrda Navi, your campus guide!", delay: 0 },
+        {
+          text: "Click the map to set your route. Let's explore!",
+          delay: 3000,
+        },
+      ]
+
+      steps.forEach((step, i) => {
+        const timer = setTimeout(() => {
+          if (!this.introComplete) {
+            voiceAssistant.speak(step.text, step.delay === 0)
+          }
+          if (i === steps.length - 1) {
+            this.introComplete = true
+          }
+        }, step.delay)
+        this.introTimers.push(timer)
+      })
     }
 
     stopIntroduction() {
@@ -176,26 +189,36 @@ class MascotAnimator {
     }
 
     startIdleAnimation() {
-        if (!this.avatar || !this.isIdle) return;
+        if (!this.avatar || this.isIdle) return
+
+        this.isIdle = true
 
         const float = () => {
             if (!this.isIdle) return;
-            gsap.to(this.avatar, {
-                y: -6,
-                duration: 2,
-                ease: 'power1.inOut',
-                yoyo: true,
-                repeat: 1,
-                onComplete: () => {
-                    if (this.isIdle) setTimeout(float, 1000);
+            this._idleTween = gsap.to(this.avatar, {
+              y: -6,
+              duration: 2,
+              ease: "power1.inOut",
+              yoyo: true,
+              repeat: 1,
+              onComplete: () => {
+                if (this.isIdle) {
+                  this._idleTimeout = setTimeout(float, 1000)
                 }
-            });
+              },
+            })
         };
         float();
     }
 
     stopIdleAnimation() {
         this.isIdle = false;
+        clearTimeout(this._idleTimeout)
+        this._idleTimeout = null
+        if (this._idleTween) {
+          this._idleTween.kill()
+          this._idleTween = null
+        }
         gsap.killTweensOf(this.avatar);
         gsap.set(this.avatar, { y: 0 });
     }

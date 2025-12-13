@@ -140,6 +140,33 @@
         flex-direction: column;
         gap: var(--space-xs);
     }
+/* Splash screen */
+.splash-mascot {
+    width: 120px;
+    height: 120px;
+}
+
+.splash-title {
+    font-size: 28px;
+}
+
+.splash-subtitle {
+    font-size: 14px;
+}
+
+.splash-start-btn {
+    padding: var(--space-md) var(--space-xl);
+    font-size: 14px;
+}
+
+.splash-footer {
+    padding: var(--space-md);
+}
+
+.splash-nasrda-logo {
+    width: 40px;
+    height: 40px;
+}
 }
 
 /* Regular phones (481px - 768px) */
@@ -155,27 +182,27 @@
         max-height: 50vh;
         border-radius: var(--radius-lg) var(--radius-lg) 0 0;
         transform: translateY(calc(100% - 90px));
-            transition: transform 0.3s ease;
-        }
+        transition: transform 0.3s ease;
+        z-index: 1001;
         
-        .sidebar.expanded {
-            transform: translateY(0);
-        }
+            .sidebar.expanded {
+                    transform: translateY(0);
+                }
         
-        .sidebar-brand {
-            cursor: pointer;
-        }
+                        .sidebar-brand {
+                            cursor: pointer;
+                        }
         
-        .sidebar-brand::after {
-            content: '';
-            position: absolute;
-            top: 8px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 40px;
-            height: 4px;
-            background: var(--text-disabled);
-            border-radius: var(--radius-pill);
+                        .sidebar-brand::after {
+                            content: '';
+                            position: absolute;
+                            top: 8px;
+                            left: 50%;
+                            transform: translateX(-50%);
+                            width: 40px;
+                            height: 4px;
+                            background: var(--text-disabled);
+                            border-radius: var(--radius-pill);
     }
 
     .sidebar-directions {
@@ -185,24 +212,25 @@
     .sidebar-footer {
         display: none;
     }
-/* Transport toggle */
-.transport-mode-toggle {
-    bottom: auto;
-    top: var(--space-lg);
-    left: 50%;
-    transform: translateX(-50%);
-    right: auto;
-}
 
-/* Map controls */
-.map-controls {
-    top: 70px;
-}
+                                /* Transport toggle */
+                                .transport-mode-toggle {
+                                    bottom: auto;
+                                    top: var(--space-lg);
+                                    left: 50%;
+                                    transform: translateX(-50%);
+                                    right: auto;
+                                }
 
-/* Voice mascot */
-.voice-mascot {
-    bottom: 110px;
-}
+                                /* Map controls */
+                                .map-controls {
+                                    top: 70px;
+                                }
+
+                                /* Voice mascot */
+                                .voice-mascot {
+                                    bottom: 110px;
+                                }
 }
 
 /* Tablets (769px - 1024px) */
@@ -278,36 +306,6 @@
     }
 }
 
-/* Splash screen mobile */
-@media (max-width: 480px) {
-    .splash-mascot {
-        width: 120px;
-        height: 120px;
-    }
-
-    .splash-title {
-        font-size: 28px;
-    }
-
-    .splash-subtitle {
-        font-size: 14px;
-    }
-
-    .splash-start-btn {
-        padding: var(--space-md) var(--space-xl);
-        font-size: 14px;
-    }
-
-    .splash-footer {
-        padding: var(--space-md);
-    }
-
-    .splash-nasrda-logo {
-        width: 40px;
-        height: 40px;
-    }
-}
-
 /* Reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
 
@@ -335,4 +333,5 @@
     .transport-mode-btn {
         border: 2px solid currentColor;
     }
+}
 }

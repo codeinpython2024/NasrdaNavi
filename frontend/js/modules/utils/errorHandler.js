@@ -26,6 +26,12 @@ class ErrorHandler {
    * Create toast container for error messages
    */
   createToastContainer() {
+    if (!document.body) {
+      console.error(
+        "Cannot create toast container: document.body not available"
+      )
+      return
+    }
     this.toastContainer = document.createElement("div")
     this.toastContainer.id = "error-toast-container"
     this.toastContainer.style.cssText = `
@@ -152,11 +158,22 @@ class ErrorHandler {
             cursor: pointer;
         `
 
-    toast.innerHTML = `
-            <span style="font-size: 18px;">${color.icon}</span>
-            <span style="flex: 1;">${message}</span>
-            <button style="background: none; border: none; color: white; font-size: 18px; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
-        `
+    const iconSpan = document.createElement("span")
+    iconSpan.style.fontSize = "18px"
+    iconSpan.textContent = color.icon
+
+    const messageSpan = document.createElement("span")
+    messageSpan.style.flex = "1"
+    messageSpan.textContent = message
+
+    const closeBtn = document.createElement("button")
+    closeBtn.style.cssText =
+      "background: none; border: none; color: white; font-size: 18px; cursor: pointer; padding: 0; line-height: 1;"
+    closeBtn.textContent = "×"
+
+    toast.appendChild(iconSpan)
+    toast.appendChild(messageSpan)
+    toast.appendChild(closeBtn)
 
     // Close on click
     toast.addEventListener("click", () => {
@@ -219,7 +236,13 @@ class ErrorHandler {
    * @param {string} context - Error context
    */
   async logError(error, context) {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 4000)
+
     try {
+      // Sanitize URL: send only origin + pathname (no query string or fragment)
+      const sanitizedUrl = window.location.origin + window.location.pathname
+
       // Only log in production or if endpoint exists
       // This is a non-blocking fire-and-forget request
       await fetch("/api/v1/log-error", {
@@ -231,15 +254,16 @@ class ErrorHandler {
           message: error instanceof Error ? error.message : String(error),
           stack: error instanceof Error ? error.stack : null,
           context: context,
-          url: window.location.href,
-          userAgent: navigator.userAgent,
+          url: sanitizedUrl,
+          platform: navigator.platform || "unknown",
           timestamp: new Date().toISOString(),
         }),
-      }).catch(() => {
-        // Silently fail - we don't want logging errors to cause more errors
+        signal: controller.signal,
       })
     } catch {
-      // Ignore logging errors
+      // Silently fail - we don't want logging errors to cause more errors
+    } finally {
+      clearTimeout(timeoutId)
     }
   }
 

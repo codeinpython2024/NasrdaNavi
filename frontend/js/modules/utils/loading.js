@@ -296,13 +296,14 @@ class LoadingManager {
 
     overlay.innerHTML = `
       <div class="loading-spinner"></div>
-      <div class="loading-text">${message}</div>
+      <div class="loading-text"></div>
       ${
         showProgress
           ? '<div class="loading-progress loading-progress-indeterminate"><div class="loading-progress-bar"></div></div>'
           : ""
       }
     `
+    overlay.querySelector(".loading-text").textContent = message
 
     document.body.appendChild(overlay)
     this.activeLoaders.set(id, overlay)
@@ -353,8 +354,11 @@ class LoadingManager {
 
     indicator.innerHTML = `
       <div class="loading-spinner"></div>
-      <span class="route-calculating-text">${message}</span>
+      <span class="route-calculating-text"></span>
     `
+    indicator.querySelector(".route-calculating-text").textContent = message
+
+    document.body.appendChild(indicator)
 
     document.body.appendChild(indicator)
 
@@ -453,18 +457,27 @@ class LoadingManager {
   }
 
   /**
-   * Create inline spinner HTML
+   * Create inline spinner DOM element
    * @param {string} text - Text to show next to spinner
    * @param {string} size - Size (small, medium, large)
-   * @returns {string} - HTML string
+   * @returns {HTMLSpanElement} - DOM element
    */
   createInlineSpinner(text = "", size = "small") {
-    return `
-      <span class="inline-spinner" role="status">
-        <span class="loading-spinner ${size}"></span>
-        ${text ? `<span>${text}</span>` : ""}
-      </span>
-    `
+    const container = document.createElement("span")
+    container.className = "inline-spinner"
+    container.setAttribute("role", "status")
+
+    const spinner = document.createElement("span")
+    spinner.className = `loading-spinner ${size}`
+    container.appendChild(spinner)
+
+    if (text) {
+      const textSpan = document.createElement("span")
+      textSpan.textContent = text
+      container.appendChild(textSpan)
+    }
+
+    return container
   }
 }
 

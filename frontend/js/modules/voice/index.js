@@ -512,6 +512,14 @@ class VoiceAssistant {
   animateMascot(speaking) {
     if (!this.mascotEl) return
     this.mascotEl.classList.toggle("speaking", speaking)
+
+    // Also toggle .active on the ring element (decoupled from DOM order)
+    const ring = this.mascotEl
+      .closest(".voice-mascot")
+      ?.querySelector(".voice-mascot-ring")
+    if (ring) {
+      ring.classList.toggle("active", speaking)
+    }
   }
 
   stop() {

@@ -152,10 +152,10 @@ When the voice assistant speaks, the mascot avatar pulses:
 }
 ```
 
-A pulsing ring effect reinforces the "speaking" state:
+A pulsing ring effect reinforces the "speaking" state. The ring uses an `.active` class (toggled by JavaScript) rather than a sibling selector, making the animation work regardless of DOM order:
 
 ```css
-.voice-mascot-avatar.speaking + .voice-mascot-ring {
+.voice-mascot-ring.active {
     animation: pulse-ring 1s ease-out infinite;
 }
 

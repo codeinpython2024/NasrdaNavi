@@ -4,6 +4,24 @@ import { voiceAssistant } from "../voice/index.js"
 import { mascotAnimator } from "../mascot/index.js"
 import { loadingManager } from "../utils/index.js"
 
+// Runtime checks for CDN-loaded global dependencies
+// These libraries are loaded via <script> tags in index.html
+if (typeof mapboxgl === "undefined") {
+  throw new Error(
+    "[NavigationManager] mapboxgl is not defined. " +
+      "Ensure Mapbox GL JS is loaded via <script> before this module. " +
+      'Expected: <script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js"></script>'
+  )
+}
+
+if (typeof gsap === "undefined") {
+  throw new Error(
+    "[NavigationManager] gsap is not defined. " +
+      "Ensure GSAP is loaded via <script> before this module. " +
+      'Expected: <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>'
+  )
+}
+
 class NavigationManager {
   constructor() {
     this.startMarker = null
@@ -163,14 +181,8 @@ class NavigationManager {
   displayRoute(data) {
     // Keep start/end markers visible
 
-    // Remove existing route layers
-    if (mapManager.map.getLayer("route-glow")) {
-      mapManager.map.removeLayer("route-glow")
-    }
-    if (mapManager.map.getLayer("route-line")) {
-      mapManager.map.removeLayer("route-line")
-      mapManager.map.removeSource("route")
-    }
+    // Remove existing route layers and source
+    this._removeRouteFromMap()
 
     // Remove step markers
     this.stepMarkers.forEach((m) => m.remove())
@@ -200,10 +212,11 @@ class NavigationManager {
       },
     })
 
-    // Add main route layer with mode-specific styling
+    // Define route paint style
     const routePaint = {
       "line-color": routeColor,
-      "line-width": 4,
+      "line-width": 6,
+      "line-opacity": 0.9,
     }
 
     // Add dashed style for walking
@@ -220,6 +233,10 @@ class NavigationManager {
 
     // Fly to start point with camera facing route direction
     const coords = data.route.geometry.coordinates
+    if (!coords || coords.length === 0) {
+      console.error("Route has no coordinates")
+      return
+    }
     const start = coords[0]
     const next = coords[Math.min(5, coords.length - 1)]
     const bearing =
@@ -244,6 +261,22 @@ class NavigationManager {
     voiceAssistant.speakDirections(data.directions, data.total_distance_m)
   }
 
+  /**
+   * Remove route layers and source from the map
+   * Safely checks for existence before removal
+   */
+  _removeRouteFromMap() {
+    if (mapManager.map.getLayer("route-glow")) {
+      mapManager.map.removeLayer("route-glow")
+    }
+    if (mapManager.map.getLayer("route-line")) {
+      mapManager.map.removeLayer("route-line")
+    }
+    if (mapManager.map.getSource("route")) {
+      mapManager.map.removeSource("route")
+    }
+  }
+
   addMascotMarker(lngLat) {
     if (this.mascotMarker) this.mascotMarker.remove()
 
@@ -264,13 +297,9 @@ class NavigationManager {
   }
 
   clear() {
-    if (mapManager.map.getLayer("route-glow")) {
-      mapManager.map.removeLayer("route-glow")
-    }
-    if (mapManager.map.getLayer("route-line")) {
-      mapManager.map.removeLayer("route-line")
-      mapManager.map.removeSource("route")
-    }
+    // Remove route layers and source
+    this._removeRouteFromMap()
+
     if (this.startMarker) this.startMarker.remove()
     if (this.endMarker) this.endMarker.remove()
     if (this.mascotMarker) this.mascotMarker.remove()

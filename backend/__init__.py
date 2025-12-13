@@ -1,4 +1,5 @@
 import os
+import stat
 import logging
 import pickle
 import hashlib
@@ -11,6 +12,61 @@ from backend.api.errors import register_error_handlers
 from backend.api.v1 import bp as v1_bp
 
 logger = logging.getLogger(__name__)
+
+
+def check_cache_file_security(filepath):
+    """
+    Check that a cache file has secure permissions before deserializing.
+    
+    Returns True if the file is safe to load, False otherwise.
+    
+    Security checks:
+    - File must be owned by the current user (or root if running as root)
+    - File must not be world-writable
+    - File must not be group-writable
+    
+    Note: On Windows, this function returns True as POSIX permissions don't apply.
+    """
+    if os.name != 'posix':
+        # Windows doesn't use POSIX permissions; skip check
+        logger.debug(f"Skipping permission check on non-POSIX system: {filepath}")
+        return True
+    
+    try:
+        file_stat = os.stat(filepath)
+        file_mode = file_stat.st_mode
+        file_uid = file_stat.st_uid
+        current_uid = os.getuid()
+        
+        # Check ownership: file must be owned by current user or root
+        if file_uid != current_uid and file_uid != 0:
+            logger.warning(
+                f"Cache file {filepath} is owned by UID {file_uid}, "
+                f"but current process is UID {current_uid}. Skipping cache."
+            )
+            return False
+        
+        # Check for group-write permission (S_IWGRP = 0o020)
+        if file_mode & stat.S_IWGRP:
+            logger.warning(
+                f"Cache file {filepath} has group-write permission (mode {oct(file_mode)}). "
+                "Skipping cache for security reasons."
+            )
+            return False
+        
+        # Check for world-write permission (S_IWOTH = 0o002)
+        if file_mode & stat.S_IWOTH:
+            logger.warning(
+                f"Cache file {filepath} has world-write permission (mode {oct(file_mode)}). "
+                "Skipping cache for security reasons."
+            )
+            return False
+        
+        return True
+        
+    except OSError as e:
+        logger.warning(f"Failed to check permissions for {filepath}: {e}")
+        return False
 
 # Cache directory for graph data
 CACHE_DIR = Path(__file__).parent / 'cache'
@@ -69,22 +125,49 @@ def load_or_build_graph(cache_key, builder_func, data_files):
             pass
     
     if cache_valid:
-        try:
-            logger.info(f"Loading cached graph: {cache_key}")
-            with open(cache_file, 'rb') as f:
-                return pickle.load(f)
-        except Exception as e:
-            logger.warning(f"Failed to load cached graph: {e}")
+        # SECURITY: pickle.load() deserializes arbitrary Python objects and can execute
+        # arbitrary code if the cache file has been tampered with. Ensure cache files:
+        #   1. Are owned by the application user (verified by check_cache_file_security)
+        #   2. Have restrictive permissions - no group/world write (mode 0o644 or stricter)
+        #   3. Are stored in a directory with restricted access (CACHE_DIR)
+        #
+        # If higher security is required, consider replacing pickle with:
+        #   - JSON for simple data structures (but loses Python object support)
+        #   - msgpack with explicit schema validation
+        #   - Protocol Buffers or FlatBuffers for typed serialization
+        #   - cloudpickle + cryptographic signing (HMAC) to verify integrity
+        #
+        # For this application, the cache contains NetworkX graph objects which require
+        # pickle or a pickle-compatible serializer. The permission checks below mitigate
+        # the risk by ensuring only trusted users can modify cache files.
+        
+        if not check_cache_file_security(cache_file):
+            logger.warning(f"Skipping cache due to security check failure: {cache_key}")
+            # Fall through to rebuild the graph
+        else:
+            try:
+                logger.info(f"Loading cached graph: {cache_key}")
+                with open(cache_file, 'rb') as f:
+                    return pickle.load(f)
+            except Exception as e:
+                logger.warning(f"Failed to load cached graph: {e}")
     
     # Build graph
     logger.info(f"Building graph: {cache_key}")
     graph_builder = builder_func()
     
-    # Save to cache
+    # Save to cache with restrictive permissions
     try:
         with open(cache_file, 'wb') as f:
             pickle.dump(graph_builder, f)
         hash_file.write_text(current_hash)
+        
+        # Set restrictive permissions on cache files (owner read/write only)
+        # This mitigates pickle deserialization attacks by preventing tampering
+        if os.name == 'posix':
+            os.chmod(cache_file, stat.S_IRUSR | stat.S_IWUSR)  # 0o600
+            os.chmod(hash_file, stat.S_IRUSR | stat.S_IWUSR)  # 0o600
+        
         logger.info(f"Cached graph: {cache_key}")
     except Exception as e:
         logger.warning(f"Failed to cache graph: {e}")
@@ -93,13 +176,12 @@ def load_or_build_graph(cache_key, builder_func, data_files):
 
 
 def create_app():
-    app = Flask(__name__, template_folder='../templates', static_folder='../static')
+    """Application factory for Flask app."""
+    app = Flask(__name__, 
+                template_folder='../templates',
+                static_folder='../frontend')
     app.config.from_object(Config)
-    
-    # Security configuration
-    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', os.urandom(32).hex())
-    
-    # Initialize rate limiter if available
+
     if LIMITER_AVAILABLE:
         limiter = Limiter(
             key_func=get_remote_address,
