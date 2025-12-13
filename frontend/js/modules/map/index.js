@@ -1,5 +1,39 @@
 import { CONFIG } from '../../config.js';
 
+/**
+ * Escape HTML special characters to prevent XSS
+ * @param {string} str - String to escape
+ * @returns {string} Escaped string
+ */
+function escapeHtml(str) {
+    if (typeof str !== 'string') return str;
+    const htmlEscapes = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#x27;',
+        '/': '&#x2F;',
+        '`': '&#x60;'
+    };
+    return str.replace(/[&<>"'`/]/g, char => htmlEscapes[char]);
+}
+
+/**
+ * Escape string for use in JavaScript event handlers
+ * @param {string} str - String to escape
+ * @returns {string} Escaped string
+ */
+function escapeJsString(str) {
+    if (typeof str !== 'string') return str;
+    return str
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/"/g, '\\"')
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '\\r');
+}
+
 class MapManager {
     constructor() {
         this.map = null;
@@ -590,19 +624,23 @@ class MapManager {
           offset: [0, -10],
         })
 
+        // Escape names to prevent XSS
+        const safeName = escapeHtml(props.Name || "Unknown")
+        const safeNameJs = escapeJsString(props.Name || "Unknown")
+        const safeSportType = escapeHtml(
+          sportType.charAt(0).toUpperCase() + sportType.slice(1)
+        )
+
         const popupContent = `
                 <div class="sport-popup-content">
                     <div class="sport-popup-header" style="background: linear-gradient(135deg, ${sportColor}22, ${sportColor}44);">
                         <span class="sport-icon">${icon}</span>
-                        <h3 class="sport-name">${props.Name}</h3>
+                        <h3 class="sport-name">${safeName}</h3>
                     </div>
                     <div class="sport-popup-body">
                         <div class="sport-detail">
                             <span class="detail-label">Sport</span>
-                            <span class="detail-value">${
-                              sportType.charAt(0).toUpperCase() +
-                              sportType.slice(1)
-                            }</span>
+                            <span class="detail-value">${safeSportType}</span>
                         </div>
                         <div class="sport-detail">
                             <span class="detail-label">Status</span>
@@ -613,14 +651,14 @@ class MapManager {
                         </div>
                     </div>
                     <div class="popup-action-buttons">
-                        <button class="popup-action-btn start" onclick="window.dispatchEvent(new CustomEvent('set-nav-point', { detail: { type: 'start', name: '${props.Name.replace(/'/g, "\\'")}', coords: [${coordinates.lng}, ${coordinates.lat}] }}))">
+                        <button class="popup-action-btn start" onclick="window.dispatchEvent(new CustomEvent('set-nav-point', { detail: { type: 'start', name: '${safeNameJs}', coords: [${coordinates.lng}, ${coordinates.lat}] }}))">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <circle cx="12" cy="12" r="10"></circle>
                                 <circle cx="12" cy="12" r="3" fill="currentColor"></circle>
                             </svg>
                             Set as Start
                         </button>
-                        <button class="popup-action-btn end" onclick="window.dispatchEvent(new CustomEvent('set-nav-point', { detail: { type: 'end', name: '${props.Name.replace(/'/g, "\\'")}', coords: [${coordinates.lng}, ${coordinates.lat}] }}))">
+                        <button class="popup-action-btn end" onclick="window.dispatchEvent(new CustomEvent('set-nav-point', { detail: { type: 'end', name: '${safeNameJs}', coords: [${coordinates.lng}, ${coordinates.lat}] }}))">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"></path>
                                 <circle cx="12" cy="9" r="2.5" fill="currentColor"></circle>
@@ -682,6 +720,12 @@ class MapManager {
         const department = props.Department || ""
         const buildingType = props.type?.trim() || ""
 
+        // Escape names to prevent XSS
+        const safeBuildingName = escapeHtml(buildingName)
+        const safeBuildingNameJs = escapeJsString(buildingName)
+        const safeDepartment = escapeHtml(department)
+        const safeBuildingType = escapeHtml(buildingType)
+
         // Calculate centroid for popup position
         const coordinates = e.lngLat
 
@@ -699,7 +743,7 @@ class MapManager {
           <div class="feature-popup-content">
             <div class="feature-popup-header building-header">
               <span class="feature-icon">🏢</span>
-              <h3 class="feature-name">${buildingName}</h3>
+              <h3 class="feature-name">${safeBuildingName}</h3>
             </div>
             <div class="feature-popup-body">
               ${
@@ -707,7 +751,7 @@ class MapManager {
                   ? `
               <div class="feature-detail">
                 <span class="detail-label">Type</span>
-                <span class="detail-value">${buildingType}</span>
+                <span class="detail-value">${safeBuildingType}</span>
               </div>
               `
                   : ""
@@ -717,27 +761,25 @@ class MapManager {
                   ? `
               <div class="feature-detail">
                 <span class="detail-label">Departments</span>
-                <span class="detail-value department-list">${department}</span>
+                <span class="detail-value department-list">${safeDepartment}</span>
               </div>
               `
                   : ""
               }
             </div>
             <div class="popup-action-buttons">
-              <button class="popup-action-btn start" onclick="window.dispatchEvent(new CustomEvent('set-nav-point', { detail: { type: 'start', name: '${buildingName.replace(
-                /'/g,
-                "\\'"
-              )}', coords: [${coordinates.lng}, ${coordinates.lat}] }}))">
+              <button class="popup-action-btn start" onclick="window.dispatchEvent(new CustomEvent('set-nav-point', { detail: { type: 'start', name: '${safeBuildingNameJs}', coords: [${
+          coordinates.lng
+        }, ${coordinates.lat}] }}))">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <circle cx="12" cy="12" r="10"></circle>
                   <circle cx="12" cy="12" r="3" fill="currentColor"></circle>
                 </svg>
                 Set as Start
               </button>
-              <button class="popup-action-btn end" onclick="window.dispatchEvent(new CustomEvent('set-nav-point', { detail: { type: 'end', name: '${buildingName.replace(
-                /'/g,
-                "\\'"
-              )}', coords: [${coordinates.lng}, ${coordinates.lat}] }}))">
+              <button class="popup-action-btn end" onclick="window.dispatchEvent(new CustomEvent('set-nav-point', { detail: { type: 'end', name: '${safeBuildingNameJs}', coords: [${
+          coordinates.lng
+        }, ${coordinates.lat}] }}))">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"></path>
                   <circle cx="12" cy="9" r="2.5" fill="currentColor"></circle>

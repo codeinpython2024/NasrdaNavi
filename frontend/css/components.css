@@ -302,13 +302,105 @@
     background: var(--surface-card);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
-    max-height: 150px;
+    max-height: 200px;
     overflow-y: auto;
     margin-top: var(--space-xs);
     display: none;
-}
-
-#searchResults div {
+    box-shadow: var(--shadow-subtle);
+    }
+    
+    .search-result-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-sm);
+        padding: var(--space-sm) var(--space-md);
+        cursor: pointer;
+        color: var(--text-muted);
+        font-size: 13px;
+        border-bottom: 1px solid var(--border-subtle);
+        transition: all 0.15s ease;
+    }
+    
+    .search-result-item:last-child {
+        border-bottom: none;
+    
+        .search-result-item:hover,
+        .search-result-item:focus {
+            background: var(--surface-card-elevated);
+            color: var(--text-primary);
+            outline: none;
+        }
+    
+        .search-result-item:focus {
+            box-shadow: inset 0 0 0 2px var(--accent-primary);
+        }
+    
+        .search-result-name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+    
+        /* Fuzzy match highlights */
+        .search-result-name mark {
+            background: rgba(255, 140, 0, 0.3);
+            color: var(--accent-primary);
+            padding: 0 2px;
+            border-radius: 2px;
+            font-weight: 600;
+        }
+    
+        /* Type badges */
+        .search-result-type {
+            flex-shrink: 0;
+            padding: 2px 8px;
+            border-radius: var(--radius-pill);
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+    
+        .search-result-type.type-building {
+            background: rgba(0, 135, 81, 0.2);
+            color: var(--accent-secondary);
+        }
+    
+        .search-result-type.type-road {
+            background: rgba(74, 158, 255, 0.2);
+            color: #4A9EFF;
+        }
+    
+        .search-result-type.type-sport {
+            background: rgba(255, 140, 0, 0.2);
+            color: var(--accent-primary);
+        }
+    
+        .search-result-type.type-department {
+            background: rgba(167, 139, 250, 0.2);
+            color: #A78BFA;
+        }
+    
+        .search-result-name-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            overflow: hidden;
+        }
+    
+        .search-result-parent {
+            font-size: 10px;
+            color: var(--text-disabled);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+    
+        /* Legacy fallback for non-fuzzy results */
+        #searchResults>div:not(.search-result-item) {
     padding: var(--space-sm) var(--space-md);
     cursor: pointer;
     color: var(--text-muted);
@@ -316,11 +408,11 @@
     border-bottom: 1px solid var(--border-subtle);
 }
 
-#searchResults div:last-child {
+#searchResults>div:not(.search-result-item):last-child {
     border-bottom: none;
 }
 
-#searchResults div:hover {
+#searchResults>div:not(.search-result-item):hover {
     background: var(--surface-card-elevated);
     color: var(--text-primary);
 }

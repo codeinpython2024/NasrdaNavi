@@ -13,6 +13,71 @@ html, body {
     width: 100%;
 }
 
+/* Accessibility: Skip Link */
+.skip-link {
+    position: absolute;
+    top: -100px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--accent-primary);
+    color: var(--text-primary);
+    padding: var(--space-md) var(--space-lg);
+    border-radius: var(--radius-md);
+    z-index: 100000;
+    text-decoration: none;
+    font-weight: 600;
+    transition: top 0.3s ease;
+}
+
+.skip-link:focus {
+    top: var(--space-md);
+    outline: 3px solid var(--text-primary);
+    outline-offset: 2px;
+}
+
+/* Accessibility: Visually Hidden (for screen readers) */
+.visually-hidden {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+/* Accessibility: Focus Indicators */
+*:focus {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+}
+
+*:focus:not(:focus-visible) {
+    outline: none;
+}
+
+*:focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+}
+
+button:focus-visible,
+input:focus-visible,
+a:focus-visible {
+    outline: 3px solid var(--accent-primary);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgba(255, 140, 0, 0.3);
+}
+
+/* High contrast focus for dark backgrounds */
+.sidebar button:focus-visible,
+.transport-mode-btn:focus-visible,
+.map-control-btn:focus-visible {
+    outline-color: var(--text-primary);
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.3);
+}
 /* Scrollbar styling */
 ::-webkit-scrollbar {
     width: 6px;

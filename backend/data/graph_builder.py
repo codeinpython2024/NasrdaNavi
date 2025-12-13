@@ -84,13 +84,13 @@ class GraphBuilder:
         self.nodes = unique_nodes
         return self
 
-    def build_combined(self, roads_gdf, footpaths_gdf, connection_threshold=50.0):
+    def build_combined(self, roads_gdf, footpaths_gdf, connection_threshold=30.0):
         """Build graph from both roads and footpaths for walking mode.
         
         Args:
             roads_gdf: GeoDataFrame of roads
             footpaths_gdf: GeoDataFrame of footpaths
-            connection_threshold: Maximum distance in meters to connect nearby nodes
+            connection_threshold: Maximum distance in meters to connect nearby nodes (reduced from 50m to 30m)
         """
         # Add roads first
         road_nodes = []
@@ -158,12 +158,16 @@ class GraphBuilder:
                                           road_name="Connection", path_type="connection")
         
         # Connect nearby footpath nodes to each other (to bridge small gaps)
+        # Increased threshold to 40m to improve connectivity
+        footpath_connection_threshold = 40.0
+        footpath_threshold_deg = footpath_connection_threshold / 109000
+        
         if len(unique_footpath_nodes) > 1:
             footpath_tree = cKDTree(unique_footpath_nodes)
             
             for i, fp_node in enumerate(unique_footpath_nodes):
                 # Find nearby footpath nodes (excluding self)
-                nearby_indices = footpath_tree.query_ball_point(fp_node, threshold_deg)
+                nearby_indices = footpath_tree.query_ball_point(fp_node, footpath_threshold_deg)
                 
                 for idx in nearby_indices:
                     if idx == i:
@@ -172,17 +176,21 @@ class GraphBuilder:
                     dist_m = haversine_distance(fp_node[0], fp_node[1],
                                                other_node[0], other_node[1])
                     
-                    # Use a smaller threshold for footpath-footpath connections (30m)
-                    if dist_m <= 30.0 and not self.graph.has_edge(fp_node, other_node):
+                    # Use increased threshold for footpath-footpath connections (40m)
+                    if dist_m <= footpath_connection_threshold and not self.graph.has_edge(fp_node, other_node):
                         self.graph.add_edge(fp_node, other_node, weight=dist_m,
                                           road_name="Connection", path_type="connection")
         
         # Also connect road nodes that are close but not connected (to fix road network gaps)
+        # Increased threshold to 25m to help bridge road gaps
+        road_connection_threshold = 25.0
+        road_threshold_deg = road_connection_threshold / 109000
+        
         if len(unique_road_nodes) > 1:
             all_road_tree = cKDTree(unique_road_nodes)
             
             for i, road_node in enumerate(unique_road_nodes):
-                nearby_indices = all_road_tree.query_ball_point(road_node, threshold_deg)
+                nearby_indices = all_road_tree.query_ball_point(road_node, road_threshold_deg)
                 
                 for idx in nearby_indices:
                     if idx == i:
@@ -191,8 +199,8 @@ class GraphBuilder:
                     dist_m = haversine_distance(road_node[0], road_node[1],
                                                other_node[0], other_node[1])
                     
-                    # Use smaller threshold for road-road connections (20m)
-                    if dist_m <= 20.0 and not self.graph.has_edge(road_node, other_node):
+                    # Use increased threshold for road-road connections (25m)
+                    if dist_m <= road_connection_threshold and not self.graph.has_edge(road_node, other_node):
                         self.graph.add_edge(road_node, other_node, weight=dist_m,
                                           road_name="Connection", path_type="connection")
 

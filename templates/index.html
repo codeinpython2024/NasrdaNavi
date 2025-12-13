@@ -22,60 +22,67 @@
 </head>
 
 <body>
+<!-- Skip Link for Accessibility -->
+<a href="#map" class="skip-link">Skip to main content</a>
+
 <!-- Splash Screen -->
-<div id="splash">
-    <div class="splash-stars"></div>
-    <div class="splash-orbit">
+<div id="splash" role="dialog" aria-label="Welcome to NasrdaNavi">
+    <div class="splash-stars" aria-hidden="true"></div>
+    <div class="splash-orbit" aria-hidden="true">
         <div class="splash-particle"></div>
     </div>
-    <div class="mascot-glow"></div>
-    <img id="splashMascot" src="/static/Vector.png" alt="Navi" class="splash-mascot"/>
+    <div class="mascot-glow" aria-hidden="true"></div>
+    <img id="splashMascot" src="/static/Vector.png" alt="Navi the navigation mascot" class="splash-mascot"/>
     <div class="splash-brand">
         <h1 class="splash-title">NasrdaNavi</h1>
         <p class="splash-subtitle">Campus Navigation System</p>
     </div>
-    <button id="splashStartBtn" class="splash-start-btn">
+    <button id="splashStartBtn" class="splash-start-btn" aria-label="Start exploring the campus map">
         <span class="splash-start-text">Start Exploring</span>
-        <img src="/static/Vector.png" alt="" class="splash-start-mascot"/>
+        <img src="/static/Vector.png" alt="" class="splash-start-mascot" aria-hidden="true"/>
     </button>
     <div class="splash-footer">
-        <img src="/static/nasrda-logo.png" alt="NASRDA" class="splash-nasrda-logo"/>
+        <img src="/static/nasrda-logo.png" alt="NASRDA Logo" class="splash-nasrda-logo"/>
         <p class="splash-tagline">Powered by <span>NASRDA</span></p>
     </div>
 </div>
 
-<!-- Mapbox Token -->
-<input type="hidden" id="mapbox-token" value="{{ config.MAPBOX_ACCESS_TOKEN }}"/>
+<!-- Mapbox Token fetched via API for security -->
 
 <!-- Sidebar -->
-<aside class="sidebar">
-    <div class="sidebar-brand">
-        <img src="/static/Vector.png" alt="Navi" class="sidebar-mascot"/>
+<aside class="sidebar" role="complementary" aria-label="Navigation controls">
+    <div class="sidebar-brand" role="banner">
+        <img src="/static/Vector.png" alt="Navi mascot" class="sidebar-mascot"/>
         <div>
             <div class="sidebar-title">NasrdaNavi</div>
             <div class="sidebar-subtitle">Campus Navigation</div>
         </div>
     </div>
 
-    <div class="sidebar-section">
-        <label class="sidebar-label">Search</label>
+    <div class="sidebar-section" role="search">
+        <label class="sidebar-label" for="searchBox" id="search-label">Search</label>
         <div class="input-group">
-            <input id="searchBox" type="text" class="form-control" placeholder="Buildings, roads...">
-            <button id="searchBtn" class="btn btn-primary">Go</button>
+            <input id="searchBox" type="text" class="form-control" placeholder="Buildings, roads..." 
+                   aria-labelledby="search-label" aria-describedby="search-hint" autocomplete="off">
+            <button id="searchBtn" class="btn btn-primary" aria-label="Search">Go</button>
         </div>
-        <div id="searchResults"></div>
+        <span id="search-hint" class="visually-hidden">Type to search for buildings or roads on campus</span>
+        <div id="searchResults" role="listbox" aria-label="Search results"></div>
     </div>
 
-    <div id="departmentList" class="sidebar-section" style="display:none;">
-        <label class="sidebar-label">Departments</label>
-        <ul class="list-group" id="departments"></ul>
+    <div id="departmentList" class="sidebar-section" style="display:none;" aria-label="Department list">
+        <label class="sidebar-label" id="dept-label">Departments</label>
+        <ul class="list-group" id="departments" role="list" aria-labelledby="dept-label"></ul>
     </div>
 
-    <div class="sidebar-section">
-        <label class="sidebar-label">Navigation Points</label>
-        <div class="nav-point-buttons">
-            <button id="btnSetStart" class="nav-point-btn" title="Click, then click on map to set start">
-                <span class="nav-point-icon start">
+    <nav class="sidebar-section" aria-label="Navigation point controls">
+        <label class="sidebar-label" id="nav-points-label">Navigation Points</label>
+        <div class="nav-point-buttons" role="group" aria-labelledby="nav-points-label">
+            <button id="btnSetStart" class="nav-point-btn" 
+                    title="Click, then click on map to set start"
+                    aria-label="Set starting point"
+                    aria-pressed="false">
+                <span class="nav-point-icon start" aria-hidden="true">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="10"></circle>
                         <circle cx="12" cy="12" r="3" fill="currentColor"></circle>
@@ -83,8 +90,11 @@
                 </span>
                 <span class="nav-point-text">Set Start</span>
             </button>
-            <button id="btnSetEnd" class="nav-point-btn" title="Click, then click on map to set destination">
-                <span class="nav-point-icon end">
+            <button id="btnSetEnd" class="nav-point-btn" 
+                    title="Click, then click on map to set destination"
+                    aria-label="Set destination point"
+                    aria-pressed="false">
+                <span class="nav-point-icon end" aria-hidden="true">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"></path>
                         <circle cx="12" cy="9" r="2.5" fill="currentColor"></circle>
@@ -93,61 +103,79 @@
                 <span class="nav-point-text">Set End</span>
             </button>
         </div>
-    </div>
+    </nav>
 
-    <div class="sidebar-section sidebar-directions">
+    <section class="sidebar-section sidebar-directions" aria-label="Route directions">
         <div class="sidebar-label-row">
-            <label class="sidebar-label">Directions</label>
-            <button id="toggleDirections" class="btn-icon">−</button>
+            <label class="sidebar-label" id="directions-label">Directions</label>
+            <button id="toggleDirections" class="btn-icon" 
+                    aria-label="Toggle directions panel"
+                    aria-expanded="true"
+                    aria-controls="directionsBody">−</button>
         </div>
-        <div id="directionsBody" class="directions-content">
+        <div id="directionsBody" class="directions-content" role="region" aria-labelledby="directions-label">
             <p class="text-muted">Use the buttons above to set start and end points, or click on features for info.</p>
         </div>
+    </section>
+
+    <div class="sidebar-actions" role="group" aria-label="Route actions">
+        <button id="clearBtn" class="btn btn-outline-danger btn-sm" aria-label="Clear current route">Clear Route</button>
+        <button id="nearestBtn" class="btn btn-outline-success btn-sm" aria-label="Find nearest feature">Find Nearest</button>
     </div>
 
-    <div class="sidebar-actions">
-        <button id="clearBtn" class="btn btn-outline-danger btn-sm">Clear Route</button>
-        <button id="nearestBtn" class="btn btn-outline-success btn-sm">Find Nearest</button>
-    </div>
-
-    <div class="sidebar-footer">
-        <img src="/static/nasrda-logo.png" alt="NASRDA" class="sidebar-nasrda-logo"/>
+    <footer class="sidebar-footer">
+        <img src="/static/nasrda-logo.png" alt="NASRDA Logo" class="sidebar-nasrda-logo"/>
         <span>Powered by <strong>NASRDA</strong></span>
-    </div>
+    </footer>
 </aside>
 
 <!-- Map -->
-<div id="map">
+<main id="map" role="application" aria-label="Interactive campus map" tabindex="-1">
     <!-- Transport Mode Toggle -->
-    <div class="transport-mode-toggle">
-        <button id="btnDriving" class="transport-mode-btn active" title="Driving (roads only)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <div class="transport-mode-toggle" role="radiogroup" aria-label="Transport mode selection">
+        <button id="btnDriving" class="transport-mode-btn active" 
+                title="Driving (roads only)"
+                role="radio"
+                aria-checked="true"
+                aria-label="Driving mode - uses roads only">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <path d="M5 17h14M6 17l1-6h10l1 6M8 11V7c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2v4M7 17v2M17 17v2"/>
             </svg>
             <span>Driving</span>
         </button>
-        <button id="btnWalking" class="transport-mode-btn" title="Walking (roads + footpaths)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <button id="btnWalking" class="transport-mode-btn" 
+                title="Walking (roads + footpaths)"
+                role="radio"
+                aria-checked="false"
+                aria-label="Walking mode - uses roads and footpaths">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <circle cx="12" cy="4" r="2"/>
                 <path d="M14 8l-2 8 4 4M10 8l2 8-4 4M12 12h-2M12 12h2"/>
             </svg>
             <span>Walking</span>
         </button>
     </div>
-</div>
+</main>
 
 <!-- Voice Assistant Mascot (starts hidden, animated from splash) -->
-<div id="voiceMascot" class="voice-mascot" style="opacity: 0;">
-    <div id="voiceBubble" class="voice-bubble"></div>
-    <img id="voiceMascotAvatar" src="/static/Vector.png" alt="Navi" class="voice-mascot-avatar"/>
-    <div class="voice-mascot-ring"></div>
-    <span id="voiceMascotStatus" class="voice-mascot-status">Voice On</span>
+<div id="voiceMascot" class="voice-mascot" style="opacity: 0;" 
+     role="region" aria-label="Voice assistant">
+    <div id="voiceBubble" class="voice-bubble" role="status" aria-live="polite"></div>
+    <button id="voiceMascotAvatar" class="voice-mascot-avatar-btn" aria-label="Toggle voice assistant">
+        <img src="/static/Vector.png" alt="Navi voice assistant" class="voice-mascot-avatar"/>
+    </button>
+    <div class="voice-mascot-ring" aria-hidden="true"></div>
+    <span id="voiceMascotStatus" class="voice-mascot-status" aria-live="polite">Voice On</span>
 </div>
+
+<!-- Live region for screen reader announcements -->
+<div id="sr-announcements" class="visually-hidden" aria-live="assertive" aria-atomic="true"></div>
 
 <!-- Scripts -->
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
 
 <!-- App JS (ES Module) -->
 <script type="module" src="/static/js/main.js"></script>

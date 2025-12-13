@@ -10,6 +10,11 @@ def get_routing_service():
     return current_app.config['ROUTING_SERVICE']
 
 
+def get_limiter():
+    """Get the rate limiter if available."""
+    return current_app.config.get('LIMITER')
+
+
 def _parse_coords(value, label):
     if not value:
         raise ValidationError(f"Missing {label} coordinates")
@@ -22,6 +27,28 @@ def _parse_coords(value, label):
         return tuple(map(float, parts))
     except ValueError:
         raise ValidationError(f"Invalid {label} coordinate format")
+
+
+def apply_rate_limit(func):
+    """Decorator to apply rate limiting if available."""
+    from functools import wraps
+    
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+    
+    # Apply rate limit if limiter is available
+    limiter = None
+    try:
+        from flask import current_app
+        limiter = current_app.config.get('LIMITER')
+    except RuntimeError:
+        pass
+    
+    if limiter:
+        wrapper = limiter.limit("30 per minute")(wrapper)
+    
+    return wrapper
 
 
 @bp.route('/route')

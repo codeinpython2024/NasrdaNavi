@@ -1,5 +1,151 @@
-@media (max-width: 768px) {
+/* Mobile-first responsive design */
+
+/* Small phones (320px+) */
+@media (max-width: 480px) {
     .sidebar {
+        position: fixed;
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        height: auto;
+        max-height: 45vh;
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        transform: translateY(calc(100% - 80px));
+        transition: transform 0.3s ease;
+        z-index: 1001;
+    }
+
+    .sidebar.expanded {
+        transform: translateY(0);
+    }
+
+    .sidebar-brand {
+        padding: var(--space-md);
+        cursor: pointer;
+    }
+
+    .sidebar-brand::after {
+        content: '';
+        position: absolute;
+        top: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 40px;
+        height: 4px;
+        background: var(--text-disabled);
+        border-radius: var(--radius-pill);
+    }
+
+    .sidebar-mascot {
+        width: 36px;
+        height: 36px;
+    }
+
+    .sidebar-title {
+        font-size: 16px;
+    }
+
+    .sidebar-section {
+        padding: var(--space-md);
+    }
+
+    .sidebar-directions {
+        max-height: 120px;
+    }
+
+    .sidebar-footer {
+        display: none;
+    }
+
+    .sidebar-actions {
+        padding: var(--space-md);
+    }
+
+    .sidebar-actions .btn {
+        padding: var(--space-sm) var(--space-md);
+    }
+
+    /* Transport toggle repositioned for mobile */
+    .transport-mode-toggle {
+        bottom: auto;
+        top: var(--space-lg);
+        left: 50%;
+        transform: translateX(-50%);
+        right: auto;
+    }
+
+    .transport-mode-btn {
+        padding: var(--space-sm) var(--space-md);
+    }
+
+    .transport-mode-btn span {
+        display: none;
+    }
+
+    .transport-mode-btn svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    /* Map controls repositioned */
+    .map-controls {
+        top: 70px;
+        right: var(--space-sm);
+    }
+
+    .map-control-btn {
+        width: 36px;
+        height: 36px;
+    }
+
+    /* Voice mascot repositioned */
+    .voice-mascot {
+        bottom: 100px;
+        right: var(--space-md);
+    }
+
+    .voice-mascot-avatar {
+        width: 48px;
+        height: 48px;
+    }
+
+    .voice-bubble {
+        max-width: 180px;
+        font-size: 12px;
+    }
+
+    /* Search results */
+    #searchResults {
+        max-height: 120px;
+    }
+
+    /* Navigation buttons */
+    .nav-point-buttons {
+        flex-direction: column;
+        gap: var(--space-xs);
+    }
+
+    .nav-point-btn {
+        padding: var(--space-xs) var(--space-sm);
+    }
+
+    /* Popups */
+    .mapboxgl-popup {
+        max-width: 260px !important;
+    }
+
+    .popup-action-buttons {
+        flex-direction: column;
+        gap: var(--space-xs);
+    }
+}
+
+/* Regular phones (481px - 768px) */
+@media (min-width: 481px) and (max-width: 768px) {
+    .sidebar {
+        position: fixed;
         top: auto;
         bottom: 0;
         left: 0;
@@ -8,6 +154,28 @@
         height: auto;
         max-height: 50vh;
         border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        transform: translateY(calc(100% - 90px));
+            transition: transform 0.3s ease;
+        }
+        
+        .sidebar.expanded {
+            transform: translateY(0);
+        }
+        
+        .sidebar-brand {
+            cursor: pointer;
+        }
+        
+        .sidebar-brand::after {
+            content: '';
+            position: absolute;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 4px;
+            background: var(--text-disabled);
+            border-radius: var(--radius-pill);
     }
 
     .sidebar-directions {
@@ -16,5 +184,155 @@
 
     .sidebar-footer {
         display: none;
+    }
+/* Transport toggle */
+.transport-mode-toggle {
+    bottom: auto;
+    top: var(--space-lg);
+    left: 50%;
+    transform: translateX(-50%);
+    right: auto;
+}
+
+/* Map controls */
+.map-controls {
+    top: 70px;
+}
+
+/* Voice mascot */
+.voice-mascot {
+    bottom: 110px;
+}
+}
+
+/* Tablets (769px - 1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .sidebar {
+        width: 280px;
+        top: var(--space-md);
+        left: var(--space-md);
+        bottom: var(--space-md);
+    }
+
+    .sidebar-directions {
+        max-height: 200px;
+    }
+}
+
+/* Touch device optimizations */
+@media (pointer: coarse) {
+
+    .nav-point-btn,
+    .map-control-btn,
+    .transport-mode-btn,
+    .popup-action-btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    .sidebar .form-control {
+        min-height: 44px;
+        font-size: 16px;
+        /* Prevents iOS zoom */
+    }
+
+    .sidebar .btn {
+        min-height: 44px;
+    }
+
+    #searchResults div {
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+    }
+}
+
+/* Landscape orientation on phones */
+@media (max-height: 500px) and (orientation: landscape) {
+    .sidebar {
+        max-height: 70vh;
+        width: 50%;
+        left: 0;
+        right: auto;
+        bottom: 0;
+        top: auto;
+        transform: translateY(calc(100% - 60px));
+    }
+
+    .sidebar.expanded {
+        transform: translateY(0);
+    }
+
+    .sidebar-directions {
+        max-height: 100px;
+    }
+
+    .voice-mascot {
+        bottom: var(--space-md);
+        right: var(--space-md);
+    }
+
+    .transport-mode-toggle {
+        top: var(--space-sm);
+        left: 55%;
+    }
+}
+
+/* Splash screen mobile */
+@media (max-width: 480px) {
+    .splash-mascot {
+        width: 120px;
+        height: 120px;
+    }
+
+    .splash-title {
+        font-size: 28px;
+    }
+
+    .splash-subtitle {
+        font-size: 14px;
+    }
+
+    .splash-start-btn {
+        padding: var(--space-md) var(--space-xl);
+        font-size: 14px;
+    }
+
+    .splash-footer {
+        padding: var(--space-md);
+    }
+
+    .splash-nasrda-logo {
+        width: 40px;
+        height: 40px;
+    }
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+
+    .sidebar,
+    .voice-mascot,
+    .transport-mode-toggle {
+        transition: none;
+    }
+
+    .splash-mascot,
+    .voice-mascot-avatar,
+    .route-mascot-marker img {
+        animation: none;
+    }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+    .sidebar {
+        border: 2px solid var(--text-primary);
+    }
+
+    .nav-point-btn,
+    .map-control-btn,
+    .transport-mode-btn {
+        border: 2px solid currentColor;
     }
 }
