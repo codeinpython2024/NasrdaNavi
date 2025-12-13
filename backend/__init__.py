@@ -36,11 +36,20 @@ def create_app():
     @app.route('/route')
     def legacy_route():
         from flask import request, jsonify
+        
         start = request.args.get('start')
         end = request.args.get('end')
         mode = request.args.get('mode', 'driving')
-        start_coords = tuple(map(float, start.split(',')))
-        end_coords = tuple(map(float, end.split(',')))
+        
+        if not start or not end:
+            return jsonify({"error": "Missing start or end coordinates"}), 400
+        
+        try:
+            start_coords = tuple(map(float, start.split(',')))
+            end_coords = tuple(map(float, end.split(',')))
+        except ValueError:
+            return jsonify({"error": "Invalid coordinate format"}), 400
+        
         result = routing_service.calculate_route(start_coords, end_coords, mode)
         return jsonify(result)
 

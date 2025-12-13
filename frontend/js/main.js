@@ -34,26 +34,32 @@ async function init() {
     const searchBtn = document.getElementById("searchBtn")
     const resultsDiv = document.getElementById("searchResults")
 
-    const doSearch = () => {
-      const matches = uiManager.search(searchBox.value.trim())
-      uiManager.showSearchResults(matches, resultsDiv, searchBox)
+    if (searchBox && searchBtn && resultsDiv) {
+      const doSearch = () => {
+        const matches = uiManager.search(searchBox.value.trim())
+        uiManager.showSearchResults(matches, resultsDiv, searchBox)
+      }
+
+      searchBox.addEventListener("input", doSearch)
+      searchBtn.addEventListener("click", doSearch)
     }
 
-    searchBox.addEventListener("input", doSearch)
-    searchBtn.addEventListener("click", doSearch)
-
     // Clear
-    document
-      .getElementById("clearBtn")
-      .addEventListener("click", () => navigationManager.clear())
+    const clearBtn = document.getElementById("clearBtn")
+    if (clearBtn) {
+      clearBtn.addEventListener("click", () => navigationManager.clear())
+    }
 
     // Nearest
-    document.getElementById("nearestBtn").addEventListener("click", () => {
-      voiceAssistant.speak(
-        "Click on the map to find the nearest feature.",
-        true
-      )
-    })
+    const nearestBtn = document.getElementById("nearestBtn")
+    if (nearestBtn) {
+      nearestBtn.addEventListener("click", () => {
+        voiceAssistant.speak(
+          "Click on the map to find the nearest feature.",
+          true
+        )
+      })
+    }
 
     // Toggle directions
     const toggleBtn = document.getElementById("toggleDirections")
