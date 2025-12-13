@@ -339,6 +339,42 @@ class UIManager {
     }
   }
 
+  /**
+   * Find the nearest feature to a given location
+   * @param {object} latlng - Object with lat and lng properties
+   * @returns {object|null} - Nearest feature or null
+   */
+  findNearestFeature(latlng) {
+    if (!this.localFeatures || this.localFeatures.length === 0) {
+      return null
+    }
+
+    let nearest = null
+    let minDist = Infinity
+
+    this.localFeatures.forEach((feature) => {
+      let featureLat, featureLng
+
+      if (feature.geometry.type === "Point") {
+        ;[featureLng, featureLat] = feature.geometry.coordinates
+      } else {
+        // Use centroid for non-point geometries
+        const centroid = this.getGeometryCentroid(feature.geometry)
+        if (!centroid) return
+        ;[featureLng, featureLat] = centroid
+      }
+
+      // Simple Euclidean distance (sufficient for nearby features)
+      const dist = Math.hypot(featureLat - latlng.lat, featureLng - latlng.lng)
+      if (dist < minDist) {
+        minDist = dist
+        nearest = feature
+      }
+    })
+
+    return nearest
+  }
+
   showDepartments(match) {
     const departmentList = document.getElementById("departmentList")
     const departmentsUl = document.getElementById("departments")

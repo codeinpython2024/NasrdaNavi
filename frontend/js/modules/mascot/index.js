@@ -52,7 +52,7 @@ class MascotAnimator {
 
             // Create flying mascot clone
             const flyingMascot = document.createElement('img');
-            flyingMascot.src = '/static/Vector.png';
+            flyingMascot.src = "/static/Vector.webp"
             flyingMascot.style.cssText = `
                 position: fixed;
                 z-index: 10000;

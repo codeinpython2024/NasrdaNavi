@@ -81,13 +81,53 @@ async function init() {
     clearBtn.addEventListener("click", () => navigationManager.clear())
   }
 
-  // Nearest
+  // Nearest - find nearest feature using geolocation
   const nearestBtn = document.getElementById("nearestBtn")
   if (nearestBtn) {
     nearestBtn.addEventListener("click", () => {
-      voiceAssistant.speak(
-        "Click on the map to find the nearest feature.",
-        true
+      if (!navigator.geolocation) {
+        voiceAssistant.speak(
+          "Geolocation is not supported by your browser.",
+          true
+        )
+        errorHandler.warn("Geolocation is not supported by your browser.")
+        return
+      }
+
+      voiceAssistant.speak("Finding your location...", true)
+      nearestBtn.disabled = true
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          nearestBtn.disabled = false
+          const userLatlng = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          }
+          const nearest = uiManager.findNearestFeature(userLatlng)
+
+          if (nearest) {
+            const featureName = nearest.name || "unnamed feature"
+            uiManager.selectFeature(nearest, resultsDiv, searchBox)
+            voiceAssistant.speak(`Nearest feature is ${featureName}.`, true)
+          } else {
+            voiceAssistant.speak("No features found nearby.", true)
+            errorHandler.info("No features found nearby.")
+          }
+        },
+        (error) => {
+          nearestBtn.disabled = false
+          let message = "Unable to get your location."
+          if (error.code === error.PERMISSION_DENIED) {
+            message =
+              "Location access was denied. Please enable location permissions."
+          } else if (error.code === error.TIMEOUT) {
+            message = "Location request timed out. Please try again."
+          }
+          voiceAssistant.speak(message, true)
+          errorHandler.warn(message)
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
       )
     })
   }

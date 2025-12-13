@@ -184,25 +184,26 @@
         transform: translateY(calc(100% - 90px));
         transition: transform 0.3s ease;
         z-index: 1001;
-        
-            .sidebar.expanded {
-                    transform: translateY(0);
-                }
-        
-                        .sidebar-brand {
-                            cursor: pointer;
-                        }
-        
-                        .sidebar-brand::after {
-                            content: '';
-                            position: absolute;
-                            top: 8px;
-                            left: 50%;
-                            transform: translateX(-50%);
-                            width: 40px;
-                            height: 4px;
-                            background: var(--text-disabled);
-                            border-radius: var(--radius-pill);
+    }
+
+    .sidebar.expanded {
+        transform: translateY(0);
+    }
+
+    .sidebar-brand {
+        cursor: pointer;
+    }
+
+    .sidebar-brand::after {
+        content: '';
+        position: absolute;
+        top: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 40px;
+        height: 4px;
+        background: var(--text-disabled);
+        border-radius: var(--radius-pill);
     }
 
     .sidebar-directions {
@@ -213,24 +214,24 @@
         display: none;
     }
 
-                                /* Transport toggle */
-                                .transport-mode-toggle {
-                                    bottom: auto;
-                                    top: var(--space-lg);
-                                    left: 50%;
-                                    transform: translateX(-50%);
-                                    right: auto;
-                                }
+    /* Transport toggle */
+    .transport-mode-toggle {
+        bottom: auto;
+        top: var(--space-lg);
+        left: 50%;
+        transform: translateX(-50%);
+        right: auto;
+    }
 
-                                /* Map controls */
-                                .map-controls {
-                                    top: 70px;
-                                }
+    /* Map controls */
+    .map-controls {
+        top: 70px;
+    }
 
-                                /* Voice mascot */
-                                .voice-mascot {
-                                    bottom: 110px;
-                                }
+    /* Voice mascot */
+    .voice-mascot {
+        bottom: 110px;
+    }
 }
 
 /* Tablets (769px - 1024px) */

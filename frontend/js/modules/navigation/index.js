@@ -282,7 +282,7 @@ class NavigationManager {
 
     const el = document.createElement("div")
     el.className = "route-mascot-marker"
-    el.innerHTML = '<img src="/static/Vector.png" alt="Navi"/>'
+    el.innerHTML = '<img src="/static/Vector.webp" alt="Navi"/>'
 
     this.mascotMarker = new mapboxgl.Marker({ element: el })
       .setLngLat(lngLat)

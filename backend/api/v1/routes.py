@@ -33,19 +33,23 @@ def apply_rate_limit(limit_string="30 per minute"):
     """Decorator to apply rate limiting if available.
     
     Rate limiting is checked at request time within the Flask app context.
+    The decorated function is cached to avoid re-wrapping on every request.
     """
     from functools import wraps
     
     def decorator(func):
+        # Cache for the rate-limited version of the function
+        _rate_limited_func = {}
+        
         @wraps(func)
         def wrapper(*args, **kwargs):
             # Check limiter at request time (inside app context)
             limiter = current_app.config.get('LIMITER')
             if limiter:
-                # Apply rate limit check manually
-                limit_func = limiter.limit(limit_string)
-                # The limit decorator returns a function that wraps the view
-                return limit_func(func)(*args, **kwargs)
+                # Cache the decorated version to avoid re-wrapping on every request
+                if 'func' not in _rate_limited_func:
+                    _rate_limited_func['func'] = limiter.limit(limit_string)(func)
+                return _rate_limited_func['func'](*args, **kwargs)
             return func(*args, **kwargs)
         return wrapper
     return decorator

@@ -219,23 +219,6 @@
     0%, 100% { transform: translateY(0) rotate(0deg); }
     50% { transform: translateY(-4px) rotate(5deg); }
 }
-    position: absolute;
-    width: 300px;
-    height: 300px;
-    border-radius: 50%;
-    border: 1px dashed rgba(255, 255, 255, 0.1);
-    opacity: 0;
-}
-
-.splash-particle {
-    position: absolute;
-    width: 6px;
-    height: 6px;
-    background: var(--accent-primary);
-    border-radius: 50%;
-    box-shadow: 0 0 10px var(--accent-primary);
-}
-
 
 /* Orbiting particles */
 .splash-orbit {

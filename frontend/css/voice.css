@@ -130,9 +130,9 @@
         height: 48px;
     }
 
-                                                                .voice-mascot-status {
-                                                                    display: none;
-                                                                }
+                .voice-mascot-status {
+                    display: none;
+                }
     .voice-bubble {
         display: none;
     }
