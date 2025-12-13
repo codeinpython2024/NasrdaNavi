@@ -225,6 +225,78 @@
     color: var(--text-primary);
 }
 
+/* Navigation Point Buttons */
+.nav-point-buttons {
+    display: flex;
+    gap: var(--space-sm);
+}
+
+.nav-point-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-xs);
+    padding: var(--space-sm) var(--space-md);
+    background: var(--surface-card);
+    border: 1px solid var(--border-control);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.nav-point-btn:hover {
+    background: var(--surface-card-elevated);
+    color: var(--text-primary);
+    border-color: var(--accent-primary);
+}
+
+.nav-point-btn.active {
+    background: var(--accent-primary);
+    color: var(--text-primary);
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 12px rgba(255, 140, 0, 0.4);
+}
+
+.nav-point-btn.active .nav-point-icon.start {
+    color: var(--text-primary);
+}
+
+.nav-point-btn.active .nav-point-icon.end {
+    color: var(--text-primary);
+}
+
+.nav-point-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s ease;
+}
+
+.nav-point-icon.start {
+    color: var(--accent-secondary);
+}
+
+.nav-point-icon.end {
+    color: var(--status-danger);
+}
+
+.nav-point-btn:hover .nav-point-icon.start {
+    color: var(--accent-secondary);
+}
+
+.nav-point-btn:hover .nav-point-icon.end {
+    color: var(--status-danger);
+}
+
+.nav-point-text {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
 /* Search Results */
 #searchResults {
     background: var(--surface-card);

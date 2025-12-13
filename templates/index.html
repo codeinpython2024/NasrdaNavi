@@ -71,13 +71,37 @@
         <ul class="list-group" id="departments"></ul>
     </div>
 
+    <div class="sidebar-section">
+        <label class="sidebar-label">Navigation Points</label>
+        <div class="nav-point-buttons">
+            <button id="btnSetStart" class="nav-point-btn" title="Click, then click on map to set start">
+                <span class="nav-point-icon start">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="3" fill="currentColor"></circle>
+                    </svg>
+                </span>
+                <span class="nav-point-text">Set Start</span>
+            </button>
+            <button id="btnSetEnd" class="nav-point-btn" title="Click, then click on map to set destination">
+                <span class="nav-point-icon end">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"></path>
+                        <circle cx="12" cy="9" r="2.5" fill="currentColor"></circle>
+                    </svg>
+                </span>
+                <span class="nav-point-text">Set End</span>
+            </button>
+        </div>
+    </div>
+
     <div class="sidebar-section sidebar-directions">
         <div class="sidebar-label-row">
             <label class="sidebar-label">Directions</label>
             <button id="toggleDirections" class="btn-icon">−</button>
         </div>
         <div id="directionsBody" class="directions-content">
-            <p class="text-muted">Click on the map to set start and end points.</p>
+            <p class="text-muted">Use the buttons above to set start and end points, or click on features for info.</p>
         </div>
     </div>
 
@@ -93,7 +117,24 @@
 </aside>
 
 <!-- Map -->
-<div id="map"></div>
+<div id="map">
+    <!-- Transport Mode Toggle -->
+    <div class="transport-mode-toggle">
+        <button id="btnDriving" class="transport-mode-btn active" title="Driving (roads only)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 17h14M6 17l1-6h10l1 6M8 11V7c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2v4M7 17v2M17 17v2"/>
+            </svg>
+            <span>Driving</span>
+        </button>
+        <button id="btnWalking" class="transport-mode-btn" title="Walking (roads + footpaths)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="4" r="2"/>
+                <path d="M14 8l-2 8 4 4M10 8l2 8-4 4M12 12h-2M12 12h2"/>
+            </svg>
+            <span>Walking</span>
+        </button>
+    </div>
+</div>
 
 <!-- Voice Assistant Mascot (starts hidden, animated from splash) -->
 <div id="voiceMascot" class="voice-mascot" style="opacity: 0;">

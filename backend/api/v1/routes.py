@@ -3,6 +3,8 @@ from backend.exceptions import ValidationError
 
 bp = Blueprint('routes', __name__)
 
+VALID_MODES = {'driving', 'walking'}
+
 
 def get_routing_service():
     return current_app.config['ROUTING_SERVICE']
@@ -26,12 +28,16 @@ def _parse_coords(value, label):
 def get_route():
     start = request.args.get('start')
     end = request.args.get('end')
+    mode = request.args.get('mode', 'driving')
 
     if not start or not end:
         raise ValidationError("Missing start or end coordinates")
+    
+    if mode not in VALID_MODES:
+        raise ValidationError(f"Invalid mode. Must be one of: {', '.join(VALID_MODES)}")
 
     start_coords = _parse_coords(start, "start")
     end_coords = _parse_coords(end, "end")
 
-    result = get_routing_service().calculate_route(start_coords, end_coords)
+    result = get_routing_service().calculate_route(start_coords, end_coords, mode)
     return jsonify(result)

@@ -60,37 +60,24 @@ class VoiceAssistant {
     setVoice() {
         const voices = this.synth.getVoices();
         
-        // Debug: Log available voices to console (helpful for development)
-        console.log('🎙️ Available voices:', voices.map(v => `${v.name} (${v.lang})`));
-        
-        // 1. First try exact African language code matches
-        for (const langCode of this.africanLangCodes) {
-            const match = voices.find(v => v.lang === langCode);
-            if (match) {
-                this.voice = match;
-                console.log(`🇳🇬 Selected African voice: ${match.name} (${match.lang})`);
-                this.initialized = true;
-                return;
-            }
+        // Try to find Samantha (en-US)
+        const samantha = voices.find(v => v.name.toLowerCase().includes('samantha') && v.lang.startsWith('en'));
+        if (samantha) {
+            this.voice = samantha;
+            this.initialized = true;
+            return;
         }
         
-        // 2. Try matching voice names with African patterns
-        for (const pattern of this.africanVoicePatterns) {
-            const match = voices.find(v => pattern.test(v.name));
-            if (match) {
-                this.voice = match;
-                console.log(`🌍 Selected voice by name pattern: ${match.name} (${match.lang})`);
-                this.initialized = true;
-                return;
-            }
+        // Fallback to any en-US voice
+        const enUS = voices.find(v => v.lang === 'en-US');
+        if (enUS) {
+            this.voice = enUS;
+            this.initialized = true;
+            return;
         }
         
-        // 3. Fallback to default system voice
+        // Final fallback
         this.voice = voices[0];
-        
-        if (this.voice) {
-            console.log(`📢 Using fallback voice: ${this.voice.name} (${this.voice.lang})`);
-        }
         this.initialized = true;
     }
 

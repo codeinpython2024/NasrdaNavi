@@ -6,7 +6,7 @@ class UIManager {
         this.highlightMarker = null;
     }
 
-    setFeatures(roads, buildings) {
+    setFeatures(roads, buildings, sportArena = null) {
         this.localFeatures = [];
         roads.features.forEach(f => {
             if (f.properties.name) {
@@ -23,6 +23,17 @@ class UIManager {
                 });
             }
         });
+        if (sportArena) {
+            sportArena.features.forEach(f => {
+                if (f.properties.Name) {
+                    this.localFeatures.push({
+                        name: f.properties.Name,
+                        type: 'sport',
+                        geometry: f.geometry
+                    });
+                }
+            });
+        }
     }
 
     search(query) {

@@ -10,24 +10,88 @@ class NavigationManager {
         this.stepMarkers = [];
         this.mascotMarker = null;
         this.startPoint = null;
-        this.endPoint = null;
-        this.clickCount = 0;
+        this.endPoint = null
         this.onDirectionsUpdate = null;
+        this.currentMode = 'driving'; // 'driving' or 'walking'
+        this.navigationMode = null; // null, 'setStart', or 'setEnd'
+        this.onNavigationModeChange = null; // callback for UI updates
+    }
+
+    setMode(mode) {
+        if (mode === 'driving' || mode === 'walking') {
+            this.currentMode = mode;
+        }
+    }
+
+    getMode() {
+        return this.currentMode;
+    }
+
+    /**
+     * Set navigation mode for setting start/end points
+     * @param {string|null} mode - 'setStart', 'setEnd', or null to exit mode
+     */
+    setNavigationMode(mode) {
+        if (mode === this.navigationMode) {
+            // Toggle off if same mode clicked
+            this.navigationMode = null;
+        } else {
+            this.navigationMode = mode;
+        }
+        
+        // Update cursor based on mode
+        const mapCanvas = mapManager.map?.getCanvas();
+        if (mapCanvas) {
+            if (this.navigationMode) {
+                mapCanvas.style.cursor = 'crosshair';
+            } else {
+                mapCanvas.style.cursor = '';
+            }
+        }
+        
+        // Notify UI of mode change
+        if (this.onNavigationModeChange) {
+            this.onNavigationModeChange(this.navigationMode);
+        }
+        
+        // Voice feedback
+        if (this.navigationMode === 'setStart') {
+            voiceAssistant.speak('Click on the map to set your starting point.', true);
+        } else if (this.navigationMode === 'setEnd') {
+            voiceAssistant.speak('Click on the map to set your destination.', true);
+        }
+    }
+
+    getNavigationMode() {
+        return this.navigationMode;
     }
 
     handleMapClick(e) {
-        // Stop introduction if still playing
-        mascotAnimator.stopIntroduction();
+      // Stop introduction if still playing
+      mascotAnimator.stopIntroduction()
 
-        if (this.clickCount === 0) {
-            this.setStart(e.latlng);
-            this.clickCount = 1;
-            voiceAssistant.announceStart();
-        } else {
-            this.setEnd(e.latlng);
-            voiceAssistant.announceCalculating();
-            this.calculateRoute();
+      // Only set points when in navigation mode
+      if (this.navigationMode === "setStart") {
+        this.setStart(e.latlng)
+        this.setNavigationMode(null) // Exit mode after setting
+        voiceAssistant.announceStart()
+
+        // Auto-calculate route if both points are set
+        if (this.startPoint && this.endPoint) {
+          voiceAssistant.announceCalculating()
+          this.calculateRoute()
         }
+      } else if (this.navigationMode === "setEnd") {
+        this.setEnd(e.latlng)
+        this.setNavigationMode(null) // Exit mode after setting
+
+        // Auto-calculate route if both points are set
+        if (this.startPoint && this.endPoint) {
+          voiceAssistant.announceCalculating()
+          this.calculateRoute()
+        }
+      }
+      // If not in navigation mode, do nothing (let feature popups handle it)
     }
 
     setStart(latlng) {
@@ -51,7 +115,7 @@ class NavigationManager {
     }
 
     async calculateRoute() {
-        const url = `${CONFIG.api.route}?start=${this.startPoint.lng},${this.startPoint.lat}&end=${this.endPoint.lng},${this.endPoint.lat}`;
+        const url = `${CONFIG.api.route}?start=${this.startPoint.lng},${this.startPoint.lat}&end=${this.endPoint.lng},${this.endPoint.lat}&mode=${this.currentMode}`
 
         try {
             const res = await fetch(url);
@@ -62,78 +126,94 @@ class NavigationManager {
                 return;
             }
 
-            this.displayRoute(data);
-            this.clickCount = 0;
+            this.displayRoute(data)
         } catch (err) {
             voiceAssistant.announceError('Could not calculate route. Please try again.');
         }
     }
 
     displayRoute(data) {
-        // Keep start/end markers visible
-        
-        // Remove existing route layers
-        if (mapManager.map.getLayer('route-glow')) {
-            mapManager.map.removeLayer('route-glow');
-        }
-        if (mapManager.map.getLayer('route-line')) {
-            mapManager.map.removeLayer('route-line');
-            mapManager.map.removeSource('route');
-        }
+      // Keep start/end markers visible
 
-        // Remove step markers
-        this.stepMarkers.forEach(m => m.remove());
-        this.stepMarkers = [];
+      // Remove existing route layers
+      if (mapManager.map.getLayer("route-glow")) {
+        mapManager.map.removeLayer("route-glow")
+      }
+      if (mapManager.map.getLayer("route-line")) {
+        mapManager.map.removeLayer("route-line")
+        mapManager.map.removeSource("route")
+      }
 
-        // Add route source
-        mapManager.map.addSource('route', { type: 'geojson', data: data.route });
+      // Remove step markers
+      this.stepMarkers.forEach((m) => m.remove())
+      this.stepMarkers = []
 
-        // Add glow layer
-        mapManager.map.addLayer({
-            id: 'route-glow',
-            type: 'line',
-            source: 'route',
-            paint: {
-                'line-color': CONFIG.colors.routeGlow,
-                'line-width': 12,
-                'line-blur': 4
-            }
-        });
+      // Add route source
+      mapManager.map.addSource("route", { type: "geojson", data: data.route })
 
-        // Add main route layer
-        mapManager.map.addLayer({
-            id: 'route-line',
-            type: 'line',
-            source: 'route',
-            paint: {
-                'line-color': CONFIG.colors.route,
-                'line-width': 4
-            }
-        });
+      // Determine route styling based on mode
+      const isWalking = data.mode === "walking"
+      const routeColor = isWalking
+        ? CONFIG.colors.routeWalking
+        : CONFIG.colors.route
+      const glowColor = isWalking
+        ? CONFIG.colors.routeWalkingGlow
+        : CONFIG.colors.routeGlow
 
-        // Fly to start point with camera facing route direction
-        const coords = data.route.geometry.coordinates;
-        const start = coords[0];
-        const next = coords[Math.min(5, coords.length - 1)];
-        const bearing = Math.atan2(next[0] - start[0], next[1] - start[1]) * (180 / Math.PI);
-        
-        mapManager.map.flyTo({
-            center: start,
-            zoom: 18,
-            pitch: 60,
-            bearing: bearing,
-            duration: 2000
-        });
+      // Add glow layer
+      mapManager.map.addLayer({
+        id: "route-glow",
+        type: "line",
+        source: "route",
+        paint: {
+          "line-color": glowColor,
+          "line-width": 12,
+          "line-blur": 4,
+        },
+      })
 
-        if (this.onDirectionsUpdate) {
-            this.onDirectionsUpdate(data.directions);
-        }
+      // Add main route layer with mode-specific styling
+      const routePaint = {
+        "line-color": routeColor,
+        "line-width": 4,
+      }
 
-        // Add mascot marker at start of route
-        this.addMascotMarker(coords[0]);
+      // Add dashed style for walking
+      if (isWalking) {
+        routePaint["line-dasharray"] = [2, 1]
+      }
 
-        // Voice navigation with enhanced assistant
-        voiceAssistant.speakDirections(data.directions, data.total_distance_m);
+      mapManager.map.addLayer({
+        id: "route-line",
+        type: "line",
+        source: "route",
+        paint: routePaint,
+      })
+
+      // Fly to start point with camera facing route direction
+      const coords = data.route.geometry.coordinates
+      const start = coords[0]
+      const next = coords[Math.min(5, coords.length - 1)]
+      const bearing =
+        Math.atan2(next[0] - start[0], next[1] - start[1]) * (180 / Math.PI)
+
+      mapManager.map.flyTo({
+        center: start,
+        zoom: 19,
+        pitch: 70,
+        bearing: bearing,
+        duration: 2000,
+      })
+
+      if (this.onDirectionsUpdate) {
+        this.onDirectionsUpdate(data.directions)
+      }
+
+      // Add mascot marker at start of route
+      this.addMascotMarker(coords[0])
+
+      // Voice navigation with enhanced assistant
+      voiceAssistant.speakDirections(data.directions, data.total_distance_m)
     }
 
     addMascotMarker(lngLat) {
@@ -155,32 +235,32 @@ class NavigationManager {
     }
 
     clear() {
-        if (mapManager.map.getLayer('route-glow')) {
-            mapManager.map.removeLayer('route-glow');
-        }
-        if (mapManager.map.getLayer('route-line')) {
-            mapManager.map.removeLayer('route-line');
-            mapManager.map.removeSource('route');
-        }
-        if (this.startMarker) this.startMarker.remove();
-        if (this.endMarker) this.endMarker.remove();
-        if (this.mascotMarker) this.mascotMarker.remove();
-        this.stepMarkers.forEach(m => m.remove());
+      if (mapManager.map.getLayer("route-glow")) {
+        mapManager.map.removeLayer("route-glow")
+      }
+      if (mapManager.map.getLayer("route-line")) {
+        mapManager.map.removeLayer("route-line")
+        mapManager.map.removeSource("route")
+      }
+      if (this.startMarker) this.startMarker.remove()
+      if (this.endMarker) this.endMarker.remove()
+      if (this.mascotMarker) this.mascotMarker.remove()
+      this.stepMarkers.forEach((m) => m.remove())
 
-        this.startMarker = null;
-        this.endMarker = null;
-        this.mascotMarker = null;
-        this.stepMarkers = [];
-        this.startPoint = null;
-        this.endPoint = null;
-        this.clickCount = 0;
+      this.startMarker = null
+      this.endMarker = null
+      this.mascotMarker = null
+      this.stepMarkers = []
+      this.startPoint = null
+      this.endPoint = null
+      this.setNavigationMode(null) // Reset navigation mode
 
-        voiceAssistant.announceCleared();
-        mapManager.resetView();
+      voiceAssistant.announceCleared()
+      mapManager.resetView()
 
-        if (this.onDirectionsUpdate) {
-            this.onDirectionsUpdate(null);
-        }
+      if (this.onDirectionsUpdate) {
+        this.onDirectionsUpdate(null)
+      }
     }
 }
 
