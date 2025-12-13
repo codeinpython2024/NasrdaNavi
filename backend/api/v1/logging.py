@@ -17,8 +17,9 @@ SENSITIVE_QUERY_KEYS = frozenset({
 def sanitize_control_chars(value: str) -> str:
     """Remove control characters to prevent log injection.
     
-    Strips ASCII control characters (0x00-0x1F) including newlines,
-    carriage returns, tabs, and other non-printables.
+    Strips ASCII control characters (0x00-0x1F) and DEL (0x7F),
+    allowing only printable ASCII (0x20-0x7E) including newlines,
+    carriage returns, tabs, and other non-printables are removed.
     
     Args:
         value: The string to sanitize.
@@ -26,7 +27,7 @@ def sanitize_control_chars(value: str) -> str:
     Returns:
         String with control characters removed.
     """
-    return ''.join(c for c in value if ord(c) >= 0x20)
+    return ''.join(c for c in value if 0x20 <= ord(c) <= 0x7E)
 
 
 def sanitize_url(raw_url: str, max_length: int = 500) -> str:
@@ -72,7 +73,7 @@ def sanitize_url(raw_url: str, max_length: int = 500) -> str:
             parsed.scheme,
             parsed.netloc,
             parsed.path,
-            '',  # params (rarely used, omit for safety)
+            parsed.params,  # preserve params for URL compatibility (e.g., matrix parameters)
             sanitized_query,
             ''   # fragment removed
         ))

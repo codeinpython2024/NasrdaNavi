@@ -1007,6 +1007,10 @@ class MapManager {
       if (newStyle.id === "standard") {
         this.applyBasemapConfig()
       }
+      // Reset interaction flags so listeners are re-registered after style change
+      // (map.setStyle removes all layer-specific event handlers)
+      this.sportArenaInteractionsSetup = false
+      this.buildingInteractionsSetup = false
       this.addDataLayers()
     })
   }
