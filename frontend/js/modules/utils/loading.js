@@ -360,8 +360,6 @@ class LoadingManager {
 
     document.body.appendChild(indicator)
 
-    document.body.appendChild(indicator)
-
     return () => this.hideRouteCalculating()
   }
 

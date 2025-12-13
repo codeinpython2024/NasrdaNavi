@@ -29,29 +29,30 @@ def _parse_coords(value, label):
         raise ValidationError(f"Invalid {label} coordinate format")
 
 
-def apply_rate_limit(func):
-    """Decorator to apply rate limiting if available."""
+def apply_rate_limit(limit_string="30 per minute"):
+    """Decorator to apply rate limiting if available.
+    
+    Rate limiting is checked at request time within the Flask app context.
+    """
     from functools import wraps
     
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        return func(*args, **kwargs)
-    
-    # Apply rate limit if limiter is available
-    limiter = None
-    try:
-        from flask import current_app
-        limiter = current_app.config.get('LIMITER')
-    except RuntimeError:
-        pass
-    
-    if limiter:
-        wrapper = limiter.limit("30 per minute")(wrapper)
-    
-    return wrapper
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            # Check limiter at request time (inside app context)
+            limiter = current_app.config.get('LIMITER')
+            if limiter:
+                # Apply rate limit check manually
+                limit_func = limiter.limit(limit_string)
+                # The limit decorator returns a function that wraps the view
+                return limit_func(func)(*args, **kwargs)
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
 
 
 @bp.route('/route')
+@apply_rate_limit("30 per minute")
 def get_route():
     start = request.args.get('start')
     end = request.args.get('end')

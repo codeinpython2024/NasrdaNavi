@@ -62,6 +62,9 @@ class RoutingService:
             end_coords: Tuple of (longitude, latitude) for end point
             mode: 'driving' for roads only, 'walking' for roads + footpaths
         """
+        # Track the original requested mode for fallback logic
+        requested_mode = mode
+        
         # Select appropriate graph based on mode
         if mode == "walking" and self.walking_graph_builder:
             graph_builder = self.walking_graph_builder
@@ -71,7 +74,7 @@ class RoutingService:
             graph_builder = self.driving_graph_builder
             graph = self.driving_graph
             nav_service = self.driving_nav_service
-            mode = "driving"  # Fallback if walking not available
+            mode = "driving"  # Update mode to reflect actual graph used
         
         start_node = graph_builder.snap_to_graph(*start_coords)
         end_node = graph_builder.snap_to_graph(*end_coords)
@@ -137,8 +140,8 @@ class RoutingService:
                     except nx.NetworkXNoPath:
                         pass
             
-            # If walking fails, try driving as fallback
-            if mode == "walking":
+            # If walking was requested but failed, try driving as fallback
+            if requested_mode == "walking" and mode == "walking":
                 logger.info("Walking route failed, falling back to driving mode")
                 try:
                     return self.calculate_route(start_coords, end_coords, mode="driving")
