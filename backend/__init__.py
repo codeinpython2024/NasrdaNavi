@@ -273,8 +273,12 @@ def create_app():
             return jsonify({"error": f"Invalid mode. Must be one of: {', '.join(VALID_MODES)}"}), 400
         
         try:
-            start_coords = tuple(map(float, start.split(',')))
-            end_coords = tuple(map(float, end.split(',')))
+            start_parts = start.split(',')
+            end_parts = end.split(',')
+            if len(start_parts) != 2 or len(end_parts) != 2:
+                return jsonify({"error": "Coordinates must contain exactly two comma-separated values"}), 400
+            start_coords = tuple(map(float, start_parts))
+            end_coords = tuple(map(float, end_parts))
         except ValueError:
             return jsonify({"error": "Invalid coordinate format"}), 400
         

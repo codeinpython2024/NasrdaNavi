@@ -12,7 +12,7 @@ def turn_direction(angle_diff):
     """Determine turn direction from angle difference."""
     if abs(angle_diff) < 20:
         return "Continue straight"
-    elif angle_diff > 20:
+    elif angle_diff >= 20:
         return "Turn left"
     else:
         return "Turn right"
