@@ -46,6 +46,17 @@ class RoutingService:
         logger.info(f"Driving graph: {self.driving_graph.number_of_nodes()} nodes, "
                    f"{self.driving_graph.number_of_edges()} edges")
 
+        # Check connectivity for driving graph
+        if not nx.is_connected(self.driving_graph):
+            components = list(nx.connected_components(self.driving_graph))
+            logger.warning(f"Driving graph has {len(components)} disconnected components")
+            # Store the largest component for fallback routing
+            self.driving_largest_component = max(components, key=len)
+            logger.info(f"Largest driving component has {len(self.driving_largest_component)} nodes")
+        else:
+            self.driving_largest_component = None
+            logger.info("Driving graph is fully connected")
+
     def _calculate_eta(self, distance_m, mode):
         """Calculate estimated time of arrival in seconds.
         
@@ -128,9 +139,9 @@ class RoutingService:
                 "mode": mode,
             }
         except nx.NetworkXNoPath as exc:
-            # For walking mode, try to find route in the largest connected component
+            # Handle disconnected components for walking
             if mode == "walking" and self.walking_largest_component:
-                logger.warning(f"No path found between {start_node} and {end_node}, "
+                logger.warning(f"No walking path found between {start_node} and {end_node}, "
                              "attempting fallback to largest component")
                 
                 # Check if nodes are in the largest component
@@ -160,6 +171,38 @@ class RoutingService:
                     except nx.NetworkXNoPath:
                         pass
             
+            # Handle disconnected components for driving
+            elif mode == "driving" and self.driving_largest_component:
+                logger.warning(f"No driving path found between {start_node} and {end_node}, "
+                             "attempting fallback to largest component")
+                
+                # Check if nodes are in the largest component
+                start_in_largest = start_node in self.driving_largest_component
+                end_in_largest = end_node in self.driving_largest_component
+                
+                if not start_in_largest:
+                    start_node = self._find_nearest_in_component(
+                        graph_builder, start_coords, self.driving_largest_component)
+                if not end_in_largest:
+                    end_node = self._find_nearest_in_component(
+                        graph_builder, end_coords, self.driving_largest_component)
+                
+                if start_node and end_node and start_node != end_node:
+                    try:
+                        path = nx.shortest_path(graph, source=start_node, target=end_node, weight="weight")
+                        route_geom = LineString(path)
+                        directions, total_distance = nav_service.generate_turn_instructions(path)
+                        
+                        return {
+                            "route": {"type": "Feature", "geometry": route_geom.__geo_interface__},
+                            "directions": directions,
+                            "total_distance_m": int(total_distance),
+                            "estimated_time_seconds": self._calculate_eta(total_distance, mode),
+                            "mode": mode,
+                        }
+                    except nx.NetworkXNoPath:
+                        pass
+
             # If walking was requested but failed, try driving as fallback
             if requested_mode == "walking" and mode == "walking":
                 logger.info("Walking route failed, falling back to driving mode")
