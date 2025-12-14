@@ -285,4 +285,13 @@ def create_app():
     def index():
         return render_template('index.html')
 
+    @app.route('/sw.js')
+    def service_worker():
+        """Serve service worker from root with correct scope."""
+        from flask import send_file, make_response
+        response = make_response(send_file('../static/sw.js', mimetype='application/javascript'))
+        response.headers['Service-Worker-Allowed'] = '/'
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        return response
+
     return app

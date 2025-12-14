@@ -559,3 +559,244 @@
     color: var(--text-primary);
     background: transparent;
 }
+
+/* ============================================
+   PWA STYLES
+   ============================================ */
+
+/* Offline Indicator */
+.offline-indicator {
+    position: fixed;
+    top: var(--space-lg);
+    left: 50%;
+    transform: translateX(-50%) translateY(-100px);
+    z-index: 9999;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border: 1px solid rgba(255, 193, 7, 0.3);
+    border-radius: var(--radius-pill);
+    padding: var(--space-sm) var(--space-lg);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    color: #ffc107;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 0 20px rgba(255, 193, 7, 0.1);
+    opacity: 0;
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+}
+
+.offline-indicator.visible {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+.offline-indicator svg {
+    flex-shrink: 0;
+    animation: pulse-warning 2s ease-in-out infinite;
+}
+
+@keyframes pulse-warning {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* PWA Install Button */
+.pwa-install-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-xs);
+    width: 100%;
+    padding: var(--space-sm) var(--space-md);
+    margin-bottom: var(--space-sm);
+    background: linear-gradient(135deg, var(--accent-primary) 0%, #FF9337 100%);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 10px rgba(255, 140, 0, 0.3);
+}
+
+.pwa-install-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(255, 140, 0, 0.4);
+}
+
+.pwa-install-btn:active {
+    transform: translateY(0);
+}
+
+.pwa-install-btn svg {
+    flex-shrink: 0;
+}
+
+/* PWA Update Notification */
+.pwa-update-notification {
+    position: fixed;
+    bottom: var(--space-lg);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    background: var(--bg-panel-solid);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: var(--space-md) var(--space-lg);
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    box-shadow: var(--shadow-strong);
+    animation: slide-up 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes slide-up {
+    from {
+        transform: translateX(-50%) translateY(100px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+}
+
+.pwa-update-notification p {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 13px;
+}
+
+.pwa-update-notification button {
+    padding: var(--space-xs) var(--space-md);
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#pwa-update-btn {
+    background: var(--accent-primary);
+    border: none;
+    color: var(--text-primary);
+}
+
+#pwa-update-btn:hover {
+    background: #FF9337;
+}
+
+#pwa-dismiss-btn {
+    background: transparent;
+    border: 1px solid var(--border-control);
+    color: var(--text-muted);
+}
+
+#pwa-dismiss-btn:hover {
+    background: var(--surface-card);
+    color: var(--text-primary);
+}
+
+/* Offline Map Indicator */
+.offline-map-indicator {
+    position: absolute;
+    bottom: var(--space-lg);
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    z-index: 100;
+    background: linear-gradient(135deg, rgba(26, 26, 46, 0.95) 0%, rgba(22, 33, 62, 0.95) 100%);
+    border: 1px solid rgba(100, 149, 237, 0.3);
+    border-radius: var(--radius-pill);
+    padding: var(--space-xs) var(--space-md);
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    color: #6495ed;
+    font-size: 12px;
+    font-weight: 500;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 0 15px rgba(100, 149, 237, 0.1);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+}
+
+.offline-map-indicator.visible {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.offline-map-indicator svg {
+    flex-shrink: 0;
+    animation: pulse-info 2s ease-in-out infinite;
+}
+
+@keyframes pulse-info {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.6;
+    }
+}
+
+/* Slow Connection Indicator */
+.slow-connection-indicator {
+    position: fixed;
+    top: calc(var(--space-lg) + 40px);
+    left: 50%;
+    transform: translateX(-50%) translateY(-100px);
+    z-index: 9998;
+    background: linear-gradient(135deg, rgba(26, 26, 46, 0.95) 0%, rgba(22, 33, 62, 0.95) 100%);
+    border: 1px solid rgba(255, 165, 0, 0.3);
+    border-radius: var(--radius-pill);
+    padding: var(--space-xs) var(--space-md);
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    color: #ffa500;
+    font-size: 12px;
+    font-weight: 500;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 0 15px rgba(255, 165, 0, 0.1);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+}
+
+.slow-connection-indicator.visible {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.slow-connection-indicator svg {
+    flex-shrink: 0;
+    animation: spin-slow 3s linear infinite;
+}
+
+@keyframes spin-slow {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}

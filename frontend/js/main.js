@@ -5,6 +5,7 @@ import { voiceAssistant } from './modules/voice/index.js';
 import { mascotAnimator } from './modules/mascot/index.js';
 import { splashAnimator } from './modules/splash/index.js';
 import { errorHandler, loadingManager } from "./modules/utils/index.js"
+import { pwaManager } from "./modules/pwa/index.js"
 
 async function init() {
   // Start splash animations
@@ -36,6 +37,9 @@ async function init() {
 
   // Initialize mascot animator
   mascotAnimator.init()
+
+  // Initialize PWA (service worker, offline detection, install prompt)
+  pwaManager.init()
 
   // Initialize map
   mapManager.init("map", token)
