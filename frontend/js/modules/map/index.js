@@ -46,7 +46,7 @@ class MapManager {
     }
     this.layerVisibility = {
       roads: false,
-      buildings: false,
+      buildings: true, // Show by default
       footpath: true, // Show by default
       grass: true, // Show by default
       greenArea: true, // Show by default
@@ -204,7 +204,7 @@ class MapManager {
                 </svg>
             </button>
             <div class="map-control-divider"></div>
-            <button class="map-control-btn" id="btnBuildings" title="Toggle buildings">
+            <button class="map-control-btn active" id="btnBuildings" title="Toggle buildings">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="4" y="2" width="16" height="20" rx="2"></rect>
                     <path d="M9 22v-4h6v4M9 6h.01M15 6h.01M9 10h.01M15 10h.01M9 14h.01M15 14h.01"></path>
@@ -593,7 +593,7 @@ class MapManager {
           0.7,
         ],
       },
-      layout: { visibility: "none" },
+      layout: { visibility: "visible" },
     })
     this.map.addLayer({
       id: "buildings-outline",
@@ -608,7 +608,7 @@ class MapManager {
           1.5,
         ],
       },
-      layout: { visibility: "none" },
+      layout: { visibility: "visible" },
     })
 
     // Add building interactivity

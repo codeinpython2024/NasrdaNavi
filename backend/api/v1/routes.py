@@ -66,7 +66,7 @@ def apply_rate_limit(limit_string="30 per minute"):
                 with _rate_limit_lock:
                     if 'func' not in _rate_limited_func:
                         _rate_limited_func['func'] = limiter.limit(limit_string)(func)
-                return _rate_limited_func['func'](*args, **kwargs)
+                    return _rate_limited_func['func'](*args, **kwargs)
             return func(*args, **kwargs)
         return wrapper
     return decorator
