@@ -303,7 +303,36 @@ class VoiceAssistant {
     this.currentStep = 0
   }
 
-  speakDirections(directions, totalDistanceMeters) {
+  /**
+   * Format seconds into spoken time string
+   * @param {number} seconds - Time in seconds
+   * @returns {string} Spoken time string
+   */
+  formatTimeForSpeech(seconds) {
+    if (!seconds || seconds < 0) return ""
+
+    const minutes = Math.floor(seconds / 60)
+    const hours = Math.floor(minutes / 60)
+    const remainingMinutes = minutes % 60
+
+    if (hours > 0 && remainingMinutes > 0) {
+      return `${hours} hour${
+        hours > 1 ? "s" : ""
+      } and ${remainingMinutes} minute${remainingMinutes > 1 ? "s" : ""}`
+    } else if (hours > 0) {
+      return `${hours} hour${hours > 1 ? "s" : ""}`
+    } else if (minutes > 0) {
+      return `${minutes} minute${minutes > 1 ? "s" : ""}`
+    } else {
+      return "less than a minute"
+    }
+  }
+
+  speakDirections(
+    directions,
+    totalDistanceMeters,
+    estimatedTimeSeconds = null
+  ) {
     if (!this.enabled || !directions?.length) return
 
     this.stop()
@@ -320,10 +349,16 @@ class VoiceAssistant {
       distanceText = `${Math.round(totalDistanceMeters)} meters`
     }
 
+    // Format time if available
+    let timeText = ""
+    if (estimatedTimeSeconds && estimatedTimeSeconds > 0) {
+      timeText = `, about ${this.formatTimeForSpeech(estimatedTimeSeconds)}`
+    }
+
     const phrases = [
-      `Route found! ${distanceText} total. Let's go!`,
-      `Got it! The journey is ${distanceText}. Follow me!`,
-      `Route ready! ${distanceText} to your destination.`,
+      `Route found! ${distanceText}${timeText}. Let's go!`,
+      `Got it! The journey is ${distanceText}${timeText}. Follow me!`,
+      `Route ready! ${distanceText}${timeText} to your destination.`,
     ]
     const phrase = phrases[Math.floor(Math.random() * phrases.length)]
     this.speak(phrase, true)

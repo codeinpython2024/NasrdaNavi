@@ -6,6 +6,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Average speeds for ETA calculation (meters per second)
+WALKING_SPEED_MPS = 1.4  # ~5 km/h
+DRIVING_SPEED_MPS = 8.3  # ~30 km/h (campus speed limit)
+
 
 class RoutingService:
     def __init__(self, driving_graph_builder, walking_graph_builder=None):
@@ -41,6 +45,19 @@ class RoutingService:
         
         logger.info(f"Driving graph: {self.driving_graph.number_of_nodes()} nodes, "
                    f"{self.driving_graph.number_of_edges()} edges")
+
+    def _calculate_eta(self, distance_m, mode):
+        """Calculate estimated time of arrival in seconds.
+        
+        Args:
+            distance_m: Total distance in meters
+            mode: 'walking' or 'driving'
+            
+        Returns:
+            Estimated time in seconds
+        """
+        speed = WALKING_SPEED_MPS if mode == "walking" else DRIVING_SPEED_MPS
+        return int(distance_m / speed) if speed > 0 else 0
 
     def _find_nearest_in_component(self, graph_builder, coords, component):
         """Find the nearest node in a specific component."""
@@ -94,6 +111,7 @@ class RoutingService:
                 "route": route_feature,
                 "directions": directions,
                 "total_distance_m": int(total_distance),
+                "estimated_time_seconds": self._calculate_eta(total_distance, mode),
                 "mode": mode,
             }
 
@@ -106,6 +124,7 @@ class RoutingService:
                 "route": {"type": "Feature", "geometry": route_geom.__geo_interface__},
                 "directions": directions,
                 "total_distance_m": int(total_distance),
+                "estimated_time_seconds": self._calculate_eta(total_distance, mode),
                 "mode": mode,
             }
         except nx.NetworkXNoPath as exc:
@@ -135,6 +154,7 @@ class RoutingService:
                             "route": {"type": "Feature", "geometry": route_geom.__geo_interface__},
                             "directions": directions,
                             "total_distance_m": int(total_distance),
+                            "estimated_time_seconds": self._calculate_eta(total_distance, mode),
                             "mode": mode,
                         }
                     except nx.NetworkXNoPath:

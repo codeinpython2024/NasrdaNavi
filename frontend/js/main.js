@@ -56,8 +56,8 @@ async function init() {
       '<p class="text-muted">Use the buttons above to set start and end points, or click on features for info.</p>'
   }
 
-  navigationManager.onDirectionsUpdate = (dirs) =>
-    uiManager.updateDirections(dirs)
+  navigationManager.onDirectionsUpdate = (dirs, routeMeta) =>
+    uiManager.updateDirections(dirs, routeMeta)
   mapManager.onClick((e) => navigationManager.handleMapClick(e))
 
   // Search
@@ -104,6 +104,13 @@ async function init() {
             lat: pos.coords.latitude,
             lng: pos.coords.longitude,
           }
+
+          // Show user location on map
+          mapManager.showUserLocation(
+            [pos.coords.longitude, pos.coords.latitude],
+            false // Don't fly to - we'll fly to the nearest feature instead
+          )
+
           const nearest = uiManager.findNearestFeature(userLatlng)
 
           if (nearest) {
@@ -193,16 +200,29 @@ async function init() {
 
     if (type === "start") {
       navigationManager.setStart(latlng)
-      voiceAssistant.speak(`${name} set as starting point.`, true)
+
+      // Auto-calculate route if both points are set
+      if (navigationManager.startPoint && navigationManager.endPoint) {
+        voiceAssistant.announceCalculating()
+        navigationManager.calculateRoute()
+      } else {
+        // Auto-transition to setEnd mode for seamless UX
+        // User can immediately tap to set destination
+        navigationManager.setNavigationMode("setEnd")
+        voiceAssistant.speak(
+          `${name} set as starting point. Now tap your destination.`,
+          true
+        )
+      }
     } else if (type === "end") {
       navigationManager.setEnd(latlng)
       voiceAssistant.speak(`${name} set as destination.`, true)
-    }
 
-    // Auto-calculate route if both points are set
-    if (navigationManager.startPoint && navigationManager.endPoint) {
-      voiceAssistant.announceCalculating()
-      navigationManager.calculateRoute()
+      // Auto-calculate route if both points are set
+      if (navigationManager.startPoint && navigationManager.endPoint) {
+        voiceAssistant.announceCalculating()
+        navigationManager.calculateRoute()
+      }
     }
   })
 
@@ -231,11 +251,75 @@ async function init() {
         mascotAnimator.introduce()
         mascotAnimator.startIdleAnimation()
       }, 600)
+
+      // Show layer hint for first-time users (after a delay)
+      setTimeout(() => {
+        showLayerHint()
+      }, 4000)
     })
   }
 
   // Mobile sidebar toggle
   setupMobileSidebar()
+}
+
+/**
+ * Show a hint for first-time users about hidden layers (buildings/roads)
+ */
+function showLayerHint() {
+  const hintKey = "nasrdanavi_layer_hint_shown"
+
+  // Check if hint has already been shown
+  if (localStorage.getItem(hintKey)) {
+    return
+  }
+
+  // Find the buildings button (first hidden layer button)
+  const buildingsBtn = document.getElementById("btnBuildings")
+  const roadsBtn = document.getElementById("btnRoads")
+
+  if (!buildingsBtn) return
+
+  // Create hint element
+  const hint = document.createElement("div")
+  hint.className = "layer-hint"
+  hint.innerHTML = `
+    <div class="layer-hint-content">
+      <div class="layer-hint-arrow"></div>
+      <p><strong>Tip:</strong> Toggle buildings and roads layers here for more details!</p>
+      <button class="layer-hint-dismiss">Got it</button>
+    </div>
+  `
+
+  // Position hint near the buildings button
+  const mapControls = document.querySelector(".map-controls")
+  if (mapControls) {
+    mapControls.style.position = "relative"
+    mapControls.appendChild(hint)
+
+    // Add pulse animation to the buttons
+    buildingsBtn.classList.add("hint-pulse")
+    roadsBtn?.classList.add("hint-pulse")
+
+    // Handle dismiss
+    const dismissBtn = hint.querySelector(".layer-hint-dismiss")
+    dismissBtn?.addEventListener("click", () => {
+      hint.remove()
+      buildingsBtn.classList.remove("hint-pulse")
+      roadsBtn?.classList.remove("hint-pulse")
+      localStorage.setItem(hintKey, "true")
+    })
+
+    // Auto-dismiss after 10 seconds
+    setTimeout(() => {
+      if (hint.parentElement) {
+        hint.remove()
+        buildingsBtn.classList.remove("hint-pulse")
+        roadsBtn?.classList.remove("hint-pulse")
+        localStorage.setItem(hintKey, "true")
+      }
+    }, 10000)
+  }
 }
 
 /**

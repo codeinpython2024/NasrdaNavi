@@ -118,6 +118,39 @@
     background: transparent;
 }
 
+/* Route Summary */
+.route-summary {
+    padding: var(--space-sm) 0;
+    margin-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.route-summary-stats {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+}
+
+.route-stat {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.route-stat strong {
+    color: var(--accent-primary);
+    font-size: 14px;
+}
+
+.route-stat-divider {
+    color: var(--text-disabled);
+    font-size: 10px;
+}
+
+.route-mode {
+    text-transform: capitalize;
+    color: var(--text-subtle);
+}
 .directions-content .list-group-item {
     background: transparent;
     border: none;

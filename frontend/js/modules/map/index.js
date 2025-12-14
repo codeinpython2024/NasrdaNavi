@@ -30,20 +30,6 @@ function escapeHtml(str) {
   return str.replace(/[&<>"'`/]/g, (char) => htmlEscapes[char])
 }
 
-/**
- * Escape string for use in JavaScript event handlers
- * @param {string} str - String to escape
- * @returns {string} Escaped string
- */
-function escapeJsString(str) {
-  if (typeof str !== "string") return str
-  return str
-    .replace(/\\/g, "\\\\")
-    .replace(/'/g, "\\'")
-    .replace(/"/g, '\\"')
-    .replace(/\n/g, "\\n")
-    .replace(/\r/g, "\\r")
-}
 
 class MapManager {
   constructor() {
@@ -69,9 +55,44 @@ class MapManager {
     this.popup = null
     this.hoveredSportArenaId = null
     this.hoveredBuildingId = null
+    this.userLocationMarker = null
     // Flags to prevent duplicate event listener registration
     this.sportArenaInteractionsSetup = false
     this.buildingInteractionsSetup = false
+  }
+
+  /**
+   * Setup event delegation for popup action buttons
+   * This replaces inline onclick handlers to prevent XSS vulnerabilities
+   * @param {mapboxgl.Popup} popup - The popup instance
+   */
+  _setupPopupEventDelegation(popup) {
+    popup.on("open", () => {
+      const popupEl = popup.getElement()
+      if (!popupEl) return
+
+      popupEl.addEventListener("click", (e) => {
+        const btn = e.target.closest(".popup-action-btn")
+        if (!btn) return
+
+        const navType = btn.dataset.navType
+        const name = btn.dataset.name
+        const coords = btn.dataset.coords
+
+        if (navType && coords) {
+          const [lng, lat] = coords.split(",").map(Number)
+          window.dispatchEvent(
+            new CustomEvent("set-nav-point", {
+              detail: {
+                type: navType,
+                name: name || "Unknown",
+                coords: [lng, lat],
+              },
+            })
+          )
+        }
+      })
+    })
   }
 
   init(elementId, accessToken) {
@@ -109,8 +130,10 @@ class MapManager {
           CONFIG.map.lightPreset
         )
         this.map.setConfigProperty("basemap", "theme", CONFIG.map.theme)
-        this.map.setConfigProperty("basemap", "showPointOfInterestLabels", true)
-        this.map.setConfigProperty("basemap", "showPlaceLabels", true)
+        this.map.setConfigProperty("basemap", "showPointOfInterestLabels", false)
+        this.map.setConfigProperty("basemap", "showPlaceLabels", false)
+        this.map.setConfigProperty("basemap", "showRoadLabels", false)
+        this.map.setConfigProperty("basemap", "showTransitLabels", false)
       } catch (e) {
         console.log("Basemap config not supported for this style")
       }
@@ -275,15 +298,19 @@ class MapManager {
 
     document.getElementById("btnLocate")?.addEventListener("click", () => {
       if (navigator.geolocation) {
+        const btn = document.getElementById("btnLocate")
+        btn?.classList.add("locating")
+
         navigator.geolocation.getCurrentPosition(
           (pos) => {
-            this.map.flyTo({
-              center: [pos.coords.longitude, pos.coords.latitude],
-              zoom: 17,
-              duration: 1500,
-            })
+            btn?.classList.remove("locating")
+            const lngLat = [pos.coords.longitude, pos.coords.latitude]
+            this.showUserLocation(lngLat, true)
           },
-          () => alert("Could not get your location")
+          () => {
+            btn?.classList.remove("locating")
+            errorHandler.warn("Could not get your location")
+          }
         )
       }
     })
@@ -699,17 +726,6 @@ class MapManager {
       return icons[sportType] || "🏟️"
     }
 
-    // Get sport emoji indicator for the label
-    const getSportIndicator = (sportType) => {
-      const indicators = {
-        football: "🟢",
-        basketball: "🟠",
-        volleyball: "🟡",
-        badminton: "🔵",
-      }
-      return indicators[sportType] || "⚪"
-    }
-
     // Hover effect - change cursor and highlight
     this.map.on("mouseenter", "sportArena-fill", (e) => {
       this.map.getCanvas().style.cursor = "pointer"
@@ -769,7 +785,6 @@ class MapManager {
 
       // Escape names to prevent XSS
       const safeName = escapeHtml(props.Name || "Unknown")
-      const safeNameJs = escapeJsString(props.Name || "Unknown")
       const safeSportType = escapeHtml(
         sportType.charAt(0).toUpperCase() + sportType.slice(1)
       )
@@ -794,14 +809,14 @@ class MapManager {
                         </div>
                     </div>
                     <div class="popup-action-buttons">
-                        <button class="popup-action-btn start" onclick="window.dispatchEvent(new CustomEvent('set-nav-point', { detail: { type: 'start', name: '${safeNameJs}', coords: [${coordinates.lng}, ${coordinates.lat}] }}))">
+                        <button class="popup-action-btn start" data-nav-type="start" data-name="${safeName}" data-coords="${coordinates.lng},${coordinates.lat}">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <circle cx="12" cy="12" r="10"></circle>
                                 <circle cx="12" cy="12" r="3" fill="currentColor"></circle>
                             </svg>
                             Set as Start
                         </button>
-                        <button class="popup-action-btn end" onclick="window.dispatchEvent(new CustomEvent('set-nav-point', { detail: { type: 'end', name: '${safeNameJs}', coords: [${coordinates.lng}, ${coordinates.lat}] }}))">
+                        <button class="popup-action-btn end" data-nav-type="end" data-name="${safeName}" data-coords="${coordinates.lng},${coordinates.lat}">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"></path>
                                 <circle cx="12" cy="9" r="2.5" fill="currentColor"></circle>
@@ -812,6 +827,7 @@ class MapManager {
                 </div>
             `
 
+      this._setupPopupEventDelegation(this.popup)
       this.popup.setLngLat(coordinates).setHTML(popupContent).addTo(this.map)
     })
   }
@@ -866,7 +882,6 @@ class MapManager {
 
       // Escape names to prevent XSS
       const safeBuildingName = escapeHtml(buildingName)
-      const safeBuildingNameJs = escapeJsString(buildingName)
       const safeDepartment = escapeHtml(department)
       const safeBuildingType = escapeHtml(buildingType)
 
@@ -912,18 +927,18 @@ class MapManager {
               }
             </div>
             <div class="popup-action-buttons">
-              <button class="popup-action-btn start" onclick="window.dispatchEvent(new CustomEvent('set-nav-point', { detail: { type: 'start', name: '${safeBuildingNameJs}', coords: [${
+              <button class="popup-action-btn start" data-nav-type="start" data-name="${safeBuildingName}" data-coords="${
         coordinates.lng
-      }, ${coordinates.lat}] }}))">
+      },${coordinates.lat}">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <circle cx="12" cy="12" r="10"></circle>
                   <circle cx="12" cy="12" r="3" fill="currentColor"></circle>
                 </svg>
                 Set as Start
               </button>
-              <button class="popup-action-btn end" onclick="window.dispatchEvent(new CustomEvent('set-nav-point', { detail: { type: 'end', name: '${safeBuildingNameJs}', coords: [${
+              <button class="popup-action-btn end" data-nav-type="end" data-name="${safeBuildingName}" data-coords="${
         coordinates.lng
-      }, ${coordinates.lat}] }}))">
+      },${coordinates.lat}">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"></path>
                   <circle cx="12" cy="9" r="2.5" fill="currentColor"></circle>
@@ -934,6 +949,7 @@ class MapManager {
           </div>
         `
 
+      this._setupPopupEventDelegation(this.popup)
       this.popup.setLngLat(coordinates).setHTML(popupContent).addTo(this.map)
     })
   }
@@ -1313,6 +1329,51 @@ class MapManager {
         resolve()
       })
     })
+  }
+
+  /**
+   * Show or update the user's current location on the map
+   * @param {Array} lngLat - [longitude, latitude] coordinates
+   * @param {boolean} flyTo - Whether to fly to the location (default: false)
+   */
+  showUserLocation(lngLat, flyTo = false) {
+    // Remove existing user location marker
+    if (this.userLocationMarker) {
+      this.userLocationMarker.remove()
+    }
+
+    // Create a custom element for the user location marker
+    const el = document.createElement("div")
+    el.className = "user-location-marker"
+    el.innerHTML = `
+      <div class="user-location-dot"></div>
+      <div class="user-location-pulse"></div>
+    `
+
+    this.userLocationMarker = new mapboxgl.Marker({ element: el })
+      .setLngLat(lngLat)
+      .setPopup(new mapboxgl.Popup({ offset: 25 }).setText("You are here"))
+      .addTo(this.map)
+
+    if (flyTo) {
+      this.map.flyTo({
+        center: lngLat,
+        zoom: 17,
+        duration: 1500,
+      })
+    }
+
+    return this.userLocationMarker
+  }
+
+  /**
+   * Remove the user location marker from the map
+   */
+  hideUserLocation() {
+    if (this.userLocationMarker) {
+      this.userLocationMarker.remove()
+      this.userLocationMarker = null
+    }
   }
 }
 

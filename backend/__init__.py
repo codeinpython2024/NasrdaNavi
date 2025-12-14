@@ -248,6 +248,8 @@ def create_app():
     register_error_handlers(app)
 
     # Legacy route endpoint (for backward compatibility)
+    VALID_MODES = {'driving', 'walking'}
+    
     @app.route('/route')
     def legacy_route():
         from flask import request, jsonify
@@ -258,6 +260,9 @@ def create_app():
         
         if not start or not end:
             return jsonify({"error": "Missing start or end coordinates"}), 400
+        
+        if mode not in VALID_MODES:
+            return jsonify({"error": f"Invalid mode. Must be one of: {', '.join(VALID_MODES)}"}), 400
         
         try:
             start_coords = tuple(map(float, start.split(',')))

@@ -96,12 +96,8 @@ class UIManager {
   initFuse() {
     if (typeof Fuse !== "undefined") {
       this.fuse = new Fuse(this.localFeatures, this.fuseOptions)
-      console.log(
-        `Fuzzy search initialized with ${this.localFeatures.length} features`
-      )
-    } else {
-      console.warn("Fuse.js not loaded - falling back to basic search")
     }
+    // Falls back to basic search if Fuse.js is not available
   }
 
   /**
@@ -394,7 +390,42 @@ class UIManager {
     }
   }
 
-  updateDirections(directions) {
+  /**
+   * Format seconds into human-readable time string
+   * @param {number} seconds - Time in seconds
+   * @returns {string} Formatted time string
+   */
+  formatTime(seconds) {
+    if (!seconds || seconds < 0) return ""
+
+    const minutes = Math.floor(seconds / 60)
+    const hours = Math.floor(minutes / 60)
+    const remainingMinutes = minutes % 60
+
+    if (hours > 0) {
+      return `${hours}h ${remainingMinutes}min`
+    } else if (minutes > 0) {
+      return `${minutes} min`
+    } else {
+      return "< 1 min"
+    }
+  }
+
+  /**
+   * Format distance into human-readable string
+   * @param {number} meters - Distance in meters
+   * @returns {string} Formatted distance string
+   */
+  formatDistance(meters) {
+    if (!meters || meters < 0) return ""
+
+    if (meters >= 1000) {
+      return `${(meters / 1000).toFixed(1)} km`
+    }
+    return `${Math.round(meters)} m`
+  }
+
+  updateDirections(directions, routeMeta = null) {
     const container = document.getElementById("directionsBody")
     if (!container) return
 
@@ -404,6 +435,28 @@ class UIManager {
       container.innerHTML =
         '<p class="text-muted">Click on the map to set start and end points.</p>'
       return
+    }
+
+    // Show route summary if metadata is available
+    if (routeMeta) {
+      const summary = document.createElement("div")
+      summary.className = "route-summary"
+      summary.innerHTML = `
+        <div class="route-summary-stats">
+          <span class="route-stat">
+            <strong>${this.formatDistance(routeMeta.distance)}</strong>
+          </span>
+          <span class="route-stat-divider">•</span>
+          <span class="route-stat">
+            <strong>${this.formatTime(routeMeta.estimatedTime)}</strong>
+          </span>
+          <span class="route-stat-divider">•</span>
+          <span class="route-stat route-mode">${
+            routeMeta.mode === "walking" ? "🚶" : "🚗"
+          } ${routeMeta.mode}</span>
+        </div>
+      `
+      container.appendChild(summary)
     }
 
     const ul = document.createElement("ul")

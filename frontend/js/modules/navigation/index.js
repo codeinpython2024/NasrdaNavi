@@ -92,13 +92,17 @@ class NavigationManager {
     // Only set points when in navigation mode
     if (this.navigationMode === "setStart") {
       this.setStart(e.latlng)
-      this.setNavigationMode(null) // Exit mode after setting
-      voiceAssistant.announceStart()
 
       // Auto-calculate route if both points are set
       if (this.startPoint && this.endPoint) {
+        this.setNavigationMode(null) // Exit mode
         voiceAssistant.announceCalculating()
         this.calculateRoute()
+      } else {
+        // Auto-transition to setEnd mode for seamless UX
+        // This allows users to immediately tap their destination
+        this.setNavigationMode("setEnd")
+        voiceAssistant.announceStart()
       }
     } else if (this.navigationMode === "setEnd") {
       this.setEnd(e.latlng)
@@ -251,14 +255,22 @@ class NavigationManager {
     })
 
     if (this.onDirectionsUpdate) {
-      this.onDirectionsUpdate(data.directions)
+      this.onDirectionsUpdate(data.directions, {
+        distance: data.total_distance_m,
+        estimatedTime: data.estimated_time_seconds,
+        mode: data.mode,
+      })
     }
 
     // Add mascot marker at start of route
     this.addMascotMarker(coords[0])
 
     // Voice navigation with enhanced assistant
-    voiceAssistant.speakDirections(data.directions, data.total_distance_m)
+    voiceAssistant.speakDirections(
+      data.directions,
+      data.total_distance_m,
+      data.estimated_time_seconds
+    )
   }
 
   /**
