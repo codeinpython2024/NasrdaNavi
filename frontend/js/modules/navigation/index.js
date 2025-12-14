@@ -49,8 +49,12 @@ class NavigationManager {
   /**
    * Set navigation mode for setting start/end points
    * @param {string|null} mode - 'setStart', 'setEnd', or null to exit mode
+   * @param {Object} options - Optional configuration
+   * @param {boolean} options.silent - If true, skip voice feedback (for programmatic transitions)
    */
-  setNavigationMode(mode) {
+  setNavigationMode(mode, options = {}) {
+    const { silent = false } = options
+
     if (mode === this.navigationMode) {
       // Toggle off if same mode clicked
       this.navigationMode = null
@@ -73,11 +77,16 @@ class NavigationManager {
       this.onNavigationModeChange(this.navigationMode)
     }
 
-    // Voice feedback
-    if (this.navigationMode === "setStart") {
-      voiceAssistant.speak("Click on the map to set your starting point.", true)
-    } else if (this.navigationMode === "setEnd") {
-      voiceAssistant.speak("Click on the map to set your destination.", true)
+    // Voice feedback (skip if silent flag is set)
+    if (!silent) {
+      if (this.navigationMode === "setStart") {
+        voiceAssistant.speak(
+          "Click on the map to set your starting point.",
+          true
+        )
+      } else if (this.navigationMode === "setEnd") {
+        voiceAssistant.speak("Click on the map to set your destination.", true)
+      }
     }
   }
 
@@ -101,7 +110,8 @@ class NavigationManager {
       } else {
         // Auto-transition to setEnd mode for seamless UX
         // This allows users to immediately tap their destination
-        this.setNavigationMode("setEnd")
+        // Use silent: true to avoid duplicate voice (announceStart provides the feedback)
+        this.setNavigationMode("setEnd", { silent: true })
         voiceAssistant.announceStart()
       }
     } else if (this.navigationMode === "setEnd") {
@@ -155,6 +165,32 @@ class NavigationManager {
 
     try {
       const res = await fetch(url)
+
+      // Check HTTP status before parsing JSON
+      if (!res.ok) {
+        // Hide loading indicator
+        hideLoading()
+
+        // Try to extract error message from response
+        let errorMessage = `Server error (${res.status})`
+        try {
+          const errorData = await res.json()
+          if (errorData.error) {
+            errorMessage = errorData.error
+          }
+        } catch {
+          // Response wasn't JSON, use status text
+          errorMessage = res.statusText || errorMessage
+        }
+
+        voiceAssistant.announceError(errorMessage)
+        if (directionsBody) {
+          directionsBody.innerHTML =
+            '<p class="text-muted">Could not calculate route. Please try different points.</p>'
+        }
+        return
+      }
+
       const data = await res.json()
 
       // Hide loading indicator
@@ -329,7 +365,7 @@ class NavigationManager {
     mapManager.resetView()
 
     if (this.onDirectionsUpdate) {
-      this.onDirectionsUpdate(null)
+      this.onDirectionsUpdate(null, null)
     }
   }
 }

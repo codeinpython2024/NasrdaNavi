@@ -208,7 +208,8 @@ async function init() {
       } else {
         // Auto-transition to setEnd mode for seamless UX
         // User can immediately tap to set destination
-        navigationManager.setNavigationMode("setEnd")
+        // Use silent: true to avoid duplicate voice (custom message provides the feedback)
+        navigationManager.setNavigationMode("setEnd", { silent: true })
         voiceAssistant.speak(
           `${name} set as starting point. Now tap your destination.`,
           true

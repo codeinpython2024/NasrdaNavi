@@ -17,15 +17,15 @@ SENSITIVE_QUERY_KEYS = frozenset({
 def sanitize_control_chars(value: str) -> str:
     """Remove control characters to prevent log injection.
     
-    Strips ASCII control characters (0x00-0x1F) and DEL (0x7F),
-    allowing only printable ASCII (0x20-0x7E) including newlines,
-    carriage returns, tabs, and other non-printables are removed.
+    Preserves only printable ASCII characters (0x20-0x7E: space through tilde).
+    Strips all control characters (0x00-0x1F) including newlines (0x0A),
+    carriage returns (0x0D), and tabs (0x09), as well as DEL (0x7F).
     
     Args:
         value: The string to sanitize.
         
     Returns:
-        String with control characters removed.
+        String with only printable ASCII characters preserved.
     """
     return ''.join(c for c in value if 0x20 <= ord(c) <= 0x7E)
 

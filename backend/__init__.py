@@ -107,12 +107,20 @@ def load_or_build_graph(cache_key, builder_func, data_files):
     hash_file = CACHE_DIR / f'{cache_key}.hash'
     
     # Calculate current hash of data files
-    current_hash = ''
+    # Include filepath in hash to prevent collisions when files are inaccessible
+    hash_parts = []
     for filepath in data_files:
         file_hash = get_file_hash(filepath)
         if file_hash:
-            current_hash += file_hash
-    current_hash = hashlib.md5(current_hash.encode()).hexdigest()
+            # Include filepath to ensure unique contribution per file
+            hash_parts.append(f"{filepath}:{file_hash}")
+        else:
+            # File is inaccessible - use sentinel value that includes filepath
+            # This ensures the hash differs from when the file was accessible
+            # and differs from hashes computed with different file sets
+            logger.warning(f"Cannot hash data file (inaccessible): {filepath}")
+            hash_parts.append(f"{filepath}:__INACCESSIBLE__")
+    current_hash = hashlib.md5('|'.join(hash_parts).encode()).hexdigest()
     
     # Check if cache is valid
     cache_valid = False

@@ -67,31 +67,41 @@ class MapManager {
    * @param {mapboxgl.Popup} popup - The popup instance
    */
   _setupPopupEventDelegation(popup) {
+    let popupEl = null
+
+    const handlePopupClick = (e) => {
+      const btn = e.target.closest(".popup-action-btn")
+      if (!btn) return
+
+      const navType = btn.dataset.navType
+      const name = btn.dataset.name
+      const coords = btn.dataset.coords
+
+      if (navType && coords) {
+        const [lng, lat] = coords.split(",").map(Number)
+        window.dispatchEvent(
+          new CustomEvent("set-nav-point", {
+            detail: {
+              type: navType,
+              name: name || "Unknown",
+              coords: [lng, lat],
+            },
+          })
+        )
+      }
+    }
+
     popup.on("open", () => {
-      const popupEl = popup.getElement()
+      popupEl = popup.getElement()
       if (!popupEl) return
+      popupEl.addEventListener("click", handlePopupClick)
+    })
 
-      popupEl.addEventListener("click", (e) => {
-        const btn = e.target.closest(".popup-action-btn")
-        if (!btn) return
-
-        const navType = btn.dataset.navType
-        const name = btn.dataset.name
-        const coords = btn.dataset.coords
-
-        if (navType && coords) {
-          const [lng, lat] = coords.split(",").map(Number)
-          window.dispatchEvent(
-            new CustomEvent("set-nav-point", {
-              detail: {
-                type: navType,
-                name: name || "Unknown",
-                coords: [lng, lat],
-              },
-            })
-          )
-        }
-      })
+    popup.on("close", () => {
+      if (popupEl) {
+        popupEl.removeEventListener("click", handlePopupClick)
+        popupEl = null
+      }
     })
   }
 

@@ -437,25 +437,51 @@ class UIManager {
       return
     }
 
-    // Show route summary if metadata is available
-    if (routeMeta) {
+    // Show route summary if metadata is available and valid
+    if (routeMeta && routeMeta.distance > 0 && routeMeta.estimatedTime > 0) {
       const summary = document.createElement("div")
       summary.className = "route-summary"
-      summary.innerHTML = `
-        <div class="route-summary-stats">
-          <span class="route-stat">
-            <strong>${this.formatDistance(routeMeta.distance)}</strong>
-          </span>
-          <span class="route-stat-divider">•</span>
-          <span class="route-stat">
-            <strong>${this.formatTime(routeMeta.estimatedTime)}</strong>
-          </span>
-          <span class="route-stat-divider">•</span>
-          <span class="route-stat route-mode">${
-            routeMeta.mode === "walking" ? "🚶" : "🚗"
-          } ${routeMeta.mode}</span>
-        </div>
-      `
+
+      const statsDiv = document.createElement("div")
+      statsDiv.className = "route-summary-stats"
+
+      // Distance stat
+      const distanceStat = document.createElement("span")
+      distanceStat.className = "route-stat"
+      const distanceStrong = document.createElement("strong")
+      distanceStrong.textContent = this.formatDistance(routeMeta.distance)
+      distanceStat.appendChild(distanceStrong)
+      statsDiv.appendChild(distanceStat)
+
+      // Divider
+      const divider1 = document.createElement("span")
+      divider1.className = "route-stat-divider"
+      divider1.textContent = "•"
+      statsDiv.appendChild(divider1)
+
+      // Time stat
+      const timeStat = document.createElement("span")
+      timeStat.className = "route-stat"
+      const timeStrong = document.createElement("strong")
+      timeStrong.textContent = this.formatTime(routeMeta.estimatedTime)
+      timeStat.appendChild(timeStrong)
+      statsDiv.appendChild(timeStat)
+
+      // Divider
+      const divider2 = document.createElement("span")
+      divider2.className = "route-stat-divider"
+      divider2.textContent = "•"
+      statsDiv.appendChild(divider2)
+
+      // Mode stat (safely escaped to prevent XSS)
+      const modeStat = document.createElement("span")
+      modeStat.className = "route-stat route-mode"
+      const modeEmoji = routeMeta.mode === "walking" ? "🚶 " : "🚗 "
+      const modeText = typeof routeMeta.mode === "string" ? routeMeta.mode : ""
+      modeStat.textContent = modeEmoji + modeText
+      statsDiv.appendChild(modeStat)
+
+      summary.appendChild(statsDiv)
       container.appendChild(summary)
     }
 
