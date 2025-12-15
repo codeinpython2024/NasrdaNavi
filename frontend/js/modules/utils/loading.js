@@ -6,7 +6,6 @@
 class LoadingManager {
   constructor() {
     this.activeLoaders = new Map()
-    this.spinnerContainer = null
     this.init()
   }
 
@@ -286,7 +285,11 @@ class LoadingManager {
    */
   showOverlay(id, message = "Loading...", showProgress = false) {
     // Remove existing overlay with same id
-    this.hideOverlay(id)
+    const existingOverlay = this.activeLoaders.get(id)
+    if (existingOverlay) {
+      existingOverlay.id = "" // Clear ID to avoid collision
+      this.hideOverlay(id)
+    }
 
     const overlay = document.createElement("div")
     overlay.className = "loading-overlay"
@@ -381,11 +384,13 @@ class LoadingManager {
    */
   setButtonLoading(button, loading) {
     if (loading) {
+      button.dataset.wasDisabled = button.disabled
       button.classList.add("btn-loading")
       button.disabled = true
     } else {
       button.classList.remove("btn-loading")
-      button.disabled = false
+      button.disabled = button.dataset.wasDisabled === "true"
+      delete button.dataset.wasDisabled
     }
   }
 

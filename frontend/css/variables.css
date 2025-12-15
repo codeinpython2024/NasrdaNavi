@@ -14,8 +14,14 @@
 
     /* Accent */
     --accent-primary: #FF8C00;
+    --accent-primary-hover: #FF9337;
+        --accent-primary-rgb: 255 140 0;
     --accent-primary-soft: rgba(255, 140, 0, 0.25);
     --accent-primary-glow: rgba(255, 140, 0, 0.6);
+    --accent-glow-soft: rgba(255, 140, 0, 0.3);
+        --accent-glow-medium: rgba(255, 140, 0, 0.4);
+        --accent-glow-strong: rgba(255, 140, 0, 0.6);
+        --accent-glow-intense: rgba(255, 140, 0, 0.9);
     --accent-secondary: #008751;
     --accent-secondary-soft: rgba(0, 135, 81, 0.28);
     --rocket-flame: #FFA500;
