@@ -1,0 +1,28 @@
+# NasrdaNavi Backend Python Dependencies
+# ========================================
+
+# Core Web Framework
+Flask>=3.0.0
+
+# Rate Limiting (optional, but recommended for production)
+Flask-Limiter>=3.5.0
+
+# Environment Configuration
+python-dotenv>=1.0.0
+
+# Geospatial Data Processing
+geopandas>=0.14.0
+shapely>=2.0.0
+
+# Graph Algorithms for Routing
+networkx>=3.2.0
+
+# Spatial Algorithms (cKDTree for nearest neighbor queries)
+scipy>=1.11.0
+
+# Note: geopandas has the following dependencies which are auto-installed:
+# - pandas
+# - pyproj
+# - fiona (or pyogrio)
+# If you experience issues with fiona, you can install it separately:
+# pip install fiona
