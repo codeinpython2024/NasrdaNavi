@@ -212,7 +212,7 @@
     height: 32px;
     border-radius: 50%;
     object-fit: cover;
-    animation: mascot-bounce 1s ease-in-out infinite;
+    /* Animation removed - conflicts with GSAP button entrance animation */
 }
 
 @keyframes mascot-bounce {
