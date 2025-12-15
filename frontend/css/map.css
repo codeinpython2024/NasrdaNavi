@@ -1,3 +1,32 @@
+/* ==========================================================================
+   Map Color Variables
+   ========================================================================== */
+:root {
+    /* Accent colors */
+    --accent-orange: #FF8C00;
+    --accent-orange-hover: #FF9F43;
+    --accent-orange-alpha-40: rgba(255, 140, 0, 0.4);
+    --accent-orange-alpha-30: rgba(255, 140, 0, 0.3);
+    --accent-orange-alpha-20: rgba(255, 140, 0, 0.2);
+    --accent-orange-alpha-10: rgba(255, 140, 0, 0.1);
+    --accent-orange-alpha-0: rgba(255, 140, 0, 0);
+
+    /* Status colors */
+    --status-success: #22C55E;
+    --status-success-hover: #16A34A;
+    --status-success-alpha-30: rgba(34, 197, 94, 0.3);
+    --status-danger: #DC2626;
+    --status-danger-alpha-30: rgba(239, 68, 68, 0.3);
+
+    /* Info/location colors */
+    --accent-info: #4A9EFF;
+    --accent-info-alpha-30: rgba(74, 158, 255, 0.3);
+
+    /* Shadow colors */
+    --shadow-dark-30: rgba(0, 0, 0, 0.3);
+    --shadow-dark-20: rgba(0, 0, 0, 0.2);
+    --shadow-light-05: rgba(255, 255, 255, 0.05);
+}
 .mapboxgl-canvas {
     outline: none;
 }
@@ -83,22 +112,34 @@
 }
 
 @keyframes pulse-locate {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 140, 0, 0.4); }
-    50% { box-shadow: 0 0 0 8px rgba(255, 140, 0, 0); }
+    0%,
+        100% {
+            box-shadow: 0 0 0 0 var(--accent-orange-alpha-40);
+        }
+    
+        50% {
+            box-shadow: 0 0 0 8px var(--accent-orange-alpha-0);
+        }
 }
 
-/* Sport Arena Popup Styles */
-.sport-arena-popup .mapboxgl-popup-content {
+/* ==========================================================================
+   Shared Popup Base Styles
+   ========================================================================== */
+.popup-base .mapboxgl-popup-content,
+.sport-arena-popup .mapboxgl-popup-content,
+.feature-popup .mapboxgl-popup-content {
     background: var(--bg-panel);
     backdrop-filter: blur(16px);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-lg);
     padding: 0;
     overflow: hidden;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    box-shadow: 0 10px 40px var(--shadow-dark-30), 0 0 0 1px var(--shadow-light-05);
 }
 
-.sport-arena-popup .mapboxgl-popup-close-button {
+.popup-base .mapboxgl-popup-close-button,
+.sport-arena-popup .mapboxgl-popup-close-button,
+.feature-popup .mapboxgl-popup-close-button {
     color: var(--text-muted);
     font-size: 20px;
     padding: 8px 12px;
@@ -108,15 +149,22 @@
     z-index: 10;
 }
 
-.sport-arena-popup .mapboxgl-popup-close-button:hover {
+.popup-base .mapboxgl-popup-close-button:hover,
+.sport-arena-popup .mapboxgl-popup-close-button:hover,
+.feature-popup .mapboxgl-popup-close-button:hover {
     color: var(--text-primary);
     background: transparent;
 }
 
-.sport-arena-popup .mapboxgl-popup-tip {
+.popup-base .mapboxgl-popup-tip,
+.sport-arena-popup .mapboxgl-popup-tip,
+.feature-popup .mapboxgl-popup-tip {
     border-top-color: var(--bg-panel);
 }
 
+/* ==========================================================================
+   Sport Arena Popup Styles
+   ========================================================================== */
 .sport-popup-content {
     min-width: 220px;
 }
@@ -132,7 +180,7 @@
 .sport-icon {
     font-size: 28px;
     line-height: 1;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+    filter: drop-shadow(0 2px 4px var(--shadow-dark-20));
 }
 
 .sport-name {
@@ -173,13 +221,13 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    color: #22C55E;
+    color: var(--status-success);
 }
 
 .status-dot {
     width: 8px;
     height: 8px;
-    background: #22C55E;
+    background: var(--status-success);
     border-radius: 50%;
     animation: pulse-status 2s ease-in-out infinite;
 }
@@ -226,9 +274,9 @@
 }
 
 .popup-action-btn.start:hover {
-    background: #16A34A;
+    background: var(--status-success-hover);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+    box-shadow: 0 4px 12px var(--status-success-alpha-30);
 }
 
 .popup-action-btn.end {
@@ -237,9 +285,9 @@
 }
 
 .popup-action-btn.end:hover {
-    background: #DC2626;
+    background: var(--status-danger);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+    box-shadow: 0 4px 12px var(--status-danger-alpha-30);
 }
 
 .popup-action-btn:active {
@@ -250,35 +298,11 @@
     flex-shrink: 0;
 }
 
-/* Feature Popup Styles (Buildings, etc.) */
-.feature-popup .mapboxgl-popup-content {
-    background: var(--bg-panel);
-    backdrop-filter: blur(16px);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-lg);
-    padding: 0;
-    overflow: hidden;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05);
-}
-
-.feature-popup .mapboxgl-popup-close-button {
-    color: var(--text-muted);
-    font-size: 20px;
-    padding: 8px 12px;
-    right: 4px;
-    top: 4px;
-    transition: all 0.2s ease;
-    z-index: 10;
-}
-
-.feature-popup .mapboxgl-popup-close-button:hover {
-    color: var(--text-primary);
-    background: transparent;
-}
-
-.feature-popup .mapboxgl-popup-tip {
-    border-top-color: var(--bg-panel);
-}
+/* ==========================================================================
+   Feature Popup Styles (Buildings, etc.)
+   Note: Base styles (.mapboxgl-popup-content, close button, tip) are shared
+   with sport-arena-popup via consolidated selectors above.
+   ========================================================================== */
 
 .feature-popup-content {
     min-width: 240px;
@@ -294,13 +318,13 @@
 }
 
 .feature-popup-header.building-header {
-    background: linear-gradient(135deg, rgba(255, 140, 0, 0.1), rgba(255, 140, 0, 0.2));
+    background: linear-gradient(135deg, var(--accent-orange-alpha-10), var(--accent-orange-alpha-20));
 }
 
 .feature-icon {
     font-size: 28px;
     line-height: 1;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+    filter: drop-shadow(0 2px 4px var(--shadow-dark-20));
 }
 
 .feature-name {
@@ -441,10 +465,10 @@
     transform: translate(-50%, -50%);
     width: 14px;
     height: 14px;
-    background: #4A9EFF;
+    background: var(--accent-info);
     border: 3px solid white;
     border-radius: 50%;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 2px 6px var(--shadow-dark-30);
     z-index: 2;
 }
 
@@ -455,7 +479,7 @@
     transform: translate(-50%, -50%);
     width: 40px;
     height: 40px;
-    background: rgba(74, 158, 255, 0.3);
+    background: var(--accent-info-alpha-30);
     border-radius: 50%;
     animation: user-location-pulse 2s ease-out infinite;
     z-index: 1;
@@ -476,10 +500,9 @@
 /* Layer Hint Tooltip */
 .layer-hint {
     position: absolute;
-    right: 100%;
+    right: calc(var(--space-lg) + 60px);
     top: 50%;
     transform: translateY(-50%);
-    margin-right: var(--space-md);
     z-index: 200;
     animation: layer-hint-fade-in 0.3s ease;
 }
@@ -503,7 +526,7 @@
     padding: var(--space-md);
     min-width: 200px;
     max-width: 250px;
-    box-shadow: 0 4px 20px rgba(255, 140, 0, 0.3);
+    box-shadow: 0 4px 20px var(--accent-orange-alpha-30);
     position: relative;
 }
 
@@ -544,7 +567,7 @@
 }
 
 .layer-hint-dismiss:hover {
-    background: #FF9F43;
+    background: var(--accent-orange-hover);
     transform: translateY(-1px);
 }
 
@@ -557,11 +580,11 @@
 
     0%,
     100% {
-        box-shadow: 0 0 0 0 rgba(255, 140, 0, 0.4);
+        box-shadow: 0 0 0 0 var(--accent-orange-alpha-40);
     }
 
     50% {
-        box-shadow: 0 0 0 8px rgba(255, 140, 0, 0);
+        box-shadow: 0 0 0 8px var(--accent-orange-alpha-0);
     }
 }
 
@@ -569,20 +592,62 @@
 @media (max-width: 768px) {
     .layer-hint {
         right: auto;
-        left: 100%;
-        margin-right: 0;
-        margin-left: var(--space-md);
+        left: var(--space-md);
+        top: 80px;
+        transform: none;
     }
 
     .layer-hint-arrow {
-        right: auto;
-        left: -8px;
-        border-left: none;
-        border-right: 8px solid var(--accent-primary);
+        display: none;
     }
 
     .layer-hint-content {
         min-width: 180px;
         max-width: 200px;
+    }
+}
+/* ==========================================================================
+   Reduced Motion Preferences
+   Respects user preferences for reduced motion by minimizing or disabling
+   animations and transitions globally.
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    /* Explicitly disable specific map animations */
+    #btnLocate.locating {
+        animation: none;
+    }
+
+    .status-dot {
+        animation: none;
+    }
+
+    .user-location-pulse {
+        animation: none;
+        opacity: 0.5;
+    }
+
+    .layer-hint {
+        animation: none;
+    }
+
+    .map-control-btn.hint-pulse {
+        animation: none;
+    }
+
+    /* Reduce hover transform effects */
+    .popup-action-btn.start:hover,
+    .popup-action-btn.end:hover,
+    .layer-hint-dismiss:hover {
+        transform: none;
     }
 }
