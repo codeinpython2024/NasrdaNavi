@@ -6,12 +6,17 @@ class MascotAnimator {
         this.voiceMascot = null;
         this.avatar = null;
         this.bubble = null;
-        this.isIdle = false
-        this._idleTimeout = null
-        this._idleTween = null
+        this.isIdle = false;
+        this._idleTimeout = null;
+        this._idleTween = null;
+        this._clickHandler = null;
+        this._initialized = false;
+        this.prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     }
 
     init() {
+        if (this._initialized) return;
+        
         this.splashMascot = document.getElementById('splashMascot');
         this.voiceMascot = document.getElementById('voiceMascot');
         this.avatar = document.getElementById('voiceMascotAvatar');
@@ -19,40 +24,66 @@ class MascotAnimator {
         
         voiceAssistant.setMascotElement(this.avatar);
         this.setupClickHandler();
+        this._initialized = true;
     }
 
     setupClickHandler() {
-        if (!this.avatar) return;
+        if (!this.avatar || this._clickHandler) return;
         
-        this.avatar.addEventListener('click', () => {
+        this._clickHandler = () => {
             const enabled = voiceAssistant.toggle();
             const status = document.getElementById('voiceMascotStatus');
             if (status) {
-              status.textContent = enabled ? "Voice On" : "Muted"
-              status.classList.toggle("muted", !enabled)
+              status.textContent = enabled ? "Voice On" : "Muted";
+              status.classList.toggle("muted", !enabled);
             }
             
             this.showBubble(enabled ? "I'm listening!" : "Voice muted");
             this.playClickAnimation();
-        });
+            
+            // Haptic feedback on mobile
+            if (navigator.vibrate) navigator.vibrate(50);
+        };
+        
+        this.avatar.addEventListener('click', this._clickHandler);
     }
 
     transitionFromSplash() {
         return new Promise(resolve => {
             const splash = document.getElementById('splash');
+            
+            // Ensure init was called
+            if (!this._initialized) this.init();
+            
             if (!splash || !this.splashMascot || !this.voiceMascot) {
                 if (splash) splash.remove();
-                if (this.voiceMascot) gsap.set(this.voiceMascot, { opacity: 1 })
+                this._showVoiceMascot();
+                resolve();
+                return;
+            }
+
+            // Reduced motion: instant transition
+            if (this.prefersReducedMotion) {
+                splash.remove();
+                this._showVoiceMascot();
                 resolve();
                 return;
             }
 
             const splashRect = this.splashMascot.getBoundingClientRect();
+            
+            // Get target position from actual voice mascot element's computed styles
+            // Temporarily make it visible to get correct position
+            this.voiceMascot.style.visibility = 'visible';
+            this.voiceMascot.style.opacity = '0';
             const targetRect = this.voiceMascot.getBoundingClientRect();
+            const targetSize = targetRect.width || 64;
+            this.voiceMascot.style.visibility = 'hidden';
 
             // Create flying mascot clone
             const flyingMascot = document.createElement('img');
-            flyingMascot.src = "/static/Vector.webp"
+            flyingMascot.src = "/static/Vector.webp";
+            flyingMascot.alt = "";
             flyingMascot.style.cssText = `
                 position: fixed;
                 z-index: 10000;
@@ -76,18 +107,17 @@ class MascotAnimator {
                 delay: 0.2
             });
 
-            // Fly mascot to corner
+            // Fly mascot to voice mascot position
             gsap.to(flyingMascot, {
                 left: targetRect.left,
                 top: targetRect.top,
-                width: 64,
-                height: 64,
+                width: targetSize,
+                height: targetSize,
                 rotation: 360,
                 duration: 1.2,
                 ease: 'power2.inOut',
                 onComplete: () => {
-                    // Show actual voice mascot
-                    gsap.set(this.voiceMascot, { opacity: 1 });
+                    this._showVoiceMascot();
                     flyingMascot.remove();
                     splash.remove();
                     this.playEntranceAnimation();
@@ -96,9 +126,15 @@ class MascotAnimator {
             });
         });
     }
+    
+    _showVoiceMascot() {
+        if (!this.voiceMascot) return;
+        gsap.set(this.voiceMascot, { opacity: 1, visibility: 'visible' });
+        this.voiceMascot.setAttribute('aria-hidden', 'false');
+    }
 
     playEntranceAnimation() {
-        if (!this.avatar) return;
+        if (!this.avatar || this.prefersReducedMotion) return;
 
         gsap.fromTo(this.avatar, 
             { scale: 0.5 },
@@ -109,7 +145,7 @@ class MascotAnimator {
     }
 
     playWaveAnimation() {
-        if (!this.avatar) return;
+        if (!this.avatar || this.prefersReducedMotion) return;
 
         gsap.to(this.avatar, {
             rotation: 8,
@@ -122,7 +158,7 @@ class MascotAnimator {
     }
 
     playClickAnimation() {
-        if (!this.avatar) return;
+        if (!this.avatar || this.prefersReducedMotion) return;
 
         gsap.to(this.avatar, {
             scale: 0.9,
@@ -189,38 +225,38 @@ class MascotAnimator {
     }
 
     startIdleAnimation() {
-        if (!this.avatar || this.isIdle) return
+        if (!this.avatar || this.isIdle || this.prefersReducedMotion) return;
 
-        this.isIdle = true
-
-        const float = () => {
-            if (!this.isIdle) return;
-            this._idleTween = gsap.to(this.avatar, {
-              y: -6,
-              duration: 2,
-              ease: "power1.inOut",
-              yoyo: true,
-              repeat: 1,
-              onComplete: () => {
-                if (this.isIdle) {
-                  this._idleTimeout = setTimeout(float, 1000)
-                }
-              },
-            })
-        };
-        float();
+        this.isIdle = true;
+        this._idleTween = gsap.to(this.avatar, {
+            y: -6,
+            duration: 2,
+            ease: "sine.inOut",
+            yoyo: true,
+            repeat: -1
+        });
     }
 
     stopIdleAnimation() {
         this.isIdle = false;
-        clearTimeout(this._idleTimeout)
-        this._idleTimeout = null
         if (this._idleTween) {
-          this._idleTween.kill()
-          this._idleTween = null
+            this._idleTween.kill();
+            this._idleTween = null;
         }
-        gsap.killTweensOf(this.avatar);
-        gsap.set(this.avatar, { y: 0 });
+        if (this.avatar) {
+            gsap.killTweensOf(this.avatar);
+            gsap.set(this.avatar, { y: 0, clearProps: "y" });
+        }
+    }
+    
+    destroy() {
+        this.stopIdleAnimation();
+        this.stopIntroduction();
+        if (this._clickHandler && this.avatar) {
+            this.avatar.removeEventListener('click', this._clickHandler);
+            this._clickHandler = null;
+        }
+        this._initialized = false;
     }
 }
 
