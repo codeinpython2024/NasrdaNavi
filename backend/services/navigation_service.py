@@ -15,12 +15,16 @@ class NavigationService:
             return [], 0
 
         edge_data = self.graph.get_edge_data(path[0], path[1])
-        current_road = edge_data["road_name"] if edge_data else "Unnamed Road"
+        if edge_data is None:
+            raise ValueError(f"Invalid path: edge from {path[0]} to {path[1]} does not exist in graph")
+        current_road = edge_data.get("road_name", "Unnamed Road")
 
         for i in range(len(path) - 1):
             edge_data = self.graph.get_edge_data(path[i], path[i + 1])
-            road_name = edge_data["road_name"] if edge_data else "Unnamed Road"
-            dist = edge_data["weight"] if edge_data else 0
+            if edge_data is None:
+                raise ValueError(f"Invalid path: edge from {path[i]} to {path[i + 1]} does not exist in graph")
+            road_name = edge_data.get("road_name", "Unnamed Road")
+            dist = edge_data.get("weight", 0)
             segment_distance += dist
             total_distance += dist
 
@@ -34,7 +38,7 @@ class NavigationService:
                 diff = (next_bearing - prev_bearing + 180) % 360 - 180
 
                 turn = turn_direction(diff)
-                next_road = next_edge["road_name"]
+                next_road = next_edge.get("road_name", "Unnamed Road")
 
                 if turn != "Continue straight":
                     instructions.append({

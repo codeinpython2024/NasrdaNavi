@@ -14,3 +14,6 @@ def get_map_config():
     return jsonify({
         'mapboxToken': Config.MAPBOX_ACCESS_TOKEN,
     })
+
+
+
