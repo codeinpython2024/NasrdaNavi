@@ -3,7 +3,7 @@
  * Enables offline functionality and caching for the campus navigation app
  */
 
-const CACHE_VERSION = "v2"
+const CACHE_VERSION = "v4"
 const CACHE_NAME = `nasrdanavi-${CACHE_VERSION}`
 const TILE_CACHE_NAME = `nasrdanavi-tiles-${CACHE_VERSION}`
 const ROUTE_CACHE_NAME = `nasrdanavi-routes-${CACHE_VERSION}`
@@ -11,6 +11,7 @@ const EXTERNAL_CACHE_NAME = `nasrdanavi-external-${CACHE_VERSION}`
 
 // Maximum number of tiles to cache (to prevent storage bloat)
 const MAX_TILE_CACHE_SIZE = 500
+const MAX_ROUTE_CACHE_SIZE = 50
 
 // Connection quality state (updated via message from client)
 let connectionQuality = "fast"
@@ -45,6 +46,8 @@ const PRECACHE_ASSETS = [
   "/static/js/modules/mascot/index.js",
   "/static/js/modules/splash/index.js",
   "/static/js/modules/utils/index.js",
+  "/static/js/modules/utils/errorHandler.js",
+  "/static/js/modules/utils/loading.js",
   "/static/js/modules/pwa/index.js",
   "/static/data/roads.geojson",
   "/static/data/buildings.geojson",
@@ -145,6 +148,11 @@ self.addEventListener("fetch", (event) => {
 
   // Skip non-GET requests
   if (event.request.method !== "GET") {
+    return
+  }
+
+  // Skip non-http(s) requests (e.g., chrome-extension://)
+  if (!url.protocol.startsWith("http")) {
     return
   }
 
@@ -386,7 +394,8 @@ async function handleRouteRequest(request) {
     const networkResponse = await fetch(request)
 
     if (networkResponse.ok) {
-      // Cache the route for offline use
+      // Limit route cache size and cache the route
+      await limitCacheSize(ROUTE_CACHE_NAME, MAX_ROUTE_CACHE_SIZE)
       cache.put(request, networkResponse.clone())
     }
 
