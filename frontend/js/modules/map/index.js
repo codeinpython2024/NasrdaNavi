@@ -58,6 +58,8 @@ class MapManager {
     this.userLocationMarker = null
     // Flags to prevent duplicate event listener registration
     this.sportArenaInteractionsSetup = false
+    // Callback to check navigation mode (set by main.js)
+    this.getNavigationMode = null
     this.buildingInteractionsSetup = false
   }
 
@@ -775,13 +777,26 @@ class MapManager {
 
       const feature = e.features[0]
       const props = feature.properties
+      const coordinates = e.lngLat
+      const name = props.Name || "Unknown"
+
+      // If in navigation mode, set point directly instead of showing popup
+      const navMode = this.getNavigationMode?.()
+      if (navMode === "setStart" || navMode === "setEnd") {
+        window.dispatchEvent(new CustomEvent("set-nav-point", {
+          detail: {
+            type: navMode === "setStart" ? "start" : "end",
+            name: name,
+            coords: [coordinates.lng, coordinates.lat]
+          }
+        }))
+        return
+      }
+
       const sportType = props.SportType || "unknown"
       const icon = getSportIcon(sportType)
       const sportColor =
         CONFIG.colors.sports[sportType]?.fill || CONFIG.colors.sportArena
-
-      // Calculate centroid for popup position
-      const coordinates = e.lngLat
 
       // Close existing popup and create new one with correct class
       if (this.popup) this.popup.remove()
@@ -794,7 +809,7 @@ class MapManager {
       })
 
       // Escape names to prevent XSS
-      const safeName = escapeHtml(props.Name || "Unknown")
+      const safeName = escapeHtml(name)
       const safeSportType = escapeHtml(
         sportType.charAt(0).toUpperCase() + sportType.slice(1)
       )
@@ -887,6 +902,21 @@ class MapManager {
       const feature = e.features[0]
       const props = feature.properties
       const buildingName = props.name || "Unknown Building"
+      const coordinates = e.lngLat
+
+      // If in navigation mode, set point directly instead of showing popup
+      const navMode = this.getNavigationMode?.()
+      if (navMode === "setStart" || navMode === "setEnd") {
+        window.dispatchEvent(new CustomEvent("set-nav-point", {
+          detail: {
+            type: navMode === "setStart" ? "start" : "end",
+            name: buildingName,
+            coords: [coordinates.lng, coordinates.lat]
+          }
+        }))
+        return
+      }
+
       const department = props.Department || ""
       const buildingType = props.type?.trim() || ""
 
@@ -894,9 +924,6 @@ class MapManager {
       const safeBuildingName = escapeHtml(buildingName)
       const safeDepartment = escapeHtml(department)
       const safeBuildingType = escapeHtml(buildingType)
-
-      // Calculate centroid for popup position
-      const coordinates = e.lngLat
 
       // Close existing popup and create new one with correct class
       if (this.popup) this.popup.remove()
