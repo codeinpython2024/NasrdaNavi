@@ -31,7 +31,7 @@
     border-radius: 50%;
     object-fit: cover;
     border: 2px solid var(--accent-primary);
-    box-shadow: 0 0 15px rgba(255, 140, 0, 0.3);
+    box-shadow: 0 0 15px var(--accent-glow-soft);
 }
 
 .sidebar-title {
@@ -238,7 +238,7 @@
 }
 
 .sidebar .btn-primary:hover {
-    background: #FF9337;
+    background: var(--accent-primary-hover);
     box-shadow: var(--shadow-accent-soft);
 }
 
@@ -297,7 +297,7 @@
     background: var(--accent-primary);
     color: var(--text-primary);
     border-color: var(--accent-primary);
-    box-shadow: 0 0 12px rgba(255, 140, 0, 0.4);
+    box-shadow: 0 0 12px var(--accent-glow-medium);
 }
 
 .nav-point-btn.active .nav-point-icon.start {
@@ -384,7 +384,7 @@
 
 /* Fuzzy match highlights */
 .search-result-name mark {
-    background: rgba(255, 140, 0, 0.3);
+    background: var(--accent-glow-soft);
     color: var(--accent-primary);
     padding: 0 2px;
     border-radius: 2px;
@@ -413,7 +413,7 @@
 }
 
 .search-result-type.type-sport {
-    background: rgba(255, 140, 0, 0.2);
+    background: var(--accent-primary-soft);
     color: var(--accent-primary);
 }
 
@@ -485,14 +485,26 @@
     height: 100%;
     border-radius: 50%;
     border: 3px solid var(--accent-primary);
-    box-shadow: 0 0 15px rgba(255, 140, 0, 0.6);
+    box-shadow: 0 0 15px var(--accent-glow-strong);
     object-fit: cover;
-    animation: mascot-pulse 2s ease-in-out infinite;
+    animation: none;
+    }
+    
+    @media (prefers-reduced-motion: no-preference) {
+        .route-mascot-marker img {
+        animation: mascot-pulse 2s ease-in-out infinite;
+        }
 }
 
 @keyframes mascot-pulse {
-    0%, 100% { box-shadow: 0 0 15px rgba(255, 140, 0, 0.6); }
-    50% { box-shadow: 0 0 25px rgba(255, 140, 0, 0.9); }
+    0%,
+        100% {
+            box-shadow: 0 0 15px var(--accent-glow-strong);
+        }
+    
+        50% {
+            box-shadow: 0 0 25px var(--accent-glow-intense);
+        }
 }
 
 /* Step Markers */
@@ -593,16 +605,19 @@
 
 .offline-indicator svg {
     flex-shrink: 0;
-    animation: pulse-warning 2s ease-in-out infinite;
+    animation: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .offline-indicator svg {
+        animation: pulse-warning 2s ease-in-out infinite;
+    }
 }
 
 @keyframes pulse-warning {
-
-    0%,
-    100% {
+    0%, 100% {
         opacity: 1;
     }
-
     50% {
         opacity: 0.5;
     }
@@ -617,7 +632,7 @@
     width: 100%;
     padding: var(--space-sm) var(--space-md);
     margin-bottom: var(--space-sm);
-    background: linear-gradient(135deg, var(--accent-primary) 0%, #FF9337 100%);
+    background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary-hover) 100%);
     border: none;
     border-radius: var(--radius-sm);
     color: var(--text-primary);
@@ -627,12 +642,12 @@
     letter-spacing: 0.08em;
     cursor: pointer;
     transition: all 0.2s ease;
-    box-shadow: 0 2px 10px rgba(255, 140, 0, 0.3);
+    box-shadow: 0 2px 10px var(--accent-glow-soft);
 }
 
 .pwa-install-btn:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 15px rgba(255, 140, 0, 0.4);
+    box-shadow: 0 4px 15px var(--accent-glow-medium);
 }
 
 .pwa-install-btn:active {
@@ -697,7 +712,7 @@
 }
 
 #pwa-update-btn:hover {
-    background: #FF9337;
+    background: var(--accent-primary-hover);
 }
 
 #pwa-dismiss-btn {
@@ -742,16 +757,19 @@
 
 .offline-map-indicator svg {
     flex-shrink: 0;
-    animation: pulse-info 2s ease-in-out infinite;
+    animation: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .offline-map-indicator svg {
+        animation: pulse-info 2s ease-in-out infinite;
+    }
 }
 
 @keyframes pulse-info {
-
-    0%,
-    100% {
+    0%, 100% {
         opacity: 1;
     }
-
     50% {
         opacity: 0.6;
     }
@@ -788,14 +806,19 @@
 
 .slow-connection-indicator svg {
     flex-shrink: 0;
-    animation: spin-slow 3s linear infinite;
+    animation: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .slow-connection-indicator svg {
+        animation: spin-slow 3s linear infinite;
+    }
 }
 
 @keyframes spin-slow {
     from {
         transform: rotate(0deg);
     }
-
     to {
         transform: rotate(360deg);
     }
