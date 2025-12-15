@@ -238,7 +238,7 @@ class PWAManager {
 
       console.log("[PWA] Service worker registered:", this.swRegistration.scope)
 
-      // Handle updates
+      // Handle updates - auto-apply
       this.swRegistration.addEventListener("updatefound", () => {
         const newWorker = this.swRegistration.installing
 
@@ -247,10 +247,18 @@ class PWAManager {
             newWorker.state === "installed" &&
             navigator.serviceWorker.controller
           ) {
-            console.log("[PWA] New version available")
-            this.showUpdateNotification()
+            console.log("[PWA] New version available, applying update...")
+            newWorker.postMessage({ type: "SKIP_WAITING" })
           }
         })
+      })
+
+      // Reload once when new service worker takes control
+      let refreshing = false
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (refreshing) return
+        refreshing = true
+        window.location.reload()
       })
 
       return this.swRegistration
