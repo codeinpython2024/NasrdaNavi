@@ -140,41 +140,49 @@
 </aside>
 
 <!-- Map -->
-<main id="map" role="application" aria-label="Interactive campus map" tabindex="-1">
-    <!-- Transport Mode Toggle -->
-    <div class="transport-mode-toggle" role="radiogroup" aria-label="Transport mode selection">
-        <button id="btnDriving" class="transport-mode-btn active" 
-                title="Driving (roads only)"
-                role="radio"
-                aria-checked="true"
-                aria-label="Driving mode - uses roads only">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                <path d="M5 17h14M6 17l1-6h10l1 6M8 11V7c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2v4M7 17v2M17 17v2"/>
-            </svg>
-            <span>Driving</span>
-        </button>
-        <button id="btnWalking" class="transport-mode-btn" 
-                title="Walking (roads + footpaths)"
-                role="radio"
-                aria-checked="false"
-                aria-label="Walking mode - uses roads and footpaths">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                <circle cx="12" cy="4" r="2"/>
-                <path d="M14 8l-2 8 4 4M10 8l2 8-4 4M12 12h-2M12 12h2"/>
-            </svg>
-            <span>Walking</span>
-        </button>
-    </div>
-</main>
+<main id="map" role="region" aria-label="Interactive campus map" tabindex="-1"></main>
+
+<!-- Transport Mode Toggle -->
+<div class="transport-mode-toggle" role="radiogroup" aria-label="Transport mode selection">
+    <button id="btnDriving" class="transport-mode-btn active" 
+            title="Driving (roads only)"
+            role="radio"
+            aria-checked="true"
+            aria-label="Driving mode - uses roads only">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M5 17h14M6 17l1-6h10l1 6M8 11V7c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2v4M7 17v2M17 17v2"/>
+        </svg>
+        <span>Driving</span>
+    </button>
+    <button id="btnWalking" class="transport-mode-btn" 
+            title="Walking (roads + footpaths)"
+            role="radio"
+            aria-checked="false"
+            aria-label="Walking mode - uses roads and footpaths">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="12" cy="4" r="2"/>
+            <path d="M14 8l-2 8 4 4M10 8l2 8-4 4M12 12h-2M12 12h2"/>
+        </svg>
+        <span>Walking</span>
+    </button>
+</div>
+
+<!-- Exit Navigation Button (shown during active navigation) -->
+<button class="exit-navigation-btn" aria-label="Exit navigation mode">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
+    </svg>
+    <span>Exit Navigation</span>
+</button>
 
 <!-- Voice Assistant Mascot (starts hidden, animated from splash) -->
-<div id="voiceMascot" class="voice-mascot" style="opacity: 0;" 
-     role="region" aria-label="Voice assistant">
+<div id="voiceMascot" class="voice-mascot" style="opacity: 0; visibility: hidden;" 
+     role="region" aria-label="Voice assistant" aria-hidden="true">
     <div id="voiceBubble" class="voice-bubble" role="status" aria-live="polite"></div>
     <button id="voiceMascotAvatar" class="voice-mascot-avatar-btn" aria-label="Toggle voice assistant">
         <img src="/static/Vector.webp" alt="Navi voice assistant" class="voice-mascot-avatar"/>
+        <div class="voice-mascot-ring" aria-hidden="true"></div>
     </button>
-    <div class="voice-mascot-ring" aria-hidden="true"></div>
     <span id="voiceMascotStatus" class="voice-mascot-status" aria-live="polite">Voice On</span>
 </div>
 

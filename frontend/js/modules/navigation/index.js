@@ -34,6 +34,28 @@ class NavigationManager {
     this.currentMode = "driving" // 'driving' or 'walking'
     this.navigationMode = null // null, 'setStart', or 'setEnd'
     this.onNavigationModeChange = null // callback for UI updates
+    this._isNavigating = false
+  }
+
+  /**
+   * Enter focused navigation mode - hides UI clutter
+   */
+  _enterNavigationMode() {
+    if (this._isNavigating) return
+    this._isNavigating = true
+    document.body.classList.add("navigation-active")
+    
+    // Close any open popups
+    mapManager.popup?.remove()
+  }
+
+  /**
+   * Exit focused navigation mode - restores UI
+   */
+  _exitNavigationMode() {
+    if (!this._isNavigating) return
+    this._isNavigating = false
+    document.body.classList.remove("navigation-active")
   }
 
   setMode(mode) {
@@ -175,7 +197,9 @@ class NavigationManager {
         let errorMessage = `Server error (${res.status})`
         try {
           const errorData = await res.json()
-          if (errorData.error) {
+          if (errorData.message) {
+            errorMessage = errorData.message
+          } else if (errorData.error) {
             errorMessage = errorData.error
           }
         } catch {
@@ -219,7 +243,8 @@ class NavigationManager {
   }
 
   displayRoute(data) {
-    // Keep start/end markers visible
+    // Enter focused navigation mode
+    this._enterNavigationMode()
 
     // Remove existing route layers and source
     this._removeRouteFromMap()
@@ -345,6 +370,9 @@ class NavigationManager {
   }
 
   clear() {
+    // Exit focused navigation mode
+    this._exitNavigationMode()
+
     // Remove route layers and source
     this._removeRouteFromMap()
 

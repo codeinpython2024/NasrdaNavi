@@ -106,7 +106,9 @@
         right: var(--space-md);
     }
 
-    .voice-mascot-avatar {
+    .voice-mascot-avatar,
+    .voice-mascot-avatar-btn,
+    .voice-mascot-ring {
         width: 48px;
         height: 48px;
     }
@@ -307,18 +309,70 @@
     }
 }
 
+/* Navigation active mode - hide UI for focused navigation */
+body.navigation-active .sidebar,
+body.navigation-active .map-controls,
+body.navigation-active .transport-mode-toggle {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.exit-navigation-btn {
+    position: fixed;
+    top: var(--space-lg);
+    left: var(--space-lg);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    background: var(--surface-card);
+    border: 1px solid var(--border-control);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: 13px;
+    cursor: pointer;
+    box-shadow: var(--shadow-card);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease, background 0.2s;
+}
+
+body.navigation-active .exit-navigation-btn {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.exit-navigation-btn:hover {
+    background: var(--surface-card-elevated);
+}
+
+.exit-navigation-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
 /* Reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
 
     .sidebar,
     .voice-mascot,
-    .transport-mode-toggle {
+    .transport-mode-toggle,
+        .offline-indicator,
+        .offline-map-indicator,
+        .slow-connection-indicator,
+        .pwa-install-btn,
+        .pwa-update-notification {
         transition: none;
     }
 
     .splash-mascot,
     .voice-mascot-avatar,
-    .route-mascot-marker img {
+                .route-mascot-marker img,
+                .offline-indicator svg,
+                .offline-map-indicator svg,
+                .slow-connection-indicator svg {
         animation: none;
     }
 }

@@ -7,6 +7,27 @@ import { splashAnimator } from './modules/splash/index.js';
 import { errorHandler, loadingManager } from "./modules/utils/index.js"
 import { pwaManager } from "./modules/pwa/index.js"
 
+// Utility: debounce function
+function debounce(fn, delay) {
+  let timer
+  return (...args) => {
+    clearTimeout(timer)
+    timer = setTimeout(() => fn(...args), delay)
+  }
+}
+
+// Utility: throttle function
+function throttle(fn, limit) {
+  let inThrottle
+  return (...args) => {
+    if (!inThrottle) {
+      fn(...args)
+      inThrottle = true
+      setTimeout(() => inThrottle = false, limit)
+    }
+  }
+}
+
 async function init() {
   // Start splash animations
   splashAnimator.animate()
@@ -63,6 +84,7 @@ async function init() {
   navigationManager.onDirectionsUpdate = (dirs, routeMeta) =>
     uiManager.updateDirections(dirs, routeMeta)
   mapManager.onClick((e) => navigationManager.handleMapClick(e))
+  mapManager.getNavigationMode = () => navigationManager.getNavigationMode()
 
   // Search
   const searchBox = document.getElementById("searchBox")
@@ -75,7 +97,7 @@ async function init() {
       uiManager.showSearchResults(matches, resultsDiv, searchBox)
     }
 
-    searchBox.addEventListener("input", doSearch)
+    searchBox.addEventListener("input", debounce(doSearch, 150))
     searchBtn.addEventListener("click", doSearch)
   }
 
@@ -83,6 +105,12 @@ async function init() {
   const clearBtn = document.getElementById("clearBtn")
   if (clearBtn) {
     clearBtn.addEventListener("click", () => navigationManager.clear())
+  }
+
+  // Exit navigation button
+  const exitNavBtn = document.querySelector(".exit-navigation-btn")
+  if (exitNavBtn) {
+    exitNavBtn.addEventListener("click", () => navigationManager.clear())
   }
 
   // Nearest - find nearest feature using geolocation
@@ -297,10 +325,10 @@ function showLayerHint() {
   `
 
   // Position hint near the buildings button
+  const mapContainer = document.getElementById("map")
   const mapControls = document.querySelector(".map-controls")
-  if (mapControls) {
-    mapControls.style.position = "relative"
-    mapControls.appendChild(hint)
+  if (mapControls && mapContainer) {
+    mapContainer.appendChild(hint)
 
     // Add pulse animation to the buttons
     buildingsBtn.classList.add("hint-pulse")
@@ -389,12 +417,12 @@ function setupMobileSidebar() {
     }
   }
 
-  // Reset sidebar state on resize
-  window.addEventListener("resize", () => {
+  // Reset sidebar state on resize (throttled)
+  window.addEventListener("resize", throttle(() => {
     if (!isMobile()) {
       sidebar.classList.remove("expanded")
     }
-  })
+  }, 200))
 }
 
 init().catch(err => {
