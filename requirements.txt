@@ -4,6 +4,9 @@
 # Core Web Framework
 Flask>=3.0.0
 
+# Production WSGI Server
+gunicorn>=21.0.0
+
 # Rate Limiting (optional, but recommended for production)
 Flask-Limiter>=3.5.0
 
