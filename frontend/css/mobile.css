@@ -1,7 +1,6 @@
-/* Mobile-first responsive design */
-
 /* Small phones (320px+) */
 @media (max-width: 480px) {
+    /* Footer-style sidebar */
     .sidebar {
         position: fixed;
         top: auto;
@@ -10,23 +9,30 @@
         right: 0;
         width: 100%;
         height: auto;
-        max-height: 45vh;
+        max-height: 60vh;
         border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-        transform: translateY(calc(100% - 80px));
-        transition: transform 0.3s ease;
+        transform: translateY(calc(100% - 72px));
+            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
         z-index: 1001;
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
     }
 
     .sidebar.expanded {
         transform: translateY(0);
     }
 
+                                                                /* Footer header with drag handle */
     .sidebar-brand {
-        padding: var(--space-md);
+        padding: var(--space-md) var(--space-lg);
         cursor: pointer;
+        position: relative;
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
     }
 
-    .sidebar-brand::after {
+                                                                /* Visible drag handle indicator */
+                                                                .sidebar-brand::before {
         content: '';
         position: absolute;
         top: 8px;
@@ -36,6 +42,12 @@
         height: 4px;
         background: var(--text-disabled);
         border-radius: var(--radius-pill);
+        transition: background 0.2s ease;
+        }
+        
+        .sidebar:hover .sidebar-brand::before,
+        .sidebar.expanded .sidebar-brand::before {
+            background: var(--accent-primary);
     }
 
     .sidebar-mascot {
@@ -44,11 +56,16 @@
     }
 
     .sidebar-title {
-        font-size: 16px;
+        font-size: 15px;
     }
 
+                                                                .sidebar-subtitle {
+                                                                    font-size: 9px;
+                                                                }
+                                
+                                                                /* Footer content sections */
     .sidebar-section {
-        padding: var(--space-md);
+        padding: var(--space-md) var(--space-lg);
     }
 
     .sidebar-directions {
@@ -60,20 +77,22 @@
     }
 
     .sidebar-actions {
-        padding: var(--space-md);
+        padding: var(--space-md) var(--space-lg);
+            padding-bottom: calc(var(--space-md) + env(safe-area-inset-bottom, 0));
     }
 
     .sidebar-actions .btn {
         padding: var(--space-sm) var(--space-md);
+        font-size: 11px;
     }
 
-    /* Transport toggle repositioned for mobile */
+                                                                /* Transport toggle repositioned for mobile footer */
     .transport-mode-toggle {
-        bottom: auto;
-        top: var(--space-lg);
+        bottom: 80px;
         left: 50%;
         transform: translateX(-50%);
         right: auto;
+        top: auto;
     }
 
     .transport-mode-btn {
@@ -91,8 +110,10 @@
 
     /* Map controls repositioned */
     .map-controls {
-        top: 70px;
+        top: var(--space-lg);
         right: var(--space-sm);
+        max-height: calc(100vh - 180px);
+            overflow-y: auto;
     }
 
     .map-control-btn {
@@ -102,15 +123,15 @@
 
     /* Voice mascot repositioned */
     .voice-mascot {
-        bottom: 100px;
+        bottom: 90px;
         right: var(--space-md);
     }
 
     .voice-mascot-avatar,
     .voice-mascot-avatar-btn,
     .voice-mascot-ring {
-        width: 48px;
-        height: 48px;
+        width: 44px;
+            height: 44px;
     }
 
     .voice-bubble {
@@ -120,59 +141,68 @@
 
     /* Search results */
     #searchResults {
-        max-height: 120px;
+        max-height: 100px;
     }
 
-    /* Navigation buttons */
+                                                                /* Navigation buttons - horizontal in footer */
     .nav-point-buttons {
-        flex-direction: column;
-        gap: var(--space-xs);
+        flex-direction: row;
+            gap: var(--space-sm);
     }
 
     .nav-point-btn {
-        padding: var(--space-xs) var(--space-sm);
+        padding: var(--space-sm) var(--space-md);
+            flex: 1;
+        }
+        
+        .nav-point-text {
+            font-size: 10px;
     }
 
     /* Popups */
     .mapboxgl-popup {
-        max-width: 260px !important;
+        max-width: 280px !important;
     }
 
     .popup-action-buttons {
-        flex-direction: column;
-        gap: var(--space-xs);
+        flex-direction: row;
+            gap: var(--space-sm);
     }
-/* Splash screen */
+/* Splash screen mobile */
 .splash-mascot {
     width: 120px;
     height: 120px;
 }
 
-.splash-title {
-    font-size: 28px;
-}
+                .splash-title {
+                    font-size: 28px;
+                }
 
-.splash-subtitle {
-    font-size: 14px;
-}
+                .splash-subtitle {
+                    font-size: 14px;
+                }
 
-.splash-start-btn {
-    padding: var(--space-md) var(--space-xl);
-    font-size: 14px;
-}
+                .splash-start-btn {
+                    padding: var(--space-md) var(--space-xl);
+                    font-size: 14px;
+                }
 
-.splash-footer {
-    padding: var(--space-md);
-}
+                .splash-footer {
+                    padding: var(--space-md);
+                }
 
-.splash-nasrda-logo {
-    width: 40px;
-    height: 40px;
+                .splash-nasrda-logo {
+                    width: 40px;
+                    height: 40px;
+        /* Safe area for notched phones */
+        .sidebar-actions {
+            padding-bottom: calc(var(--space-lg) + env(safe-area-inset-bottom, 0));
 }
 }
 
 /* Regular phones (481px - 768px) */
 @media (min-width: 481px) and (max-width: 768px) {
+    /* Footer-style sidebar */
     .sidebar {
         position: fixed;
         top: auto;
@@ -181,11 +211,12 @@
         right: 0;
         width: 100%;
         height: auto;
-        max-height: 50vh;
+        max-height: 55vh;
         border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-        transform: translateY(calc(100% - 90px));
-        transition: transform 0.3s ease;
+        transform: translateY(calc(100% - 80px));
+            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
         z-index: 1001;
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
     }
 
     .sidebar.expanded {
@@ -194,9 +225,11 @@
 
     .sidebar-brand {
         cursor: pointer;
+        position: relative;
     }
 
-    .sidebar-brand::after {
+        /* Visible drag handle indicator */
+        .sidebar-brand::before {
         content: '';
         position: absolute;
         top: 8px;
@@ -206,6 +239,12 @@
         height: 4px;
         background: var(--text-disabled);
         border-radius: var(--radius-pill);
+        transition: background 0.2s ease;
+        }
+        
+        .sidebar:hover .sidebar-brand::before,
+        .sidebar.expanded .sidebar-brand::before {
+            background: var(--accent-primary);
     }
 
     .sidebar-directions {
@@ -216,10 +255,10 @@
         display: none;
     }
 
-    /* Transport toggle */
+        /* Transport toggle positioned above footer */
     .transport-mode-toggle {
-        bottom: auto;
-        top: var(--space-lg);
+        bottom: 90px;
+            top: auto;
         left: 50%;
         transform: translateX(-50%);
         right: auto;
@@ -227,12 +266,17 @@
 
     /* Map controls */
     .map-controls {
-        top: 70px;
+        top: var(--space-lg);
     }
 
     /* Voice mascot */
     .voice-mascot {
-        bottom: 110px;
+        bottom: 100px;
+        }
+        
+        /* Safe area for notched phones */
+        .sidebar-actions {
+            padding-bottom: calc(var(--space-lg) + env(safe-area-inset-bottom, 0));
     }
 }
 
@@ -388,5 +432,4 @@ body.navigation-active .exit-navigation-btn {
     .transport-mode-btn {
         border: 2px solid currentColor;
     }
-}
 }

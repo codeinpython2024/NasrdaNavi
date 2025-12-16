@@ -620,17 +620,20 @@ class MapManager {
       layout: {
         visibility: "visible",
         "text-field": ["case", ["!=", ["get", "name"], " "], ["get", "name"], ""],
-        "text-size": 11,
-        "text-font": ["DIN Pro Bold", "Arial Unicode MS Bold"],
+        "text-size": 12,
+        "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
         "text-anchor": "center",
         "text-allow-overlap": false,
         "text-ignore-placement": false,
-        "text-max-width": 8,
+        "text-max-width": 10,
+        "text-letter-spacing": 0.02,
+        "text-padding": 8,
       },
       paint: {
-        "text-color": "#1F2937",
-        "text-halo-color": "rgba(255, 255, 255, 0.95)",
-        "text-halo-width": 2,
+        "text-color": "#ffffff",
+        "text-halo-color": "rgba(255, 140, 0, 0.95)",
+        "text-halo-width": 2.5,
+        "text-halo-blur": 0.5,
       },
       filter: ["!=", ["get", "name"], " "],
     })
@@ -648,7 +651,7 @@ class MapManager {
       layout: { visibility: "visible" },
     })
 
-    // Add road labels (hidden initially)
+    // Add road labels with improved styling
     this.map.addLayer({
       id: "roads-label",
       type: "symbol",
@@ -657,13 +660,17 @@ class MapManager {
         visibility: "visible",
         "symbol-placement": "line",
         "text-field": ["get", "name"],
-        "text-size": 11,
-        "text-font": ["DIN Pro Medium", "Arial Unicode MS Regular"],
+        "text-size": 12,
+        "text-font": ["Open Sans Semibold", "Arial Unicode MS Regular"],
+        "text-letter-spacing": 0.05,
+        "symbol-spacing": 300,
+        "text-max-angle": 30,
       },
       paint: {
-        "text-color": "#E8F0F8",
-        "text-halo-color": "#0A1628",
-        "text-halo-width": 1.5,
+        "text-color": "#1E3A5F",
+        "text-halo-color": "rgba(255, 255, 255, 0.95)",
+        "text-halo-width": 2.5,
+        "text-halo-blur": 0.5,
       },
     })
 
@@ -1302,17 +1309,20 @@ class MapManager {
         layout: {
           visibility: this.layerVisibility.buildings ? "visible" : "none",
           "text-field": ["case", ["!=", ["get", "name"], " "], ["get", "name"], ""],
-          "text-size": 11,
-          "text-font": ["DIN Pro Bold", "Arial Unicode MS Bold"],
+          "text-size": 12,
+          "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
           "text-anchor": "center",
           "text-allow-overlap": false,
           "text-ignore-placement": false,
-          "text-max-width": 8,
+          "text-max-width": 10,
+          "text-letter-spacing": 0.02,
+          "text-padding": 8,
         },
         paint: {
-          "text-color": "#1F2937",
-          "text-halo-color": "rgba(255, 255, 255, 0.95)",
-          "text-halo-width": 2,
+          "text-color": "#ffffff",
+          "text-halo-color": "rgba(255, 140, 0, 0.95)",
+          "text-halo-width": 2.5,
+          "text-halo-blur": 0.5,
         },
         filter: ["!=", ["get", "name"], " "],
       })
@@ -1341,13 +1351,17 @@ class MapManager {
           visibility: this.layerVisibility.roads ? "visible" : "none",
           "symbol-placement": "line",
           "text-field": ["get", "name"],
-          "text-size": 11,
-          "text-font": ["DIN Pro Medium", "Arial Unicode MS Regular"],
+          "text-size": 12,
+          "text-font": ["Open Sans Semibold", "Arial Unicode MS Regular"],
+          "text-letter-spacing": 0.05,
+          "symbol-spacing": 300,
+          "text-max-angle": 30,
         },
         paint: {
-          "text-color": "#E8F0F8",
-          "text-halo-color": "#0A1628",
-          "text-halo-width": 1.5,
+          "text-color": "#1E3A5F",
+          "text-halo-color": "rgba(255, 255, 255, 0.95)",
+          "text-halo-width": 2.5,
+          "text-halo-blur": 0.5,
         },
       })
     }
