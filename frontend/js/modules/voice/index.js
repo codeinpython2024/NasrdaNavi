@@ -150,55 +150,49 @@ class VoiceAssistant {
       return
     }
 
-    // Try to find preferred voices in order
-    // 1. Try African English voices first
-    for (const langCode of this.africanLangCodes) {
-      const africanVoice = voices.find((v) => v.lang === langCode)
-      if (africanVoice) {
-        this.voice = africanVoice
+    // US English female voice names (in order of preference)
+    const usFemalePrefNames = [
+      "samantha",    // macOS/iOS - natural sounding
+      "allison",     // macOS/iOS
+      "ava",         // macOS/iOS
+      "zoe",         // macOS/iOS
+      "susan",       // Windows
+      "zira",        // Windows
+      "jenny",       // Windows 11
+      "aria",        // Windows 11
+      "google us english", // Chrome - female variant
+    ]
+
+    // 1. Try US English female voices first
+    for (const name of usFemalePrefNames) {
+      const femaleVoice = voices.find(
+        (v) =>
+          v.name.toLowerCase().includes(name) &&
+          (v.lang === "en-US" || v.lang.startsWith("en"))
+      )
+      if (femaleVoice) {
+        this.voice = femaleVoice
         this.initialized = true
-        console.log(`Voice set to ${africanVoice.name} (${africanVoice.lang})`)
+        console.log(`Voice set to ${femaleVoice.name} (${femaleVoice.lang})`)
         return
       }
     }
 
-    // 2. Try African voice patterns by name
-    for (const pattern of this.africanVoicePatterns) {
-      const matchingVoice = voices.find((v) => pattern.test(v.name))
-      if (matchingVoice) {
-        this.voice = matchingVoice
-        this.initialized = true
-        console.log(
-          `Voice set to ${matchingVoice.name} (${matchingVoice.lang})`
-        )
-        return
-      }
-    }
-
-    // 3. Try Samantha (good quality en-US voice on macOS/iOS)
-    const samantha = voices.find(
+    // 2. Fallback to any en-US female voice (ones without common male names)
+    const maleNames = ["alex", "daniel", "fred", "tom", "david", "mark", "james"]
+    const enUSFemale = voices.find(
       (v) =>
-        v.name.toLowerCase().includes("samantha") && v.lang.startsWith("en")
+        v.lang === "en-US" &&
+        !maleNames.some((m) => v.name.toLowerCase().includes(m))
     )
-    if (samantha) {
-      this.voice = samantha
+    if (enUSFemale) {
+      this.voice = enUSFemale
       this.initialized = true
-      console.log(`Voice set to ${samantha.name} (${samantha.lang})`)
+      console.log(`Voice set to ${enUSFemale.name} (${enUSFemale.lang})`)
       return
     }
 
-    // 4. Try Google UK English (good quality on Chrome)
-    const googleUK = voices.find(
-      (v) => v.name.includes("Google UK English") && v.lang.startsWith("en")
-    )
-    if (googleUK) {
-      this.voice = googleUK
-      this.initialized = true
-      console.log(`Voice set to ${googleUK.name} (${googleUK.lang})`)
-      return
-    }
-
-    // 5. Fallback to any en-US voice
+    // 3. Fallback to any en-US voice
     const enUS = voices.find((v) => v.lang === "en-US")
     if (enUS) {
       this.voice = enUS
