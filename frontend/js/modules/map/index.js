@@ -630,8 +630,8 @@ class MapManager {
         "text-padding": 8,
       },
       paint: {
-        "text-color": "#ffffff",
-        "text-halo-color": "rgba(255, 140, 0, 0.95)",
+        "text-color": "#000000",
+        "text-halo-color": "rgba(255, 255, 255, 0.95)",
         "text-halo-width": 2.5,
         "text-halo-blur": 0.5,
       },
