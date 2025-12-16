@@ -45,7 +45,7 @@ class MapManager {
       sportArena: null,
     }
     this.layerVisibility = {
-      roads: false,
+      roads: true, // Show by default
       buildings: true, // Show by default
       footpath: true, // Show by default
       grass: true, // Show by default
@@ -212,7 +212,7 @@ class MapManager {
                     <path d="M9 22v-4h6v4M9 6h.01M15 6h.01M9 10h.01M15 10h.01M9 14h.01M15 14h.01"></path>
                 </svg>
             </button>
-            <button class="map-control-btn" id="btnRoads" title="Toggle roads">
+            <button class="map-control-btn active" id="btnRoads" title="Toggle roads">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M4 19L20 5M4 5l16 14"></path>
                 </svg>
@@ -612,6 +612,28 @@ class MapManager {
       },
       layout: { visibility: "visible" },
     })
+    // Add building labels layer to display short titles
+    this.map.addLayer({
+      id: "buildings-label",
+      type: "symbol",
+      source: "buildings",
+      layout: {
+        visibility: "visible",
+        "text-field": ["case", ["!=", ["get", "name"], " "], ["get", "name"], ""],
+        "text-size": 11,
+        "text-font": ["DIN Pro Bold", "Arial Unicode MS Bold"],
+        "text-anchor": "center",
+        "text-allow-overlap": false,
+        "text-ignore-placement": false,
+        "text-max-width": 8,
+      },
+      paint: {
+        "text-color": "#1F2937",
+        "text-halo-color": "rgba(255, 255, 255, 0.95)",
+        "text-halo-width": 2,
+      },
+      filter: ["!=", ["get", "name"], " "],
+    })
 
     // Add building interactivity
     this.setupBuildingInteractions()
@@ -623,7 +645,7 @@ class MapManager {
       type: "line",
       source: "roads",
       paint: { "line-color": CONFIG.colors.road, "line-width": 2 },
-      layout: { visibility: "none" },
+      layout: { visibility: "visible" },
     })
 
     // Add road labels (hidden initially)
@@ -632,7 +654,7 @@ class MapManager {
       type: "symbol",
       source: "roads",
       layout: {
-        visibility: "none",
+        visibility: "visible",
         "symbol-placement": "line",
         "text-field": ["get", "name"],
         "text-size": 11,
@@ -1011,6 +1033,7 @@ class MapManager {
           "visibility",
           visibility
         )
+        this.map.setLayoutProperty("buildings-label", "visibility", visibility)
       }
     } else if (type === "roads") {
       if (this.map.getLayer("roads-line")) {
@@ -1270,6 +1293,28 @@ class MapManager {
         layout: {
           visibility: this.layerVisibility.buildings ? "visible" : "none",
         },
+      })
+      // Re-add building labels layer
+      this.map.addLayer({
+        id: "buildings-label",
+        type: "symbol",
+        source: "buildings",
+        layout: {
+          visibility: this.layerVisibility.buildings ? "visible" : "none",
+          "text-field": ["case", ["!=", ["get", "name"], " "], ["get", "name"], ""],
+          "text-size": 11,
+          "text-font": ["DIN Pro Bold", "Arial Unicode MS Bold"],
+          "text-anchor": "center",
+          "text-allow-overlap": false,
+          "text-ignore-placement": false,
+          "text-max-width": 8,
+        },
+        paint: {
+          "text-color": "#1F2937",
+          "text-halo-color": "rgba(255, 255, 255, 0.95)",
+          "text-halo-width": 2,
+        },
+        filter: ["!=", ["get", "name"], " "],
       })
 
       // Re-setup building interactions after style change
