@@ -12,8 +12,9 @@ export const CONFIG = {
     ], // Actual campus extent
     minZoom: 15,
     style: "mapbox://styles/mapbox/standard",
-    lightPreset: "day",
-    theme: "default",
+    lightPreset: "dawn",
+    theme: "monochrome",
+    lightPresets: ["dawn", "day", "dusk", "night"],
     styles: [
       {
         id: "standard",

@@ -36,6 +36,7 @@ class MapManager {
     this.map = null
     this.containerId = null
     this.currentStyleIndex = 0
+    this.currentLightPresetIndex = 0
     this.layerData = {
       roads: null,
       buildings: null,
@@ -121,11 +122,29 @@ class MapManager {
       antialias: true,
       maxBounds: CONFIG.map.maxBounds,
       minZoom: CONFIG.map.minZoom,
+      config: {
+        basemap: {
+          lightPreset: CONFIG.map.lightPreset,
+          theme: CONFIG.map.theme,
+          showPointOfInterestLabels: false,
+          showPlaceLabels: false,
+          showRoadLabels: false,
+          showTransitLabels: false,
+        },
+      },
     })
 
     // Set Standard style configuration after map loads
+    // Also re-add data layers since style.load can fire after initial layer setup
     this.map.on("style.load", () => {
       this.applyBasemapConfig()
+      // Re-add data layers if they've been loaded (fixes labels disappearing)
+      if (this.layerData.roads || this.layerData.buildings) {
+        // Reset interaction flags so listeners are re-registered
+        this.sportArenaInteractionsSetup = false
+        this.buildingInteractionsSetup = false
+        this.addDataLayers()
+      }
     })
 
     this.addCustomControls()
@@ -238,6 +257,12 @@ class MapManager {
                     <rect x="14" y="14" width="7" height="7"></rect>
                 </svg>
             </button>
+            <button class="map-control-btn" id="btnLightPreset" title="Change time of day (Dawn)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707"></path>
+                    <circle cx="12" cy="12" r="4"></circle>
+                </svg>
+            </button>
         `
 
     document.getElementById(this.containerId).appendChild(controlsContainer)
@@ -336,6 +361,10 @@ class MapManager {
 
     document.getElementById("btnMapStyle")?.addEventListener("click", () => {
       this.cycleMapStyle()
+    })
+
+    document.getElementById("btnLightPreset")?.addEventListener("click", () => {
+      this.cycleLightPreset()
     })
 
     // Update compass rotation
@@ -612,36 +641,11 @@ class MapManager {
       },
       layout: { visibility: "visible" },
     })
-    // Add building labels layer to display short titles
-    this.map.addLayer({
-      id: "buildings-label",
-      type: "symbol",
-      source: "buildings",
-      layout: {
-        visibility: "visible",
-        "text-field": ["case", ["!=", ["get", "name"], " "], ["get", "name"], ""],
-        "text-size": 12,
-        "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
-        "text-anchor": "center",
-        "text-allow-overlap": false,
-        "text-ignore-placement": false,
-        "text-max-width": 10,
-        "text-letter-spacing": 0.02,
-        "text-padding": 8,
-      },
-      paint: {
-        "text-color": "#000000",
-        "text-halo-color": "rgba(255, 255, 255, 0.95)",
-        "text-halo-width": 2.5,
-        "text-halo-blur": 0.5,
-      },
-      filter: ["!=", ["get", "name"], " "],
-    })
 
-    // Add building interactivity
+    // Add building interactivity (for fill layer hover/click)
     this.setupBuildingInteractions()
 
-    // Add roads layer (hidden initially)
+    // Add roads layer
     this.map.addSource("roads", { type: "geojson", data: roads })
     this.map.addLayer({
       id: "roads-line",
@@ -651,7 +655,7 @@ class MapManager {
       layout: { visibility: "visible" },
     })
 
-    // Add road labels with improved styling
+    // Add road labels - added before buildings label so buildings render on top
     this.map.addLayer({
       id: "roads-label",
       type: "symbol",
@@ -660,18 +664,47 @@ class MapManager {
         visibility: "visible",
         "symbol-placement": "line",
         "text-field": ["get", "name"],
-        "text-size": 12,
-        "text-font": ["Open Sans Semibold", "Arial Unicode MS Regular"],
+        "text-size": 11,
+        "text-font": ["DIN Pro Medium", "Arial Unicode MS Regular"],
         "text-letter-spacing": 0.05,
-        "symbol-spacing": 300,
+        "symbol-spacing": 350,
         "text-max-angle": 30,
+        "text-allow-overlap": false,
+        "text-ignore-placement": false,
       },
       paint: {
-        "text-color": "#1E3A5F",
-        "text-halo-color": "rgba(255, 255, 255, 0.95)",
-        "text-halo-width": 2.5,
-        "text-halo-blur": 0.5,
+        "text-color": "#2d4a6f",
+        "text-halo-color": "rgba(255, 255, 255, 0.92)",
+        "text-halo-width": 2,
+        "text-halo-blur": 0.3,
       },
+    })
+
+    // Add building labels LAST so they render on top of everything
+    // Buildings have higher priority - they ignore placement from roads
+    this.map.addLayer({
+      id: "buildings-label",
+      type: "symbol",
+      source: "buildings",
+      layout: {
+        visibility: "visible",
+        "text-field": ["case", ["!=", ["get", "name"], " "], ["get", "name"], ""],
+        "text-size": 13,
+        "text-font": ["DIN Pro Bold", "Arial Unicode MS Bold"],
+        "text-anchor": "center",
+        "text-allow-overlap": true,
+        "text-ignore-placement": true,
+        "text-max-width": 8,
+        "text-letter-spacing": 0.03,
+        "text-padding": 2,
+      },
+      paint: {
+        "text-color": "#1a1a2e",
+        "text-halo-color": "rgba(255, 255, 255, 0.98)",
+        "text-halo-width": 2,
+        "text-halo-blur": 0.3,
+      },
+      filter: ["!=", ["get", "name"], " "],
     })
 
     // Note: fitBounds removed - intro animation handles initial positioning
@@ -1098,6 +1131,31 @@ class MapManager {
     })
   }
 
+  cycleLightPreset() {
+    // Only works with Standard style
+    if (!this.map.getConfigProperty) {
+      console.log("Light presets are only available with Mapbox Standard style")
+      return
+    }
+
+    const presets = CONFIG.map.lightPresets
+    this.currentLightPresetIndex = (this.currentLightPresetIndex + 1) % presets.length
+    const newPreset = presets[this.currentLightPresetIndex]
+
+    try {
+      this.map.setConfigProperty("basemap", "lightPreset", newPreset)
+      
+      // Update button tooltip with current preset
+      const btn = document.getElementById("btnLightPreset")
+      if (btn) {
+        const presetName = newPreset.charAt(0).toUpperCase() + newPreset.slice(1)
+        btn.title = `Change time of day (${presetName})`
+      }
+    } catch (e) {
+      console.log("Light preset not supported for this style")
+    }
+  }
+
   addDataLayers() {
     const { roads, buildings, footpath, grass, greenArea, sportArena } =
       this.layerData
@@ -1301,31 +1359,6 @@ class MapManager {
           visibility: this.layerVisibility.buildings ? "visible" : "none",
         },
       })
-      // Re-add building labels layer
-      this.map.addLayer({
-        id: "buildings-label",
-        type: "symbol",
-        source: "buildings",
-        layout: {
-          visibility: this.layerVisibility.buildings ? "visible" : "none",
-          "text-field": ["case", ["!=", ["get", "name"], " "], ["get", "name"], ""],
-          "text-size": 12,
-          "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
-          "text-anchor": "center",
-          "text-allow-overlap": false,
-          "text-ignore-placement": false,
-          "text-max-width": 10,
-          "text-letter-spacing": 0.02,
-          "text-padding": 8,
-        },
-        paint: {
-          "text-color": "#ffffff",
-          "text-halo-color": "rgba(255, 140, 0, 0.95)",
-          "text-halo-width": 2.5,
-          "text-halo-blur": 0.5,
-        },
-        filter: ["!=", ["get", "name"], " "],
-      })
 
       // Re-setup building interactions after style change
       this.setupBuildingInteractions()
@@ -1351,18 +1384,49 @@ class MapManager {
           visibility: this.layerVisibility.roads ? "visible" : "none",
           "symbol-placement": "line",
           "text-field": ["get", "name"],
-          "text-size": 12,
-          "text-font": ["Open Sans Semibold", "Arial Unicode MS Regular"],
+          "text-size": 11,
+          "text-font": ["DIN Pro Medium", "Arial Unicode MS Regular"],
           "text-letter-spacing": 0.05,
-          "symbol-spacing": 300,
+          "symbol-spacing": 350,
           "text-max-angle": 30,
+          "text-allow-overlap": false,
+          "text-ignore-placement": false,
         },
         paint: {
-          "text-color": "#1E3A5F",
-          "text-halo-color": "rgba(255, 255, 255, 0.95)",
-          "text-halo-width": 2.5,
-          "text-halo-blur": 0.5,
+          "text-color": "#2d4a6f",
+          "text-halo-color": "rgba(255, 255, 255, 0.92)",
+          "text-halo-width": 2,
+          "text-halo-blur": 0.3,
         },
+      })
+    }
+
+    // Re-add building labels LAST so they render on top of roads
+    // Buildings have higher priority - they ignore placement from roads
+    if (this.map.getSource("buildings") && !this.map.getLayer("buildings-label")) {
+      this.map.addLayer({
+        id: "buildings-label",
+        type: "symbol",
+        source: "buildings",
+        layout: {
+          visibility: this.layerVisibility.buildings ? "visible" : "none",
+          "text-field": ["case", ["!=", ["get", "name"], " "], ["get", "name"], ""],
+          "text-size": 13,
+          "text-font": ["DIN Pro Bold", "Arial Unicode MS Bold"],
+          "text-anchor": "center",
+          "text-allow-overlap": true,
+          "text-ignore-placement": true,
+          "text-max-width": 8,
+          "text-letter-spacing": 0.03,
+          "text-padding": 2,
+        },
+        paint: {
+          "text-color": "#1a1a2e",
+          "text-halo-color": "rgba(255, 255, 255, 0.98)",
+          "text-halo-width": 2,
+          "text-halo-blur": 0.3,
+        },
+        filter: ["!=", ["get", "name"], " "],
       })
     }
   }
