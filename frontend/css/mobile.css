@@ -12,7 +12,7 @@
         max-height: 60vh;
         border-radius: var(--radius-lg) var(--radius-lg) 0 0;
         transform: translateY(calc(100% - 72px));
-            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
         z-index: 1001;
         box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
     }
@@ -21,18 +21,18 @@
         transform: translateY(0);
     }
 
-                                                                /* Footer header with drag handle */
+        /* Footer header with drag handle */
     .sidebar-brand {
         padding: var(--space-md) var(--space-lg);
         cursor: pointer;
         position: relative;
-            display: flex;
+        display: flex;
             align-items: center;
             gap: var(--space-md);
     }
 
-                                                                /* Visible drag handle indicator */
-                                                                .sidebar-brand::before {
+        /* Visible drag handle indicator */
+        .sidebar-brand::before {
         content: '';
         position: absolute;
         top: 8px;
@@ -43,11 +43,9 @@
         background: var(--text-disabled);
         border-radius: var(--radius-pill);
         transition: background 0.2s ease;
-        }
-        
-        .sidebar:hover .sidebar-brand::before,
-        .sidebar.expanded .sidebar-brand::before {
-            background: var(--accent-primary);
+    .sidebar:hover .sidebar-brand::before,
+    .sidebar.expanded .sidebar-brand::before {
+        background: var(--accent-primary);
     }
 
     .sidebar-mascot {
@@ -59,11 +57,11 @@
         font-size: 15px;
     }
 
-                                                                .sidebar-subtitle {
-                                                                    font-size: 9px;
-                                                                }
-                                
-                                                                /* Footer content sections */
+        .sidebar-subtitle {
+            font-size: 9px;
+        }
+    
+        /* Footer content sections */
     .sidebar-section {
         padding: var(--space-md) var(--space-lg);
     }
@@ -78,7 +76,7 @@
 
     .sidebar-actions {
         padding: var(--space-md) var(--space-lg);
-            padding-bottom: calc(var(--space-md) + env(safe-area-inset-bottom, 0));
+        padding-bottom: calc(var(--space-md) + env(safe-area-inset-bottom, 0));
     }
 
     .sidebar-actions .btn {
@@ -86,7 +84,7 @@
         font-size: 11px;
     }
 
-                                                                /* Transport toggle repositioned for mobile footer */
+        /* Transport toggle repositioned for mobile footer */
     .transport-mode-toggle {
         bottom: 80px;
         left: 50%;
@@ -113,7 +111,7 @@
         top: var(--space-lg);
         right: var(--space-sm);
         max-height: calc(100vh - 180px);
-            overflow-y: auto;
+        overflow-y: auto;
     }
 
     .map-control-btn {
@@ -131,7 +129,7 @@
     .voice-mascot-avatar-btn,
     .voice-mascot-ring {
         width: 44px;
-            height: 44px;
+        height: 44px;
     }
 
     .voice-bubble {
@@ -144,15 +142,15 @@
         max-height: 100px;
     }
 
-                                                                /* Navigation buttons - horizontal in footer */
+        /* Navigation buttons - horizontal in footer */
     .nav-point-buttons {
         flex-direction: row;
-            gap: var(--space-sm);
+        gap: var(--space-sm);
     }
 
     .nav-point-btn {
         padding: var(--space-sm) var(--space-md);
-            flex: 1;
+        flex: 1;
         }
         
         .nav-point-text {
@@ -166,38 +164,40 @@
 
     .popup-action-buttons {
         flex-direction: row;
-            gap: var(--space-sm);
+        gap: var(--space-sm);
     }
-/* Splash screen mobile */
-.splash-mascot {
-    width: 120px;
-    height: 120px;
-}
 
-                .splash-title {
-                    font-size: 28px;
-                }
+        /* Splash screen mobile */
+        .splash-mascot {
+            width: 120px;
+            height: 120px;
+        }
 
-                .splash-subtitle {
-                    font-size: 14px;
-                }
+        .splash-title {
+            font-size: 28px;
+        }
 
-                .splash-start-btn {
-                    padding: var(--space-md) var(--space-xl);
-                    font-size: 14px;
-                }
+        .splash-subtitle {
+            font-size: 14px;
+        }
 
-                .splash-footer {
-                    padding: var(--space-md);
-                }
+        .splash-start-btn {
+            padding: var(--space-md) var(--space-xl);
+            font-size: 14px;
+        }
 
-                .splash-nasrda-logo {
-                    width: 40px;
-                    height: 40px;
+        .splash-footer {
+            padding: var(--space-md);
+        }
+
+        .splash-nasrda-logo {
+            width: 40px;
+            height: 40px;
+    
         /* Safe area for notched phones */
         .sidebar-actions {
             padding-bottom: calc(var(--space-lg) + env(safe-area-inset-bottom, 0));
-}
+        }
 }
 
 /* Regular phones (481px - 768px) */
@@ -214,7 +214,7 @@
         max-height: 55vh;
         border-radius: var(--radius-lg) var(--radius-lg) 0 0;
         transform: translateY(calc(100% - 80px));
-            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
         z-index: 1001;
         box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
     }
@@ -240,11 +240,9 @@
         background: var(--text-disabled);
         border-radius: var(--radius-pill);
         transition: background 0.2s ease;
-        }
-        
-        .sidebar:hover .sidebar-brand::before,
-        .sidebar.expanded .sidebar-brand::before {
-            background: var(--accent-primary);
+    .sidebar:hover .sidebar-brand::before,
+    .sidebar.expanded .sidebar-brand::before {
+        background: var(--accent-primary);
     }
 
     .sidebar-directions {
@@ -258,7 +256,7 @@
         /* Transport toggle positioned above footer */
     .transport-mode-toggle {
         bottom: 90px;
-            top: auto;
+        top: auto;
         left: 50%;
         transform: translateX(-50%);
         right: auto;
@@ -272,11 +270,9 @@
     /* Voice mascot */
     .voice-mascot {
         bottom: 100px;
-        }
-        
-        /* Safe area for notched phones */
-        .sidebar-actions {
-            padding-bottom: calc(var(--space-lg) + env(safe-area-inset-bottom, 0));
+    /* Safe area for notched phones */
+    .sidebar-actions {
+        padding-bottom: calc(var(--space-lg) + env(safe-area-inset-bottom, 0));
     }
 }
 
@@ -296,7 +292,6 @@
 
 /* Touch device optimizations */
 @media (pointer: coarse) {
-
     .nav-point-btn,
     .map-control-btn,
     .transport-mode-btn,
@@ -399,11 +394,10 @@ body.navigation-active .exit-navigation-btn {
 
 /* Reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
-
     .sidebar,
     .voice-mascot,
     .transport-mode-toggle,
-        .offline-indicator,
+    .offline-indicator,
         .offline-map-indicator,
         .slow-connection-indicator,
         .pwa-install-btn,
@@ -413,10 +407,10 @@ body.navigation-active .exit-navigation-btn {
 
     .splash-mascot,
     .voice-mascot-avatar,
-                .route-mascot-marker img,
-                .offline-indicator svg,
-                .offline-map-indicator svg,
-                .slow-connection-indicator svg {
+        .route-mascot-marker img,
+        .offline-indicator svg,
+        .offline-map-indicator svg,
+        .slow-connection-indicator svg {
         animation: none;
     }
 }
